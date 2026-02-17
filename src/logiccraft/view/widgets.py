@@ -1,4 +1,5 @@
 import flet as ft
+import time
 
 
 class UMLCard(ft.GestureDetector):
@@ -23,6 +24,10 @@ class UMLCard(ft.GestureDetector):
         
         self.on_select_callback = on_select
         self.on_move_callback = on_move
+        
+        # Throttling для оптимизации частоты обновления
+        self._last_update_time = 0
+        self._update_interval = 1/60  # 60 FPS максимум
         
         self.width = 160
         self.height = 100
@@ -136,12 +141,11 @@ class UMLCard(ft.GestureDetector):
         self.update()
     
     def _on_drag_update(self, e: ft.DragUpdateEvent):
-        """Update position while dragging"""
+        """Update position while dragging (с throttling для оптимизации)"""
         if not self.dragging:
             return
         
         # Flet DragUpdateEvent provides local_position with current x, y
-        # We calculate delta from the start of drag
         current_x = e.local_position.x
         current_y = e.local_position.y
         
@@ -153,10 +157,16 @@ class UMLCard(ft.GestureDetector):
         self.left = self.card_x
         self.top = self.card_y
         
-        if self.on_move_callback:
-            self.on_move_callback(self, self.card_x, self.card_y)
-        
-        self.update()
+        # Throttling: обновляем UI не чаще 60 FPS
+        current_time = time.time()
+        if current_time - self._last_update_time >= self._update_interval:
+            self._last_update_time = current_time
+            
+            # Callback только при обновлении UI (реже)
+            if self.on_move_callback:
+                self.on_move_callback(self, self.card_x, self.card_y)
+            
+            self.update()
     
     def _on_drag_end(self, e: ft.DragEndEvent):
         """End dragging"""
