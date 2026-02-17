@@ -1,26 +1,68 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from enum import Enum
+from uuid import uuid4
+from typing import Optional
 
-class PropertyModel(BaseModel):
+
+class UMLProperty(BaseModel):
+    #свойства
     name: str
-    type: str = "str"
-    default: Optional[str] = None
+    type: str
+    visibility: str = "public"
+    is_static: bool = False
+    default_value: Optional[str] = None
 
-class NodeModel(BaseModel):
-    id: str
-    type: str  # "class" или "state"
+
+class UMLMethod(BaseModel):
+    # методы
+    name: str
+    return_type: Optional[str] = "void"
+    visibility: str = "public"
+    is_abstract: bool = False
+    is_static: bool = False
+    parameters: list[UMLProperty] = Field(default_factory=list)
+
+
+class UMLNode(BaseModel):
+    """UML class node model with position and members."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
     name: str
     x: float
     y: float
-    properties: List[PropertyModel] = []
-    methods: List[str] = []
+    properties: list[UMLProperty] = []  #свойства
+    methods: list[UMLMethod] = []  #методы
+    is_abstract: bool = False
+    stereotype: Optional[str] = None
 
-class EdgeModel(BaseModel):
-    id: str
+
+class ConnectionType(str, Enum):
+    #типы соединения
+    association = "association"  # простая связь
+    interaction = "interaction"  # взаимодействие
+    realization = "realization"  # интерфейса
+    inheritance = "inheritance"  # наследование
+    dependency = "dependency"  # зависимость
+
+
+class UMLConnection(BaseModel):
+     #соединения между 2 узлами
+    id: str = Field(default_factory=lambda: str(uuid4()))
     source_id: str
     target_id: str
-    label: Optional[str] = None
+    type: ConnectionType
+    multiplicity: Optional[str] = None
+    name: Optional[str] = None
 
-class DiagramModel(BaseModel):
-    nodes: List[NodeModel] = []
-    edges: List[EdgeModel] = []
+
+class UMLDiagram(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    name: str
+    nodes: list[UMLNode]
+    connections: list[UMLConnection]
+
+
+# Backward compatibility aliases
+PropertyModel = UMLProperty
+NodeModel = UMLNode
+EdgeModel = UMLConnection
+DiagramModel = UMLDiagram
