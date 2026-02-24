@@ -12,7 +12,7 @@ if str(root_path) not in sys.path:
 from logiccraft.view.editor import DiagramEditor
 from logiccraft.controllers.api_server import app as fastapi_app
 
-async def main_window(page: ft.Page):
+def main_window(page: ft.Page):
     page.title = "LogicCraft UML Architect"
     page.theme_mode = ft.ThemeMode.DARK
     page.bgcolor = ft.Colors.BLUE_GREY_900
@@ -35,5 +35,5 @@ if __name__ == "__main__":
     api_thread.start()
 
     # 2. Запускаем Flet в основном потоке (Mac это любит)
-    # Используем современный ft.app, который сам создаст нужный loop
-    ft.app(target=main_window)
+    # Используем современный ft.run, который сам создаст нужный loop
+    ft.run(main_window)

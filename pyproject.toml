@@ -15,9 +15,71 @@ dependencies = [
     "jinja2>=3.1.0"
 ]
 
+# Optional: Add classifiers for PyPI
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Documentation"
+]
+
+# Optional: Add dynamic metadata
+dynamic = ["readme"]
+
+# Optional: Add scripts for easy execution
+[project.scripts]
+logiccraft = "logiccraft.main:main_window"
+
+# Optional: Add GUI scripts
+[project.gui-scripts]
+logiccraft-gui = "logiccraft.main:main_window"
+
+# Add development dependencies
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0.0"
+black = "^24.0.0"
+flake8 = "^7.0.0"
+mypy = "^1.8.0"
+pre-commit = "^3.5.0"
+
+# Package configuration
 [tool.poetry]
 packages = [{include = "logiccraft", from = "src"}]
 
+# Build system configuration
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+# Tool configurations
+[tool.black]
+line-length = 88
+target-version = ['py313']
+include = '\.pyi?$'
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/test/*", "*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]

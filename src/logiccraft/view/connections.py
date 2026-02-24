@@ -47,7 +47,7 @@ class AnchorPoint:
         return best_anchor
 
 
-class ConnectionLine(ft.canvas.Canvas):
+class ConnectionLine(ft.Container):
     """Visual line connecting two UML cards."""
     
     def __init__(
@@ -91,20 +91,26 @@ class ConnectionLine(ft.canvas.Canvas):
         tgt_anchor = AnchorPoint.find_best_anchor(tgt_x, tgt_y, tgt_width, tgt_height,
                                                    src_x + src_width / 2, src_y + src_height / 2)
         
-        # Create line
-        self.shapes = [
-            ft.canvas.Path(
-                [
-                    ft.canvas.Path.MoveTo(src_anchor.x, src_anchor.y),
-                    ft.canvas.Path.LineTo(tgt_anchor.x, tgt_anchor.y),
-                ],
-                paint=ft.Paint(
-                    color=self.line_color,
-                    stroke_width=self.line_width,
-                    style=ft.PaintingStyle.STROKE,
-                ),
-            )
-        ]
+        # Calculate line properties
+        line_length = math.sqrt((tgt_anchor.x - src_anchor.x)**2 + (tgt_anchor.y - src_anchor.y)**2)
+        angle = math.atan2(tgt_anchor.y - src_anchor.y, tgt_anchor.x - src_anchor.x)
+        
+        # Calculate midpoint for positioning
+        mid_x = (src_anchor.x + tgt_anchor.x) / 2
+        mid_y = (src_anchor.y + tgt_anchor.y) / 2
+        
+        # Create line using a rotated container
+        line_container = ft.Container(
+            width=line_length,
+            height=self.line_width,
+            bgcolor=self.line_color,
+            rotate=ft.Rotate(angle),
+            left=mid_x - line_length/2,
+            top=mid_y - self.line_width/2,
+        )
+        
+        # Add the line to content
+        self.content = line_container
     
     def update_line(self):
         """Update line position when cards move."""
@@ -119,7 +125,7 @@ class ConnectionManager:
     def __init__(self, canvas: ft.Stack):
         self.canvas = canvas
         self.connections: list[ConnectionLine] = []
-        self._connection_lines: list[ft.canvas.Canvas] = []
+        self._connection_lines: list[ft.Container] = []  # Changed from ft.canvas.Canvas to ft.Container
     
     def add_connection(
         self,

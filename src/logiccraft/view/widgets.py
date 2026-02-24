@@ -12,7 +12,10 @@ class UMLCard(ft.GestureDetector):
         
         self.card_x = x
         self.card_y = y
+        self.x = x  # Added for compatibility with tests
+        self.y = y  # Added for compatibility with tests
         self.card_name = name
+        self.name = name  # Added for compatibility with tests
         self.attributes = attributes or []
         self.methods = methods or []
         self.selected = False
@@ -153,6 +156,10 @@ class UMLCard(ft.GestureDetector):
         self.card_x = max(0, self.card_start_x + current_x)
         self.card_y = max(0, self.card_start_y + current_y)
         
+        # Update the x, y attributes as well
+        self.x = self.card_x
+        self.y = self.card_y
+        
         # Apply position to visual container
         self.left = self.card_x
         self.top = self.card_y
@@ -190,6 +197,9 @@ class UMLCard(ft.GestureDetector):
         """Update card content"""
         if name:
             self.card_name = name
+            self.name = name  # Update the name attribute too
+            self.x = self.card_x  # Maintain consistency
+            self.y = self.card_y  # Maintain consistency
         if attributes is not None:
             self.attributes = attributes
         if methods is not None:

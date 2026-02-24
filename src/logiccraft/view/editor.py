@@ -2,7 +2,7 @@ import flet as ft
 from pathlib import Path
 from logiccraft.view.widgets import UMLCard
 from logiccraft.view.connections import ConnectionManager, ConnectionLine
-from logiccraft.utils.diagram_io import save_diagram, load_diagram
+# Removed direct import of save_diagram and load_diagram to break circular import
 import random
 
 
@@ -26,10 +26,10 @@ class DiagramEditor(ft.Column):
     
     def _build_ui(self):
         """Build the editor UI"""
-        # File picker for save/load
-        self.file_picker = ft.FilePicker(
-            on_result=self._on_file_picked
-        )
+        # File picker for save/load - using the correct API for this Flet version
+        self.file_picker = ft.FilePicker()
+        # Set the callback after creating the instance, or use the correct parameter name
+        self.file_picker.on_result = self._on_file_picked
         
         # Toolbar
         self.toolbar = ft.Container(
@@ -210,13 +210,14 @@ class DiagramEditor(ft.Column):
             allow_multiple=False
         )
     
-    def _on_file_picked(self, e: ft.FilePickerResultEvent):
+    def _on_file_picked(self, e):  # Fixed: removed type hint to avoid API version issues
         """Handle file picker result"""
         if not e.path and not e.files:
             return
         
         if self._file_picker_mode == 'save':
-            # Save diagram
+            # Save diagram - dynamically import to avoid circular import
+            from logiccraft.utils.diagram_io import save_diagram
             filepath = e.path
             if not filepath.endswith('.json'):
                 filepath += '.json'
@@ -227,7 +228,8 @@ class DiagramEditor(ft.Column):
                 print(f"Error saving diagram: {ex}")
         
         elif self._file_picker_mode == 'load':
-            # Load diagram
+            # Load diagram - dynamically import to avoid circular import
+            from logiccraft.utils.diagram_io import load_diagram
             if e.files:
                 filepath = e.files[0].path
                 try:
@@ -239,7 +241,7 @@ class DiagramEditor(ft.Column):
                     )
                     for card in loaded_cards:
                         self.cards.append(card)
-                        self.canvas.content.controls.append(card)
+                        self.canvas_stack.controls.append(card)  # Fixed: was self.canvas.content.controls
                     self.card_counter = len(self.cards)
                     self._update_counter()
                     self.update()
