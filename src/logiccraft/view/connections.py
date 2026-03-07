@@ -47,8 +47,8 @@ class AnchorPoint:
         return best_anchor
 
 
-class ConnectionLine(ft.Container):
-    """Visual line connecting two UML cards."""
+class ConnectionLine(ft.GestureDetector):
+    """Visual line connecting two UML cards using ft.canvas."""
     
     def __init__(
         self,
@@ -69,10 +69,14 @@ class ConnectionLine(ft.Container):
         self.line_color = ft.Colors.BLUE_GREY_700
         self.line_width = 2
         
+        # Create canvas for drawing
+        self.canvas = ft.Canvas(expand=True)
+        self.content = self.canvas
+        
         self._draw_line()
     
     def _draw_line(self):
-        """Draw the connection line between two cards."""
+        """Draw the connection line between two cards using canvas."""
         # Get source position
         src_x = getattr(self.source_card, 'card_x', self.source_card.left)
         src_y = getattr(self.source_card, 'card_y', self.source_card.top)
@@ -91,26 +95,22 @@ class ConnectionLine(ft.Container):
         tgt_anchor = AnchorPoint.find_best_anchor(tgt_x, tgt_y, tgt_width, tgt_height,
                                                    src_x + src_width / 2, src_y + src_height / 2)
         
-        # Calculate line properties
-        line_length = math.sqrt((tgt_anchor.x - src_anchor.x)**2 + (tgt_anchor.y - src_anchor.y)**2)
-        angle = math.atan2(tgt_anchor.y - src_anchor.y, tgt_anchor.x - src_anchor.x)
+        # Draw line on canvas
+        path = ft.canvas.Path()
+        path.move_to(src_anchor.x, src_anchor.y)
+        path.line_to(tgt_anchor.x, tgt_anchor.y)
         
-        # Calculate midpoint for positioning
-        mid_x = (src_anchor.x + tgt_anchor.x) / 2
-        mid_y = (src_anchor.y + tgt_anchor.y) / 2
-        
-        # Create line using a rotated container
-        line_container = ft.Container(
-            width=line_length,
-            height=self.line_width,
-            bgcolor=self.line_color,
-            rotate=ft.Rotate(angle),
-            left=mid_x - line_length/2,
-            top=mid_y - self.line_width/2,
-        )
-        
-        # Add the line to content
-        self.content = line_container
+        self.canvas.shapes = [
+            ft.canvas.Path(
+                [path],
+                paint=ft.Paint(
+                    color=self.line_color,
+                    stroke_width=self.line_width,
+                    style=ft.PaintingStyle.STROKE,
+                    stroke_cap=ft.StrokeCap.ROUND,
+                ),
+            )
+        ]
     
     def update_line(self):
         """Update line position when cards move."""
@@ -125,7 +125,7 @@ class ConnectionManager:
     def __init__(self, canvas: ft.Stack):
         self.canvas = canvas
         self.connections: list[ConnectionLine] = []
-        self._connection_lines: list[ft.Container] = []  # Changed from ft.canvas.Canvas to ft.Container
+        self._connection_lines: list[ConnectionLine] = []
     
     def add_connection(
         self,
