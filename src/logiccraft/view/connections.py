@@ -76,33 +76,28 @@ class ConnectionLine(ft.GestureDetector):
         self._draw_line()
     
     def _draw_line(self):
-        """Draw the connection line between two cards using canvas."""
-        # Get source position
-        src_x = getattr(self.source_card, 'card_x', self.source_card.left)
-        src_y = getattr(self.source_card, 'card_y', self.source_card.top)
+        """Соединительная линия с использованием ft.canvas."""
+        src_x = getattr(self.source_card, 'card_x', getattr(self.source_card, 'left', 0))
+        src_y = getattr(self.source_card, 'card_y', getattr(self.source_card, 'top', 0))
         src_width = getattr(self.source_card, 'width', 160)
         src_height = getattr(self.source_card, 'height', 100)
         
-        # Get target position
-        tgt_x = getattr(self.target_card, 'card_x', self.target_card.left)
-        tgt_y = getattr(self.target_card, 'card_y', self.target_card.top)
+        tgt_x = getattr(self.target_card, 'card_x', getattr(self.target_card, 'left', 0))
+        tgt_y = getattr(self.target_card, 'card_y', getattr(self.target_card, 'top', 0))
         tgt_width = getattr(self.target_card, 'width', 160)
         tgt_height = getattr(self.target_card, 'height', 100)
         
-        # Find best anchor points
+        
         src_anchor = AnchorPoint.find_best_anchor(src_x, src_y, src_width, src_height, 
                                                    tgt_x + tgt_width / 2, tgt_y + tgt_height / 2)
         tgt_anchor = AnchorPoint.find_best_anchor(tgt_x, tgt_y, tgt_width, tgt_height,
                                                    src_x + src_width / 2, src_y + src_height / 2)
         
-        # Draw line on canvas
-        path = ft.canvas.Path()
-        path.move_to(src_anchor.x, src_anchor.y)
-        path.line_to(tgt_anchor.x, tgt_anchor.y)
-        
+        # Рисование линии с помощью ft.canvas.Line
         self.canvas.shapes = [
-            ft.canvas.Path(
-                [path],
+            ft.canvas.Line(
+                [src_anchor.x, src_anchor.y],
+                [tgt_anchor.x, tgt_anchor.y],
                 paint=ft.Paint(
                     color=self.line_color,
                     stroke_width=self.line_width,
