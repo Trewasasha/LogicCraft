@@ -34,6 +34,26 @@ class UMLNode(BaseModel):
     is_abstract: bool = False
     stereotype: Optional[str] = None
 
+    def add_attribute(self, name: str, type: str, visibility: str = "public", 
+                     is_static: bool = False, default_value: Optional[str] = None) -> None:
+      
+        prop = UMLProperty(
+            name=name,
+            type=type,
+            visibility=visibility,
+            is_static=is_static,
+            default_value=default_value
+        )
+        self.properties.append(prop)
+
+    def remove_method(self, method_name: str) -> bool:
+       
+        for i, method in enumerate(self.methods):
+            if method.name == method_name:
+                self.methods.pop(i)
+                return True
+        return False
+
 
 class ConnectionType(str, Enum):
     #типы соединения
