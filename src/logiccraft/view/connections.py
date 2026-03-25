@@ -1,167 +1,193 @@
 """Connection lines and anchors for UML diagrams."""
 
 import flet as ft
+from flet.canvas import Canvas, Line
 import math
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 
 
 class AnchorPoint:
-    """Anchor point on the edge of a UML card for connecting lines."""
-    
-    # Anchor positions
+    """Точки привязки на гранях карточки UML."""
     TOP = "top"
     BOTTOM = "bottom"
     LEFT = "left"
     RIGHT = "right"
-    
-    def __init__(self, position: str, x: float, y: float):
-        self.position = position  # top, bottom, left, right
-        self.x = x
-        self.y = y
-    
+
     @staticmethod
-    def calculate_anchors(card_x: float, card_y: float, width: float, height: float) -> dict[str, 'AnchorPoint']:
-        """Calculate anchor points for a card."""
+    def calculate_anchors(card_x: float, card_y: float, width: float, height: float) -> dict:
         return {
-            AnchorPoint.TOP: AnchorPoint(AnchorPoint.TOP, card_x + width / 2, card_y),
-            AnchorPoint.BOTTOM: AnchorPoint(AnchorPoint.BOTTOM, card_x + width / 2, card_y + height),
-            AnchorPoint.LEFT: AnchorPoint(AnchorPoint.LEFT, card_x, card_y + height / 2),
-            AnchorPoint.RIGHT: AnchorPoint(AnchorPoint.RIGHT, card_x + width, card_y + height / 2),
+            "top": (card_x + width / 2, card_y),
+            "bottom": (card_x + width / 2, card_y + height),
+            "left": (card_x, card_y + height / 2),
+            "right": (card_x + width, card_y + height / 2),
         }
-    
-    @staticmethod
-    def find_best_anchor(card_x: float, card_y: float, width: float, height: float, 
-                         target_x: float, target_y: float) -> 'AnchorPoint':
-        """Find the best anchor point to connect to a target position."""
-        anchors = AnchorPoint.calculate_anchors(card_x, card_y, width, height)
-        
-        best_anchor = None
-        min_distance = float('inf')
-        
-        for anchor in anchors.values():
-            distance = math.sqrt((anchor.x - target_x) ** 2 + (anchor.y - target_y) ** 2)
-            if distance < min_distance:
-                min_distance = distance
-                best_anchor = anchor
-        
-        return best_anchor
 
 
-class ConnectionLine(ft.GestureDetector):
-    """Visual line connecting two UML cards using ft.canvas."""
-    
-    def __init__(
-        self,
-        source_card: ft.Control,
-        target_card: ft.Control,
-        connection_type: str = "association",
-        on_update: Optional[Callable] = None
-    ):
+class AnchorHandle(ft.GestureDetector):
+    """Интерактивная ручка для изменения точки привязки линии."""
+
+    def __init__(self, card: ft.Control, position: str, on_drag: Callable, size: int = 14):
         super().__init__()
+        self.card = card
+        self.position = position
+        self.on_drag_callback = on_drag
+        self.size = size
+
+        self.handle = ft.Container(
+            width=size,
+            height=size,
+            bgcolor=ft.Colors.RED_ACCENT,
+            border_radius=ft.BorderRadius.all(size / 2),
+            border=ft.border.all(2, ft.Colors.WHITE),
+            visible=False,
+            shadow=ft.BoxShadow(blur_radius=4, color=ft.Colors.BLACK26)
+        )
+        self.content = self.handle
+        self.on_pan_update = self._on_pan_update
+
+    def update_position(self):
+        """Синхронизация положения ручки с карточкой."""
+        cw = getattr(self.card, "width", 160) or 160
+        ch = getattr(self.card, "height", 100) or 100
+        cx = getattr(self.card, "left", 0)
+        cy = getattr(self.card, "top", 0)
+
+        anchors = AnchorPoint.calculate_anchors(cx, cy, cw, ch)
+        coords = anchors.get(self.position)
+        if coords:
+            self.left = coords[0] - self.size / 2
+            self.top = coords[1] - self.size / 2
+            if self.page:
+                self.update()
+
+    def _on_pan_update(self, e: ft.DragUpdateEvent):
+        mx = getattr(e, "global_x", getattr(e, "gx", 0))
+        my = getattr(e, "global_y", getattr(e, "gy", 0))
+        if self.on_drag_callback:
+            self.on_drag_callback(self, mx, my)
+
+
+class ConnectionLine(ft.Stack):
+    """Визуальная линия связи с умным определением клика."""
+
+    def __init__(self, source_card: ft.Control, target_card: ft.Control):
+        super().__init__()
+        self.pick_self = False
         self.expand = True
-        
+
         self.source_card = source_card
         self.target_card = target_card
-        self.connection_type = connection_type
-        self.on_update_callback = on_update
-        
-        # Line properties
-        self.line_color = ft.Colors.BLUE_GREY_700
-        self.line_width = 2
-        
-        # Create canvas for drawing
-        self.canvas = ft.Canvas(expand=True)
-        self.content = self.canvas
-        
-        self._draw_line()
-    
-    def _draw_line(self):
-        """Соединительная линия с использованием ft.canvas."""
-        src_x = getattr(self.source_card, 'card_x', getattr(self.source_card, 'left', 0))
-        src_y = getattr(self.source_card, 'card_y', getattr(self.source_card, 'top', 0))
-        src_width = getattr(self.source_card, 'width', 160)
-        src_height = getattr(self.source_card, 'height', 100)
-        
-        tgt_x = getattr(self.target_card, 'card_x', getattr(self.target_card, 'left', 0))
-        tgt_y = getattr(self.target_card, 'card_y', getattr(self.target_card, 'top', 0))
-        tgt_width = getattr(self.target_card, 'width', 160)
-        tgt_height = getattr(self.target_card, 'height', 100)
-        
-        
-        src_anchor = AnchorPoint.find_best_anchor(src_x, src_y, src_width, src_height, 
-                                                   tgt_x + tgt_width / 2, tgt_y + tgt_height / 2)
-        tgt_anchor = AnchorPoint.find_best_anchor(tgt_x, tgt_y, tgt_width, tgt_height,
-                                                   src_x + src_width / 2, src_y + src_height / 2)
-        
-        # Рисование линии с помощью ft.canvas.Line
-        self.canvas.shapes = [
-            ft.canvas.Line(
-                [src_anchor.x, src_anchor.y],
-                [tgt_anchor.x, tgt_anchor.y],
-                paint=ft.Paint(
-                    color=self.line_color,
-                    stroke_width=self.line_width,
-                    style=ft.PaintingStyle.STROKE,
-                    stroke_cap=ft.StrokeCap.ROUND,
-                ),
-            )
-        ]
-    
+        self.source_pos = "right"
+        self.target_pos = "left"
+        self.is_selected = False
+
+        self.canvas = Canvas(expand=True)
+
+        # Убрали mouse_cursor, чтобы избежать AttributeError
+        self.click_detector = ft.GestureDetector(
+            on_tap=self._on_maybe_tap_line,
+            expand=True
+        )
+
+        self.source_handle = AnchorHandle(source_card, self.source_pos, self._on_source_drag)
+        self.target_handle = AnchorHandle(target_card, self.target_pos, self._on_target_drag)
+
+        self.controls = [self.canvas, self.click_detector, self.source_handle, self.target_handle]
+
+    def _on_maybe_tap_line(self, e: ft.TapEvent):
+        """Проверка попадания по линии."""
+        lx = getattr(e, "local_x", getattr(e, "lx", None))
+        ly = getattr(e, "local_y", getattr(e, "ly", None))
+
+        if lx is None or ly is None:
+            return
+
+        p1 = self._get_coords(self.source_card, self.source_pos)
+        p2 = self._get_coords(self.target_card, self.target_pos)
+
+        dist = self._dist_to_line(lx, ly, p1[0], p1[1], p2[0], p2[1])
+
+        if dist < 20:
+            self._toggle_edit_mode()
+        elif self.is_selected:
+            self._toggle_edit_mode()
+
+    def _dist_to_line(self, px, py, x1, y1, x2, y2):
+        l2 = (x1 - x2)**2 + (y1 - y2)**2
+        if l2 == 0: return math.sqrt((px - x1)**2 + (py - y1)**2)
+        t = max(0, min(1, ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2))
+        return math.sqrt((px - (x1 + t * (x2 - x1)))**2 + (py - (y1 + t * (y2 - y1)))**2)
+
+    def _get_coords(self, card, pos):
+        cw = getattr(card, "width", 160) or 160
+        ch = getattr(card, "height", 100) or 100
+        cx = getattr(card, "left", 0)
+        cy = getattr(card, "top", 0)
+        return AnchorPoint.calculate_anchors(cx, cy, cw, ch)[pos]
+
+    def _toggle_edit_mode(self):
+        self.is_selected = not self.is_selected
+        self.source_handle.handle.visible = self.is_selected
+        self.target_handle.handle.visible = self.is_selected
+        self.update_line()
+        if self.page:
+            self.update()
+
+    def _on_source_drag(self, handle, mx, my):
+        self.source_pos = self._find_nearest(self.source_card, mx, my)
+        self.update_line()
+
+    def _on_target_drag(self, handle, mx, my):
+        self.target_pos = self._find_nearest(self.target_card, mx, my)
+        self.update_line()
+
+    def _find_nearest(self, card, mx, my) -> str:
+        cw = getattr(card, "width", 160) or 160
+        ch = getattr(card, "height", 100) or 100
+        cx = getattr(card, "left", 0)
+        cy = getattr(card, "top", 0)
+        anchors = AnchorPoint.calculate_anchors(cx, cy, cw, ch)
+
+        best_name = "top"
+        min_dist = float("inf")
+        for name, (ax, ay) in anchors.items():
+            dist = math.sqrt((ax - mx)**2 + (ay - my)**2)
+            if dist < min_dist:
+                min_dist, best_name = dist, name
+        return best_name
+
     def update_line(self):
-        """Update line position when cards move."""
-        self._draw_line()
-        if self.on_update_callback:
-            self.on_update_callback(self)
+        p1 = self._get_coords(self.source_card, self.source_pos)
+        p2 = self._get_coords(self.target_card, self.target_pos)
+
+        self.source_handle.position = self.source_pos
+        self.target_handle.position = self.target_pos
+        self.source_handle.update_position()
+        self.target_handle.update_position()
+
+        color = ft.Colors.BLUE_ACCENT if self.is_selected else ft.Colors.BLUE_GREY_400
+        width = 3 if self.is_selected else 2
+
+        self.canvas.shapes = [
+            Line(p1[0], p1[1], p2[0], p2[1], paint=ft.Paint(color=color, stroke_width=width))
+        ]
+        if self.canvas.page:
+            self.canvas.update()
 
 
 class ConnectionManager:
-    """Manages all connections in the diagram."""
-    
-    def __init__(self, canvas: ft.Stack):
-        self.canvas = canvas
+    def __init__(self, canvas_stack: ft.Stack):
+        self.canvas_stack = canvas_stack
         self.connections: list[ConnectionLine] = []
-        self._connection_lines: list[ConnectionLine] = []
-    
-    def add_connection(
-        self,
-        source_card: ft.Control,
-        target_card: ft.Control,
-        connection_type: str = "association"
-    ) -> ConnectionLine:
-        """Add a new connection between two cards."""
-        line = ConnectionLine(source_card, target_card, connection_type)
+
+    def add_connection(self, source, target, c_type="association"):
+        line = ConnectionLine(source, target)
+        self.canvas_stack.controls.insert(0, line)
+        self.canvas_stack.update()
+        line.update_line()
         self.connections.append(line)
-        self._connection_lines.append(line)
-        self.canvas.controls.append(line)
         return line
-    
-    def remove_connection(self, line: ConnectionLine):
-        """Remove a connection."""
-        if line in self.connections:
-            self.connections.remove(line)
-            self._connection_lines.remove(line)
-            if line in self.canvas.controls:
-                self.canvas.controls.remove(line)
-    
+
     def update_all_connections(self):
-        """Update all connection lines (call when cards move)."""
-        for line in self.connections:
-            line.update_line()
-    
-    def clear_all(self):
-        """Remove all connections."""
-        for line in self._connection_lines:
-            if line in self.canvas.controls:
-                self.canvas.controls.remove(line)
-        self.connections.clear()
-        self._connection_lines.clear()
-
-
-def get_anchor_positions(card_x: float, card_y: float, width: float = 160, height: float = 100) -> dict:
-    """Get dictionary of anchor positions for a card."""
-    return {
-        'top': (card_x + width / 2, card_y),
-        'bottom': (card_x + width / 2, card_y + height),
-        'left': (card_x, card_y + height / 2),
-        'right': (card_x + width, card_y + height / 2),
-    }
+        for conn in self.connections:
+            conn.update_line()
