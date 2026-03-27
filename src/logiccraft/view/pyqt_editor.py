@@ -1,8 +1,10 @@
 import sys
 import json
 import random
+import math
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
+from enum import Enum
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
@@ -10,13 +12,21 @@ from PyQt6.QtWidgets import (
     QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem, QGraphicsLineItem,
     QGraphicsItem, QInputDialog, QListWidget, QListWidgetItem,
     QDialog, QDialogButtonBox, QLineEdit, QApplication,
-    QGraphicsEllipseItem
+    QGraphicsEllipseItem, QGraphicsPolygonItem, QComboBox
 )
 from PyQt6.QtCore import Qt, QPointF, QRectF, QLineF, QObject, pyqtSignal
 from PyQt6.QtGui import (
-    QBrush, QColor, QPen, QFont, QPainter, QAction
+    QBrush, QColor, QPen, QFont, QPainter, QAction, QPolygonF
 )
 import uuid
+
+
+class ConnectionType(Enum):
+    """Типы связей между классами"""
+    ASSOCIATION = "association"      # Ассоциация (простая линия)
+    INHERITANCE = "inheritance"      # Наследование (треугольник)
+    COMPOSITION = "composition"      # Композиция (закрашенный ромб)
+    AGGREGATION = "aggregation"      # Агрегация (пустой ромб)
 
 
 class CardSignals(QObject):
@@ -31,67 +41,53 @@ class AnchorPoint(QGraphicsEllipseItem):
     """Точка привязки на карточке"""
 
     def __init__(self, parent_card, anchor_name: str, size: int = 8):
-        # Создаем круг с центром в (0,0) - позиция будет установлена через setPos
         super().__init__(-size/2, -size/2, size, size)
         self.parent_card = parent_card
         self.anchor_name = anchor_name
         self.size = size
 
-        # Настройка внешнего вида
         self.setBrush(QBrush(QColor("#FF6B6B")))
         self.setPen(QPen(QColor("#FFFFFF"), 1.5))
         self.setFlag(QGraphicsEllipseItem.GraphicsItemFlag.ItemIsMovable, False)
         self.setAcceptHoverEvents(True)
-        self.setZValue(1000)  # Высокий z-index
+        self.setZValue(1000)
         self._drag_start = None
 
     def hoverEnterEvent(self, event):
-        """При наведении мыши меняем цвет"""
         self.setBrush(QBrush(QColor("#FF4444")))
         self.setScale(1.2)
         super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
-        """При уходе мыши возвращаем цвет"""
         self.setBrush(QBrush(QColor("#FF6B6B")))
         self.setScale(1.0)
         super().hoverLeaveEvent(event)
 
     def mousePressEvent(self, event):
-        """Начало перетаскивания точки привязки"""
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_start = self.scenePos()
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
-
             self.parent_card.signals.anchor_moved.emit(self.parent_card, self.anchor_name)
             event.accept()
 
     def mouseMoveEvent(self, event):
-        """Перетаскивание точки привязки"""
         if event.buttons() == Qt.MouseButton.LeftButton and self._drag_start:
-            # Отправляем сигнал с текущей позицией мыши
             current_pos = self.mapToScene(event.pos())
-            # Обновляем временную линию через сцену
             scene = self.scene()
             if scene and hasattr(scene, 'update_temp_line'):
                 scene.update_temp_line(current_pos)
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
-        """Завершение перетаскивания с улучшенным поиском точки"""
         if event.button() == Qt.MouseButton.LeftButton and self._drag_start:
             self.setCursor(Qt.CursorShape.ArrowCursor)
-
-            # 1. Получаем позицию отпускания в координатах сцены
             end_pos = self.mapToScene(event.pos())
-
 
             search_rect = QRectF(end_pos.x() - 5, end_pos.y() - 5, 10, 10)
             items = self.scene().items(search_rect)
 
             target_anchor = None
             for item in items:
-                # Проверяем, что это точка привязки и она не принадлежит текущей карточке
                 if isinstance(item, AnchorPoint) and item.parent_card != self.parent_card:
                     target_anchor = item
                     break
@@ -101,17 +97,16 @@ class AnchorPoint(QGraphicsEllipseItem):
                 if hasattr(scene, 'finish_connection'):
                     scene.finish_connection(target_anchor.parent_card, target_anchor.anchor_name)
             else:
-
                 if hasattr(scene, 'cancel_connection'):
                     scene.cancel_connection()
 
         self._drag_start = None
         super().mouseReleaseEvent(event)
 
-class UMLCard(QGraphicsRectItem):
-    """Карточка класса UML с исправленной логикой координат и привязок"""
 
-    # Константы для ключей словаря anchors
+class UMLCard(QGraphicsRectItem):
+    """Карточка класса UML"""
+
     ANCHOR_TOP = "top"
     ANCHOR_BOTTOM = "bottom"
     ANCHOR_LEFT = "left"
@@ -121,9 +116,7 @@ class UMLCard(QGraphicsRectItem):
                  width: float = 160, height: float = 100,
                  attributes: list = None, methods: list = None,
                  card_id: str = None):
-        # Рисуем прямоугольник от локального нуля (0, 0)
         super().__init__(0, 0, width, height)
-        # Устанавливаем позицию самого графического объекта на сцене
         self.setPos(x, y)
 
         self.id = card_id or str(uuid.uuid4())
@@ -131,12 +124,10 @@ class UMLCard(QGraphicsRectItem):
         self.attributes = attributes or []
         self.methods = methods or []
 
-        # 1. Инициализируем словарь и настройки
         self.anchors = {}
         self._anchor_size = 8
         self.signals = CardSignals()
 
-        # 2. Настраиваем внешний вид
         self.setBrush(QBrush(QColor("#f5f5dc")))
         self.setPen(QPen(QColor("#4169E1"), 2))
         self.setFlags(
@@ -145,18 +136,12 @@ class UMLCard(QGraphicsRectItem):
             QGraphicsRectItem.GraphicsItemFlag.ItemSendsGeometryChanges
         )
 
-        # 3. Создаем дочерние элементы (текст, шапку)
         self._create_elements()
-
-        # 4. СНАЧАЛА создаем объекты точек (якорей)
         self._create_anchors()
-
-        # 5. И ТОЛЬКО ПОТОМ обновляем контент (который расставит точки по местам)
         self.update_content()
 
     def _create_elements(self):
         """Создание визуальных частей карточки"""
-        # Шапка
         self.header_bg = QGraphicsRectItem(0, 0, self.rect().width(), 30, self)
         self.header_bg.setBrush(QBrush(QColor("#4169E1")))
         self.header_bg.setPen(QPen(Qt.PenStyle.NoPen))
@@ -167,26 +152,27 @@ class UMLCard(QGraphicsRectItem):
 
         self.attrs_text = QGraphicsTextItem("", self)
         self.attrs_text.setFont(QFont("Menlo", 9))
+        self.attrs_text.setDefaultTextColor(QColor("#2c3e50"))
 
         self.methods_text = QGraphicsTextItem("", self)
         self.methods_text.setFont(QFont("Menlo", 9))
+        self.methods_text.setDefaultTextColor(QColor("#27ae60"))
 
     def _create_anchors(self):
-        """Создает объекты точек и помещает их в словарь"""
+        """Создает объекты точек привязки"""
         for name in [self.ANCHOR_TOP, self.ANCHOR_BOTTOM, self.ANCHOR_LEFT, self.ANCHOR_RIGHT]:
             anchor = AnchorPoint(self, name, self._anchor_size)
             anchor.setParentItem(self)
             self.anchors[name] = anchor
 
     def _update_anchor_positions(self):
-        """Расставляет точки по границам текущего прямоугольника"""
+        """Расставляет точки по границам"""
         if not self.anchors:
             return
 
         r = self.rect()
         w, h = r.width(), r.height()
 
-        # Координаты задаются относительно (0,0) карточки
         self.anchors[self.ANCHOR_TOP].setPos(w / 2, 0)
         self.anchors[self.ANCHOR_BOTTOM].setPos(w / 2, h)
         self.anchors[self.ANCHOR_LEFT].setPos(0, h / 2)
@@ -194,7 +180,6 @@ class UMLCard(QGraphicsRectItem):
 
     def update_content(self):
         """Пересчитывает размеры и положение текста"""
-        # Расчет высоты на основе количества строк
         n_attrs = len(self.attributes) if self.attributes else 1
         n_methods = len(self.methods) if self.methods else 1
 
@@ -202,25 +187,20 @@ class UMLCard(QGraphicsRectItem):
         new_height = max(100, new_height)
         width = self.rect().width()
 
-        # Обновляем геометрию
         self.setRect(0, 0, width, new_height)
         self.header_bg.setRect(0, 0, width, 30)
 
-        # Центрируем текст заголовка
         self.header_text.setPlainText(self.name)
         tw = self.header_text.boundingRect().width()
         self.header_text.setPos((width - tw) / 2, 5)
 
-        # Текст атрибутов
         self.attrs_text.setPlainText("\n".join(self.attributes) if self.attributes else "")
         self.attrs_text.setPos(5, 35)
 
-        # Текст методов
         attr_h = self.attrs_text.boundingRect().height()
         self.methods_text.setPlainText("\n".join(self.methods) if self.methods else "")
         self.methods_text.setPos(5, 35 + attr_h + 5)
 
-        # Обновляем позиции точек привязки под новый размер
         self._update_anchor_positions()
 
     def get_anchor_point(self, anchor_name: str) -> QPointF:
@@ -230,26 +210,21 @@ class UMLCard(QGraphicsRectItem):
         return self.scenePos()
 
     def itemChange(self, change, value):
-        """Событие перемещения карточки"""
         if change == QGraphicsRectItem.GraphicsItemChange.ItemPositionHasChanged:
             self.signals.position_changed.emit(self)
         return super().itemChange(change, value)
 
     def setSelected(self, selected):
-        """Показ/скрытие точек при выделении"""
         super().setSelected(selected)
-        # Подсвечиваем рамку
         pen_color = QColor("#DC143C") if selected else QColor("#4169E1")
         self.setPen(QPen(pen_color, 3 if selected else 2))
 
-        # Показываем точки
         for a in self.anchors.values():
             a.setVisible(selected)
 
         self.signals.selected_changed.emit(self, selected)
 
     def to_dict(self):
-        """Для сохранения в JSON"""
         return {
             "id": self.id,
             "name": self.name,
@@ -266,11 +241,94 @@ class ConnectionSignals(QObject):
     about_to_delete = pyqtSignal(object)
 
 
+class ArrowHead(QGraphicsPolygonItem):
+    """Базовый класс для наконечников стрелок"""
+
+    def __init__(self, direction: QPointF, connection_type: ConnectionType):
+        super().__init__()
+        self.connection_type = connection_type
+        self.direction = direction
+        self._update_shape()
+
+    def _update_shape(self):
+        """Обновляет форму наконечника в зависимости от направления и типа"""
+        # Нормализуем направление
+        length = math.sqrt(self.direction.x() ** 2 + self.direction.y() ** 2)
+        if length == 0:
+            return
+
+        dx = self.direction.x() / length
+        dy = self.direction.y() / length
+
+        # Перпендикулярное направление
+        px = -dy
+        py = dx
+
+        size = 12  # размер наконечника
+
+        if self.connection_type == ConnectionType.INHERITANCE:
+            # Треугольник (полый)
+            points = [
+                QPointF(size, 0),
+                QPointF(0, -size * 0.6),
+                QPointF(0, size * 0.6)
+            ]
+            polygon = QPolygonF(points)
+            self.setPolygon(polygon)
+            self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+            self.setPen(QPen(QColor("#666666"), 2))
+
+        elif self.connection_type == ConnectionType.COMPOSITION:
+            # Закрашенный ромб
+            points = [
+                QPointF(size, 0),
+                QPointF(size / 2, -size * 0.6),
+                QPointF(0, 0),
+                QPointF(size / 2, size * 0.6)
+            ]
+            polygon = QPolygonF(points)
+            self.setPolygon(polygon)
+            self.setBrush(QBrush(QColor("#333333")))
+            self.setPen(QPen(QColor("#666666"), 1.5))
+
+        elif self.connection_type == ConnectionType.AGGREGATION:
+            # Пустой ромб
+            points = [
+                QPointF(size, 0),
+                QPointF(size / 2, -size * 0.6),
+                QPointF(0, 0),
+                QPointF(size / 2, size * 0.6)
+            ]
+            polygon = QPolygonF(points)
+            self.setPolygon(polygon)
+            self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+            self.setPen(QPen(QColor("#666666"), 2))
+        else:
+            # Ассоциация - стрелка с закрашенным треугольником
+            points = [
+                QPointF(size, 0),
+                QPointF(0, -size * 0.6),
+                QPointF(0, size * 0.6)
+            ]
+            polygon = QPolygonF(points)
+            self.setPolygon(polygon)
+            self.setBrush(QBrush(QColor("#666666")))
+            self.setPen(QPen(QColor("#666666"), 1.5))
+
+    def set_direction(self, direction: QPointF):
+        """Устанавливает направление и обновляет поворот"""
+        self.direction = direction
+        angle = math.degrees(math.atan2(direction.y(), direction.x()))
+        self.setRotation(angle)
+        self._update_shape()
+
+
 class ConnectionLine(QGraphicsLineItem):
-    """Линия связи с точками привязки"""
+    """Линия связи с наконечником"""
 
     def __init__(self, source: UMLCard, target: UMLCard,
                  source_anchor: str = "right", target_anchor: str = "left",
+                 connection_type: ConnectionType = ConnectionType.ASSOCIATION,
                  connection_id: str = None):
         super().__init__()
 
@@ -279,32 +337,81 @@ class ConnectionLine(QGraphicsLineItem):
         self.target = target
         self.source_anchor = source_anchor
         self.target_anchor = target_anchor
+        self.connection_type = connection_type
         self._is_selected = False
 
-        # Создаем объект для сигналов
         self.signals = ConnectionSignals()
 
         self.setPen(QPen(QColor("#666666"), 2))
         self.setFlags(QGraphicsLineItem.GraphicsItemFlag.ItemIsSelectable)
 
+        # Создаем наконечник
+        self.arrow_head = ArrowHead(QPointF(1, 0), connection_type)
+        self.arrow_head.setParentItem(self)
+
         self.update_position()
 
-        # Подключаем сигналы движения карточек
         source.signals.position_changed.connect(self.update_position)
         target.signals.position_changed.connect(self.update_position)
-
-        # Подключаем сигналы удаления карточек
         source.signals.about_to_delete.connect(self.on_card_deleted)
         target.signals.about_to_delete.connect(self.on_card_deleted)
 
     def update_position(self):
-        """Обновляет позицию линии"""
-        # Проверяем, существуют ли еще карточки
+        """Обновляет позицию линии и наконечника"""
         if self.source is None or self.target is None:
             return
+
         p1 = self.source.get_anchor_point(self.source_anchor)
         p2 = self.target.get_anchor_point(self.target_anchor)
-        self.setLine(QLineF(p1, p2))
+
+        # Получаем направление для наконечника (от источника к цели)
+        direction = p2 - p1
+
+        # Если линия слишком короткая, не рисуем наконечник
+        if direction.manhattanLength() < 20:
+            self.arrow_head.setVisible(False)
+            self.setLine(QLineF(p1, p2))
+            return
+
+        self.arrow_head.setVisible(True)
+
+        # Для разных типов связей наконечник может быть на разном конце
+        if self.connection_type in [ConnectionType.INHERITANCE,
+                                    ConnectionType.COMPOSITION,
+                                    ConnectionType.AGGREGATION]:
+            # Наследование и композиция - наконечник у цели (родительский класс)
+            arrow_direction = direction
+            # Отодвигаем линию, чтобы наконечник не перекрывался с карточкой
+            line_length = math.sqrt(direction.x()**2 + direction.y()**2)
+            if line_length > 12:
+                offset = 12
+                p2_adjusted = p2 - (direction / line_length) * offset
+                self.setLine(QLineF(p1, p2_adjusted))
+                self.arrow_head.set_direction(arrow_direction)
+                self.arrow_head.setPos(p2)
+            else:
+                self.setLine(QLineF(p1, p2))
+                self.arrow_head.setPos(p2)
+        else:
+            # Ассоциация - наконечник на обоих концах? обычно только на целевом
+            arrow_direction = direction
+            line_length = math.sqrt(direction.x()**2 + direction.y()**2)
+            if line_length > 12:
+                offset = 12
+                p2_adjusted = p2 - (direction / line_length) * offset
+                self.setLine(QLineF(p1, p2_adjusted))
+                self.arrow_head.set_direction(arrow_direction)
+                self.arrow_head.setPos(p2)
+            else:
+                self.setLine(QLineF(p1, p2))
+                self.arrow_head.setPos(p2)
+
+    def set_connection_type(self, connection_type: ConnectionType):
+        """Изменяет тип связи"""
+        self.connection_type = connection_type
+        self.arrow_head.connection_type = connection_type
+        self.arrow_head._update_shape()
+        self.update_position()
 
     def set_selected(self, selected):
         """Устанавливает выделение"""
@@ -312,38 +419,84 @@ class ConnectionLine(QGraphicsLineItem):
         color = QColor("#DC143C") if selected else QColor("#666666")
         width = 3 if selected else 2
         self.setPen(QPen(color, width))
+        self.arrow_head.setPen(QPen(color, width))
         self.signals.selected_changed.emit(self, selected)
 
     def is_selected(self):
         return self._is_selected
 
     def mousePressEvent(self, event):
-        """Обработка нажатия"""
         super().mousePressEvent(event)
         self.set_selected(not self._is_selected)
         event.accept()
 
     def on_card_deleted(self, card):
-        """Обработка удаления карточки"""
         if self.source == card or self.target == card:
             self.signals.about_to_delete.emit(self)
 
     def to_dict(self):
-        """Сериализация"""
         return {
             "id": self.id,
             "source_id": self.source.id,
             "target_id": self.target.id,
             "source_anchor": self.source_anchor,
-            "target_anchor": self.target_anchor
+            "target_anchor": self.target_anchor,
+            "connection_type": self.connection_type.value
         }
+
+
+class ConnectionPropertiesDialog(QDialog):
+    """Диалог для выбора типа связи"""
+
+    def __init__(self, connection: ConnectionLine, parent=None):
+        super().__init__(parent)
+        self.connection = connection
+        self.setWindowTitle("Connection Properties")
+        self.setMinimumWidth(300)
+
+        layout = QVBoxLayout()
+
+        # Тип связи
+        layout.addWidget(QLabel("Connection Type:"))
+        self.type_combo = QComboBox()
+        self.type_combo.addItem("Association", ConnectionType.ASSOCIATION.value)
+        self.type_combo.addItem("Inheritance", ConnectionType.INHERITANCE.value)
+        self.type_combo.addItem("Composition", ConnectionType.COMPOSITION.value)
+        self.type_combo.addItem("Aggregation", ConnectionType.AGGREGATION.value)
+
+        # Устанавливаем текущее значение
+        current_type = connection.connection_type.value
+        index = self.type_combo.findData(current_type)
+        if index >= 0:
+            self.type_combo.setCurrentIndex(index)
+
+        layout.addWidget(self.type_combo)
+
+        # Кнопки OK/Cancel
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok |
+            QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        self.setLayout(layout)
+
+    def get_connection_type(self) -> ConnectionType:
+        """Возвращает выбранный тип связи"""
+        value = self.type_combo.currentData()
+        for ct in ConnectionType:
+            if ct.value == value:
+                return ct
+        return ConnectionType.ASSOCIATION
 
 
 class DiagramScene(QGraphicsScene):
     """Сцена диаграммы"""
 
-    connection_created = pyqtSignal(object)  # Сигнал о создании связи
-    connection_deleted = pyqtSignal(object)  # Сигнал об удалении связи
+    connection_created = pyqtSignal(object)
+    connection_deleted = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -355,10 +508,8 @@ class DiagramScene(QGraphicsScene):
         self.connection_active = False
 
     def drawBackground(self, painter, rect):
-        """Рисует сетку на фоне"""
         super().drawBackground(painter, rect)
 
-        # Рисуем сетку
         pen = QPen(QColor("#e0e0e0"), 0.5)
         painter.setPen(pen)
 
@@ -367,25 +518,21 @@ class DiagramScene(QGraphicsScene):
         right = int(rect.right())
         bottom = int(rect.bottom())
 
-        # Рисуем вертикальные линии
         x = left
         while x <= right:
             painter.drawLine(x, int(rect.top()), x, int(rect.bottom()))
             x += 50
 
-        # Рисуем горизонтальные линии
         y = top
         while y <= bottom:
             painter.drawLine(int(rect.left()), y, int(rect.right()), y)
             y += 50
 
     def start_connection(self, card: UMLCard, anchor: str):
-        """Начинает создание связи"""
         self.connection_source = card
         self.source_anchor = anchor
         self.connection_active = True
 
-        # Создаем временную линию
         pos = card.get_anchor_point(anchor)
         self.temp_line = QGraphicsLineItem(pos.x(), pos.y(), pos.x(), pos.y())
         self.temp_line.setPen(QPen(QColor("#FF6B6B"), 2, Qt.PenStyle.DashLine))
@@ -393,31 +540,33 @@ class DiagramScene(QGraphicsScene):
         self.addItem(self.temp_line)
 
     def update_temp_line(self, pos: QPointF):
-        """Обновляет временную линию"""
         if self.connection_active and self.temp_line and self.connection_source:
             source_pos = self.connection_source.get_anchor_point(self.source_anchor)
             self.temp_line.setLine(QLineF(source_pos, pos))
 
     def finish_connection(self, target_card: UMLCard, target_anchor: str):
-        """Завершает создание связи"""
         if not self.connection_active:
             return None
 
-        # Удаляем временную линию
         if self.temp_line:
             self.removeItem(self.temp_line)
             self.temp_line = None
 
         line = None
         if self.connection_source and target_card and self.connection_source != target_card:
-            # Создаем постоянную линию
-            line = ConnectionLine(self.connection_source, target_card,
-                                  self.source_anchor, target_anchor)
-            self.addItem(line)
-            # Испускаем сигнал о создании связи
-            self.connection_created.emit(line)
+            # Показываем диалог выбора типа связи
+            temp_line = ConnectionLine(self.connection_source, target_card,
+                                       self.source_anchor, target_anchor,
+                                       ConnectionType.ASSOCIATION)
+            dialog = ConnectionPropertiesDialog(temp_line)
+            if dialog.exec():
+                conn_type = dialog.get_connection_type()
+                line = ConnectionLine(self.connection_source, target_card,
+                                      self.source_anchor, target_anchor,
+                                      conn_type)
+                self.addItem(line)
+                self.connection_created.emit(line)
 
-        # Сбрасываем состояние
         self.connection_source = None
         self.source_anchor = None
         self.connection_active = False
@@ -425,7 +574,6 @@ class DiagramScene(QGraphicsScene):
         return line
 
     def cancel_connection(self):
-        """Отменяет создание связи"""
         if self.temp_line:
             self.removeItem(self.temp_line)
             self.temp_line = None
@@ -434,13 +582,11 @@ class DiagramScene(QGraphicsScene):
         self.connection_active = False
 
     def delete_connection(self, connection):
-        """Удаляет связь"""
         if connection in self.items():
             self.removeItem(connection)
             self.connection_deleted.emit(connection)
 
     def clear_all_connections(self):
-        """Удаляет все связи"""
         connections = [item for item in self.items() if isinstance(item, ConnectionLine)]
         for conn in connections:
             self.removeItem(conn)
@@ -458,7 +604,6 @@ class DiagramView(QGraphicsView):
         self.scale_factor = 1.15
 
     def wheelEvent(self, event):
-        """Масштабирование колесиком"""
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
             if event.angleDelta().y() > 0:
                 self.scale(self.scale_factor, self.scale_factor)
@@ -468,19 +613,16 @@ class DiagramView(QGraphicsView):
             super().wheelEvent(event)
 
     def mousePressEvent(self, event):
-        """Снятие выделения при клике на пустое место"""
         if event.button() == Qt.MouseButton.LeftButton:
             item = self.itemAt(event.pos())
             if item is None:
                 self.scene().clearSelection()
-                # Снимаем выделение со всех линий
                 for line in self.find_connections():
                     line.set_selected(False)
                 self.scene().cancel_connection()
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        """Обновление временной линии при перетаскивании"""
         scene = self.scene()
         if hasattr(scene, 'temp_line') and scene.temp_line:
             pos = self.mapToScene(event.pos())
@@ -488,7 +630,6 @@ class DiagramView(QGraphicsView):
         super().mouseMoveEvent(event)
 
     def find_connections(self):
-        """Находит все линии"""
         connections = []
         for item in self.scene().items():
             if isinstance(item, ConnectionLine):
@@ -507,19 +648,16 @@ class EditClassDialog(QDialog):
 
         layout = QVBoxLayout()
 
-        # Имя класса
         layout.addWidget(QLabel("Class Name:"))
         self.name_edit = QLineEdit(card.name)
         layout.addWidget(self.name_edit)
 
-        # Атрибуты
         layout.addWidget(QLabel("Attributes:"))
         self.attrs_list = QListWidget()
         for attr in card.attributes:
             self.attrs_list.addItem(attr)
         layout.addWidget(self.attrs_list)
 
-        # Кнопки для атрибутов
         attr_buttons = QHBoxLayout()
         add_attr = QPushButton("Add")
         add_attr.clicked.connect(self.add_attribute)
@@ -529,14 +667,12 @@ class EditClassDialog(QDialog):
         attr_buttons.addWidget(remove_attr)
         layout.addLayout(attr_buttons)
 
-        # Методы
         layout.addWidget(QLabel("Methods:"))
         self.methods_list = QListWidget()
         for method in card.methods:
             self.methods_list.addItem(method)
         layout.addWidget(self.methods_list)
 
-        # Кнопки для методов
         method_buttons = QHBoxLayout()
         add_method = QPushButton("Add")
         add_method.clicked.connect(self.add_method)
@@ -546,7 +682,6 @@ class EditClassDialog(QDialog):
         method_buttons.addWidget(remove_method)
         layout.addLayout(method_buttons)
 
-        # Кнопки OK/Cancel
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel
@@ -601,13 +736,11 @@ class DiagramEditor(QMainWindow):
         self._create_ui()
 
     def _create_ui(self):
-        """Создает интерфейс"""
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout()
         central.setLayout(layout)
 
-        # Тулбар
         toolbar = self.addToolBar("Main")
         toolbar.setMovable(False)
 
@@ -635,22 +768,23 @@ class DiagramEditor(QMainWindow):
         delete_action.triggered.connect(self.delete_selected)
         toolbar.addAction(delete_action)
 
+        edit_conn_action = QAction("🔗 Edit Connection", self)
+        edit_conn_action.triggered.connect(self.edit_selected_connection)
+        toolbar.addAction(edit_conn_action)
+
         toolbar.addSeparator()
 
         self.status_label = QLabel("Cards: 0 | Connections: 0 | Drag red dots to create connections")
         toolbar.addWidget(self.status_label)
 
-        # Сцена и вид
         self.scene = DiagramScene()
         self.view = DiagramView(self.scene)
         layout.addWidget(self.view)
 
-        # Подключаем сигналы сцены
         self.scene.connection_created.connect(self.add_connection)
         self.scene.connection_deleted.connect(self.remove_connection)
 
     def add_card(self):
-        """Добавляет карточку"""
         x = random.randint(50, 500)
         y = random.randint(50, 400)
 
@@ -665,13 +799,10 @@ class DiagramEditor(QMainWindow):
         self.update_status()
 
     def delete_selected(self):
-        """Удаляет выделенные элементы"""
-        # Удаляем выделенные карточки
         selected_cards = [c for c in self.cards if c.isSelected()]
         for card in selected_cards:
             self.delete_card(card)
 
-        # Удаляем выделенные связи
         selected_connections = [c for c in self.connections if c.is_selected()]
         for conn in selected_connections:
             self.scene.delete_connection(conn)
@@ -679,40 +810,31 @@ class DiagramEditor(QMainWindow):
         self.update_status()
 
     def delete_card(self, card: UMLCard):
-        """Удаляет карточку"""
         if card in self.cards:
-            # Испускаем сигнал о удалении для связей
             card.signals.about_to_delete.emit(card)
-            # Удаляем из сцены
             self.scene.removeItem(card)
             self.cards.remove(card)
 
     def on_card_deleted(self, card: UMLCard):
-        """Обработка сигнала удаления карточки"""
-        # Удаляем все связи, связанные с этой карточкой
         connections_to_delete = [c for c in self.connections
                                  if c.source == card or c.target == card]
         for conn in connections_to_delete:
             self.scene.delete_connection(conn)
 
     def add_connection(self, connection: ConnectionLine):
-        """Добавляет связь"""
         self.connections.append(connection)
         connection.signals.about_to_delete.connect(self.remove_connection)
         self.update_status()
 
     def remove_connection(self, connection: ConnectionLine):
-        """Удаляет связь"""
         if connection in self.connections:
             self.connections.remove(connection)
             self.update_status()
 
     def on_anchor_drag_start(self, card: UMLCard, anchor: str):
-        """Начало перетаскивания точки привязки"""
         self.scene.start_connection(card, anchor)
 
     def edit_selected_card(self):
-        """Редактирует выбранную карточку"""
         selected = [c for c in self.cards if c.isSelected()]
         if selected:
             card = selected[0]
@@ -724,25 +846,32 @@ class DiagramEditor(QMainWindow):
                 card.methods = methods
                 card.update_content()
 
+    def edit_selected_connection(self):
+        """Редактирует выделенную связь"""
+        selected = [c for c in self.connections if c.is_selected()]
+        if selected:
+            connection = selected[0]
+            dialog = ConnectionPropertiesDialog(connection, self)
+            if dialog.exec():
+                new_type = dialog.get_connection_type()
+                connection.set_connection_type(new_type)
+                connection.update_position()
+
     def on_card_selected(self, card: UMLCard, selected: bool):
-        """Обработка выбора карточки"""
         if selected:
             for c in self.cards:
                 if c != card and c.isSelected():
                     c.setSelected(False)
-            # Снимаем выделение со всех связей
             for conn in self.connections:
                 if conn.is_selected():
                     conn.set_selected(False)
 
     def on_card_moved(self, card: UMLCard):
-        """Обработка движения карточки"""
         for conn in self.connections:
             if conn.source == card or conn.target == card:
                 conn.update_position()
 
     def save_diagram(self):
-        """Сохраняет диаграмму"""
         filepath, _ = QFileDialog.getSaveFileName(
             self, "Save Diagram", "", "JSON Files (*.json)"
         )
@@ -759,7 +888,6 @@ class DiagramEditor(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Failed to save: {e}")
 
     def load_diagram(self):
-        """Загружает диаграмму"""
         filepath, _ = QFileDialog.getOpenFileName(
             self, "Load Diagram", "", "JSON Files (*.json)"
         )
@@ -770,7 +898,6 @@ class DiagramEditor(QMainWindow):
 
                 self.clear_all()
 
-                # Восстанавливаем карточки
                 card_map = {}
                 for card_data in data["cards"]:
                     card = UMLCard(
@@ -789,15 +916,16 @@ class DiagramEditor(QMainWindow):
                     self.cards.append(card)
                     card_map[card.id] = card
 
-                # Восстанавливаем связи
                 for conn_data in data["connections"]:
                     source = card_map.get(conn_data["source_id"])
                     target = card_map.get(conn_data["target_id"])
                     if source and target:
+                        conn_type = ConnectionType(conn_data.get("connection_type", "association"))
                         conn = ConnectionLine(
                             source, target,
                             conn_data.get("source_anchor", "right"),
                             conn_data.get("target_anchor", "left"),
+                            conn_type,
                             conn_data["id"]
                         )
                         self.scene.addItem(conn)
@@ -810,7 +938,6 @@ class DiagramEditor(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Failed to load: {e}")
 
     def clear_all(self):
-        """Очищает всё"""
         self.scene.clear_all_connections()
         self.scene.clear()
         self.cards.clear()
@@ -818,18 +945,13 @@ class DiagramEditor(QMainWindow):
         self.update_status()
 
     def update_status(self):
-        """Обновляет статус"""
         self.status_label.setText(f"Cards: {len(self.cards)} | Connections: {len(self.connections)} | Drag red dots to create connections")
 
 
 def main():
-    """Запуск приложения"""
     app = QApplication(sys.argv)
-
-    # Устанавливаем стиль
     app.setStyle("Fusion")
 
-    # Создаем и показываем главное окно
     editor = DiagramEditor()
     editor.show()
 
