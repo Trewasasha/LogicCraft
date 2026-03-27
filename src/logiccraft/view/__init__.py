@@ -1,4 +1,5 @@
-from logiccraft.view.widgets import UMLCard
-from logiccraft.view.editor import DiagramEditor
+"""View layer for LogicCraft UML Editor"""
 
-__all__ = ["UMLCard", "DiagramEditor"]
+from logiccraft.view.pyqt_editor import DiagramEditor, UMLCard, ConnectionLine
+
+__all__ = ["DiagramEditor", "UMLCard", "ConnectionLine"]
