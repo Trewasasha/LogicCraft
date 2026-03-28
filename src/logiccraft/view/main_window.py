@@ -159,14 +159,22 @@ class MainWindow(QMainWindow):
 
     def _on_edit_selected(self):
         """Редактирование выбранной карточки"""
-        selected = [item for item in self.scene.items()
-                    if isinstance(item, UMLCard) and item.isSelected()]
-        if selected:
-            card = selected[0]
+        # Используем встроенный метод сцены для получения всех выделенных объектов
+        selected_items = self.scene.selectedItems()
+
+        # Фильтруем только карточки (UMLCard)
+        selected_cards = [item for item in selected_items if isinstance(item, UMLCard)]
+
+        if selected_cards:
+            card = selected_cards[0]
+            print(f"DEBUG: Editing card {card.id}") # Добавь лог для проверки
             dialog = EditClassDialog(card, self)
             if dialog.exec():
                 name, attributes, methods = dialog.get_data()
+                # Эмиттим сигнал контроллеру для обновления данных в модели
                 self.edit_card_requested.emit(card.id, name, attributes, methods)
+        else:
+            self.show_info("Please select a class card to edit.")
 
     def _on_delete_selected(self):
         """Удаление выбранных элементов (карточек или связей)"""
