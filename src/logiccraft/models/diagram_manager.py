@@ -66,7 +66,9 @@ class DiagramManager:
         connection = UMLConnection(
             source_id=source_id,
             target_id=target_id,
-            type=ConnectionType(connection_type)
+            type=ConnectionType(connection_type),
+            source_anchor=source_anchor,
+            target_anchor=target_anchor
         )
         self.diagram.connections.append(connection)
         return connection

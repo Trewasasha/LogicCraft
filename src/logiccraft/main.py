@@ -165,7 +165,8 @@ class Application:
             if source_card and target_card:
                 conn_line = ConnectionLine(
                     source_card, target_card,
-                    "right", "left",
+                    conn.source_anchor,
+                    conn.target_anchor,
                     conn.type,
                     conn.id
                 )
