@@ -8,6 +8,7 @@ from ..models.diagram_manager import DiagramManager
 from ..models.engine import DiagramEngine
 from ..services.serialization_service import SerializationService
 from ..services.code_generator import CodeGenerator
+from ..services.history_service import HistoryService
 from ..view.widgets.uml_card import UMLCard
 from ..view.widgets.connection_line import ConnectionLine
 
@@ -29,6 +30,9 @@ class DiagramController(QObject):
     # Сигналы для статуса
     status_changed = pyqtSignal(str)
     error_occurred = pyqtSignal(str)
+    
+    # Сигналы для Undo/Redo
+    undo_redo_changed = pyqtSignal()  # Emit when undo/redo availability changes
 
     def __init__(self):
         super().__init__()
@@ -36,10 +40,14 @@ class DiagramController(QObject):
         self.engine = DiagramEngine()
         self.serializer = SerializationService()
         self.code_generator = CodeGenerator()
+        self.history = HistoryService()
 
         # Словари для связи моделей и представлений
         self.card_map: Dict[str, UMLCard] = {}  # node_id -> UMLCard
         self.connection_map: Dict[str, ConnectionLine] = {}  # connection_id -> ConnectionLine
+        
+        # Подключаем сигналы истории
+        self.history.state_restored.connect(self._on_state_restored)
 
     def add_card(self, x: float, y: float, name: str = None) -> Optional[UMLNode]:
         """Добавить карточку"""
@@ -47,6 +55,8 @@ class DiagramController(QObject):
             node = self.manager.add_node(x, y, name)
             self.status_changed.emit(f"Added class: {node.name}")
             self.card_added.emit(node)
+            # Сохраняем состояние для undo/redo
+            self._save_state()
             return node
         except Exception as e:
             self.error_occurred.emit(f"Failed to add card: {e}")
@@ -55,6 +65,9 @@ class DiagramController(QObject):
     def remove_card(self, card_id: str) -> bool:
         """Удалить карточку"""
         try:
+            # Сохраняем состояние перед удалением
+            self._save_state()
+            
             # Удаляем все связи, связанные с этой карточкой
             connections = self.manager.get_connections_for_node(card_id)
             for conn in connections:
@@ -77,6 +90,9 @@ class DiagramController(QObject):
                     methods: List[str] = None) -> bool:
         """Обновить карточку"""
         try:
+            # Сохраняем состояние перед обновлением
+            self._save_state()
+            
             # Преобразуем строки атрибутов в UMLProperty
             properties = []
             if attributes:
@@ -160,6 +176,9 @@ class DiagramController(QObject):
 
         print(f"DEBUG: DiagramController.add_connection called with source={source_id}, target={target_id}, type={connection_type}")
         try:
+            # Сохраняем состояние перед добавлением связи
+            self._save_state()
+            
             connection = self.manager.add_connection(
                 source_id, target_id, connection_type,
                 source_anchor, target_anchor
@@ -177,6 +196,9 @@ class DiagramController(QObject):
     def remove_connection(self, connection_id: str) -> bool:
         """Удалить связь"""
         try:
+            # Сохраняем состояние перед удалением
+            self._save_state()
+            
             if self.manager.remove_connection(connection_id):
                 self.status_changed.emit("Removed connection")
                 self.connection_removed.emit(connection_id)
@@ -189,6 +211,9 @@ class DiagramController(QObject):
     def update_connection_type(self, connection_id: str, new_type: str) -> bool:
         """Обновить тип связи"""
         try:
+            # Сохраняем состояние перед обновлением
+            self._save_state()
+            
             if self.manager.update_connection_type(connection_id, new_type):
                 self.status_changed.emit(f"Updated connection type to {new_type}")
                 self.connection_updated.emit(connection_id)
@@ -225,6 +250,9 @@ class DiagramController(QObject):
     def clear_diagram(self):
         """Очистить диаграмму"""
         try:
+            # Сохраняем состояние перед очисткой
+            self._save_state()
+            
             self.manager.clear()
             self.status_changed.emit("Diagram cleared")
             self.diagram_cleared.emit()
@@ -273,3 +301,121 @@ class DiagramController(QObject):
     def get_connection_model(self, connection_id: str) -> Optional[UMLConnection]:
         """Получить модель связи по ID"""
         return self.manager.get_connection_by_id(connection_id)
+    
+    def _save_state(self) -> None:
+        """Сохранить текущее состояние диаграммы в историю"""
+        state = self._capture_diagram_state()
+        self.history.push_state(state)
+    
+    def _capture_diagram_state(self) -> dict:
+        """Захватить текущее состояние диаграммы"""
+        return {
+            'nodes': [
+                {
+                    'id': node.id,
+                    'name': node.name,
+                    'x': node.x,
+                    'y': node.y,
+                    'properties': [
+                        {'name': p.name, 'type': p.type, 'visibility': p.visibility}
+                        for p in node.properties
+                    ],
+                    'methods': [
+                        {'name': m.name, 'return_type': m.return_type, 'visibility': m.visibility}
+                        for m in node.methods
+                    ]
+                }
+                for node in self.manager.diagram.nodes
+            ],
+            'connections': [
+                {
+                    'id': conn.id,
+                    'source_id': conn.source_id,
+                    'target_id': conn.target_id,
+                    'type': conn.type,
+                    'source_anchor': conn.source_anchor,
+                    'target_anchor': conn.target_anchor
+                }
+                for conn in self.manager.diagram.connections
+            ]
+        }
+    
+    def _restore_state(self, state: dict) -> None:
+        """Восстановить состояние диаграммы"""
+        # Очищаем текущую диаграмму
+        self.manager.clear()
+        
+        # Восстанавливаем узлы
+        for node_data in state['nodes']:
+            node = UMLNode(
+                node_id=node_data['id'],
+                name=node_data['name'],
+                x=node_data['x'],
+                y=node_data['y']
+            )
+            
+            # Восстанавливаем свойства
+            for prop_data in node_data['properties']:
+                prop = UMLProperty(
+                    name=prop_data['name'],
+                    type=prop_data['type'],
+                    visibility=prop_data['visibility']
+                )
+                node.properties.append(prop)
+            
+            # Восстанавливаем методы
+            for method_data in node_data['methods']:
+                method = UMLMethod(
+                    name=method_data['name'],
+                    return_type=method_data['return_type'],
+                    visibility=method_data['visibility']
+                )
+                node.methods.append(method)
+            
+            self.manager.diagram.nodes.append(node)
+        
+        # Восстанавливаем связи
+        for conn_data in state['connections']:
+            from ..models.diagram import ConnectionType
+            conn = UMLConnection(
+                source_id=conn_data['source_id'],
+                target_id=conn_data['target_id'],
+                type=ConnectionType(conn_data['type']),
+                source_anchor=conn_data['source_anchor'],
+                target_anchor=conn_data['target_anchor'],
+                id=conn_data['id']
+            )
+            self.manager.diagram.connections.append(conn)
+    
+    def _on_state_restored(self, state: dict) -> None:
+        """Обработчик восстановления состояния"""
+        # Восстанавливаем состояние модели
+        self._restore_state(state)
+        
+        # Сигнал для перестроения представления
+        self.diagram_loaded.emit()
+        self.status_changed.emit("State restored")
+    
+    def undo(self) -> bool:
+        """Отменить последнее действие"""
+        result = self.history.undo()
+        if result is not None:
+            self.status_changed.emit("Undo performed")
+            return True
+        return False
+    
+    def redo(self) -> bool:
+        """Повторить отмененное действие"""
+        result = self.history.redo()
+        if result is not None:
+            self.status_changed.emit("Redo performed")
+            return True
+        return False
+    
+    def can_undo(self) -> bool:
+        """Проверить, возможна ли операция отмены"""
+        return self.history.can_undo()
+    
+    def can_redo(self) -> bool:
+        """Проверить, возможна ли операция повтора"""
+        return self.history.can_redo()

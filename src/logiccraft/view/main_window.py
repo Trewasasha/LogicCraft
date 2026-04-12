@@ -1,9 +1,9 @@
 """Главное окно приложения"""
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QToolBar, QLabel, QFileDialog, QMessageBox, QGraphicsView
+    QToolBar, QLabel, QFileDialog, QMessageBox, QGraphicsView, QMenu, QMenuBar
 )
-from PyQt6.QtGui import QAction, QPainter
+from PyQt6.QtGui import QAction, QPainter, QKeySequence
 from PyQt6.QtCore import pyqtSignal, Qt
 
 from .scenes.diagram_scene import DiagramScene
@@ -22,6 +22,17 @@ class DiagramView(QGraphicsView):
         self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.scale_factor = 1.15
+        self.main_window = parent  # Ссылка на главное окно
+    
+    def keyPressEvent(self, event):
+        """Обработка нажатий клавиш"""
+        # Проверяем, есть ли обработчик в главном окне
+        if self.main_window and hasattr(self.main_window, 'handle_key_press'):
+            if self.main_window.handle_key_press(event):
+                return  # Обработано в главном окне
+        
+        # Иначе используем стандартную обработку
+        super().keyPressEvent(event)
 
     def wheelEvent(self, event):
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
@@ -54,6 +65,7 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 1200, 800)
 
         self._setup_ui()
+        self._setup_menubar()
         self._setup_toolbar()
         self._connect_signals()
         self._connect_controller_signals()
@@ -66,13 +78,69 @@ class MainWindow(QMainWindow):
         central.setLayout(layout)
 
         self.scene = DiagramScene()
-        self.view = DiagramView(self.scene)
+        self.view = DiagramView(self.scene, self)  # Передаем self как parent
         layout.addWidget(self.view)
 
         # Панель статуса
         self.status_bar = self.statusBar()
         self.status_label = QLabel("Ready")
         self.status_bar.addWidget(self.status_label)
+    
+    def _setup_menubar(self):
+        """Настройка меню"""
+        menubar = self.menuBar()
+        
+        # Меню File
+        file_menu = menubar.addMenu("&File")
+        
+        # Save
+        save_action = QAction("💾 Save", self)
+        save_action.setShortcut(QKeySequence.StandardKey.Save)
+        save_action.triggered.connect(self._on_save_clicked)
+        file_menu.addAction(save_action)
+        
+        # Load
+        load_action = QAction("📂 Load", self)
+        load_action.setShortcut(QKeySequence.StandardKey.Open)
+        load_action.triggered.connect(self._on_load_clicked)
+        file_menu.addAction(load_action)
+        
+        file_menu.addSeparator()
+        
+        # Меню Edit с Undo/Redo
+        edit_menu = menubar.addMenu("&Edit")
+        
+        # Undo
+        self.undo_action = QAction("↩️ Undo", self)
+        self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        self.undo_action.triggered.connect(self._on_undo)
+        self.undo_action.setEnabled(False)
+        edit_menu.addAction(self.undo_action)
+        
+        # Redo
+        self.redo_action = QAction("↪️ Redo", self)
+        self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+        self.redo_action.triggered.connect(self._on_redo)
+        self.redo_action.setEnabled(False)
+        edit_menu.addAction(self.redo_action)
+        
+        edit_menu.addSeparator()
+        
+        # Delete
+        delete_action = QAction("🗑️ Delete Selected", self)
+        delete_action.setShortcut(QKeySequence("Del"))
+        delete_action.triggered.connect(self._on_delete_selected)
+        edit_menu.addAction(delete_action)
+        
+        edit_menu.addSeparator()
+        
+        # Clear All
+        clear_action = QAction("💥 Clear All", self)
+        clear_action.triggered.connect(self._on_clear_clicked)
+        edit_menu.addAction(clear_action)
+        
+        # Подключаем сигналы undo/redo от контроллера
+        self.controller.history.history_changed.connect(self._on_history_changed)
 
     def _setup_toolbar(self):
         """Настройка тулбара"""
@@ -125,6 +193,45 @@ class MainWindow(QMainWindow):
         self.controller.status_changed.connect(self.update_status)
         self.controller.error_occurred.connect(self.show_error)
 
+    def handle_key_press(self, event):
+        """Обработка нажатий клавиш (вызывается из DiagramView)
+        
+        Returns:
+            True если событие обработано, False иначе
+        """
+        # Ctrl+S - Save
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_S:
+            print("DEBUG: Ctrl+S pressed - Save")
+            self._on_save_clicked()
+            return True
+        
+        # Ctrl+Z - Undo
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_Z:
+            self._on_undo()
+            return True
+        
+        # Ctrl+Y или Ctrl+Shift+Z - Redo
+        if event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier) and event.key() == Qt.Key.Key_Z:
+            self._on_redo()
+            return True
+        
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_Y:
+            self._on_redo()
+            return True
+        
+        # Delete или Backspace - удалить выбранное
+        if event.key() == Qt.Key.Key_Delete or event.key() == Qt.Key.Key_Backspace:
+            print("DEBUG: Delete/Backspace key pressed")
+            self._on_delete_selected()
+            return True
+        
+        return False  # Не обработано
+    
+    def keyPressEvent(self, event):
+        """Обработка нажатий клавиш (для MainWindow)"""
+        if not self.handle_key_press(event):
+            super().keyPressEvent(event)
+    
     def _on_add_clicked(self):
         """Обработка добавления карточки"""
         # Центрируем новую карточку в поле зрения
@@ -178,10 +285,15 @@ class MainWindow(QMainWindow):
 
     def _on_delete_selected(self):
         """Удаление выбранных элементов (карточек или связей)"""
+        print("DEBUG: _on_delete_selected called")
+        
         # Получаем все выделенные объекты на сцене
         selected_items = self.scene.selectedItems()
+        print(f"DEBUG: Found {len(selected_items)} selected items")
 
         if not selected_items:
+            print("DEBUG: No items selected, returning")
+            self.show_info("Please select items to delete.")
             return
 
         # Спрашиваем подтверждение
@@ -203,6 +315,8 @@ class MainWindow(QMainWindow):
                     print(f"DEBUG: Requesting connection removal: {item.id}")
                     # Вызываем метод напрямую у контроллера
                     self.controller.remove_connection(item.id)
+            
+            print("DEBUG: Delete operation completed")
 
     def _on_edit_connection(self):
         """Редактирование выбранной связи"""
@@ -357,3 +471,16 @@ class MainWindow(QMainWindow):
     def show_info(self, message: str):
         """Показать информацию"""
         QMessageBox.information(self, "Information", message)
+    
+    def _on_history_changed(self):
+        """Обработка изменений в истории undo/redo"""
+        self.undo_action.setEnabled(self.controller.can_undo())
+        self.redo_action.setEnabled(self.controller.can_redo())
+    
+    def _on_undo(self):
+        """Отменить последнее действие"""
+        self.controller.undo()
+    
+    def _on_redo(self):
+        """Повторить отмененное действие"""
+        self.controller.redo()
