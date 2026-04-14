@@ -1,4 +1,5 @@
 """Главный контроллер диаграммы"""
+import logging
 from PyQt6.QtCore import QObject, pyqtSignal
 from typing import List, Dict, Optional, Any
 from pathlib import Path
@@ -11,6 +12,8 @@ from ..services.code_generator import CodeGenerator
 from ..services.history_service import HistoryService
 from ..view.widgets.uml_card import UMLCard
 from ..view.widgets.connection_line import ConnectionLine
+
+logger = logging.getLogger(__name__)
 
 
 class DiagramController(QObject):
@@ -304,97 +307,37 @@ class DiagramController(QObject):
     
     def _save_state(self) -> None:
         """Сохранить текущее состояние диаграммы в историю"""
-        state = self._capture_diagram_state()
-        self.history.push_state(state)
+        try:
+            # Теперь передаем сам UMLDiagram объект вместо dict
+            self.history.push_state(self.manager.diagram)
+        except Exception as e:
+            logger.error(f"Failed to save state to history: {e}", exc_info=True)
+            self.error_occurred.emit(f"Failed to save history: {e}")
     
-    def _capture_diagram_state(self) -> dict:
-        """Захватить текущее состояние диаграммы"""
-        return {
-            'nodes': [
-                {
-                    'id': node.id,
-                    'name': node.name,
-                    'x': node.x,
-                    'y': node.y,
-                    'properties': [
-                        {'name': p.name, 'type': p.type, 'visibility': p.visibility}
-                        for p in node.properties
-                    ],
-                    'methods': [
-                        {'name': m.name, 'return_type': m.return_type, 'visibility': m.visibility}
-                        for m in node.methods
-                    ]
-                }
-                for node in self.manager.diagram.nodes
-            ],
-            'connections': [
-                {
-                    'id': conn.id,
-                    'source_id': conn.source_id,
-                    'target_id': conn.target_id,
-                    'type': conn.type,
-                    'source_anchor': conn.source_anchor,
-                    'target_anchor': conn.target_anchor
-                }
-                for conn in self.manager.diagram.connections
-            ]
-        }
+
     
-    def _restore_state(self, state: dict) -> None:
+    def _restore_state(self, diagram: UMLDiagram) -> None:
         """Восстановить состояние диаграммы"""
-        # Очищаем текущую диаграмму
-        self.manager.clear()
-        
-        # Восстанавливаем узлы
-        for node_data in state['nodes']:
-            node = UMLNode(
-                node_id=node_data['id'],
-                name=node_data['name'],
-                x=node_data['x'],
-                y=node_data['y']
-            )
-            
-            # Восстанавливаем свойства
-            for prop_data in node_data['properties']:
-                prop = UMLProperty(
-                    name=prop_data['name'],
-                    type=prop_data['type'],
-                    visibility=prop_data['visibility']
-                )
-                node.properties.append(prop)
-            
-            # Восстанавливаем методы
-            for method_data in node_data['methods']:
-                method = UMLMethod(
-                    name=method_data['name'],
-                    return_type=method_data['return_type'],
-                    visibility=method_data['visibility']
-                )
-                node.methods.append(method)
-            
-            self.manager.diagram.nodes.append(node)
-        
-        # Восстанавливаем связи
-        for conn_data in state['connections']:
-            from ..models.diagram import ConnectionType
-            conn = UMLConnection(
-                source_id=conn_data['source_id'],
-                target_id=conn_data['target_id'],
-                type=ConnectionType(conn_data['type']),
-                source_anchor=conn_data['source_anchor'],
-                target_anchor=conn_data['target_anchor'],
-                id=conn_data['id']
-            )
-            self.manager.diagram.connections.append(conn)
+        try:
+            # Полностью заменяем диаграмму на восстановленную
+            self.manager.diagram = diagram.model_copy(deep=True)
+            logger.debug(f"State restored: {len(diagram.nodes)} nodes, {len(diagram.connections)} connections")
+        except Exception as e:
+            logger.error(f"Failed to restore state: {e}", exc_info=True)
+            self.error_occurred.emit(f"Failed to restore state: {e}")
     
-    def _on_state_restored(self, state: dict) -> None:
+    def _on_state_restored(self, diagram: UMLDiagram) -> None:
         """Обработчик восстановления состояния"""
-        # Восстанавливаем состояние модели
-        self._restore_state(state)
-        
-        # Сигнал для перестроения представления
-        self.diagram_loaded.emit()
-        self.status_changed.emit("State restored")
+        try:
+            # Восстанавливаем состояние модели
+            self._restore_state(diagram)
+            
+            # Сигнал для перестроения представления
+            self.diagram_loaded.emit()
+            self.status_changed.emit("State restored")
+        except Exception as e:
+            logger.error(f"Failed to handle state restoration: {e}", exc_info=True)
+            self.error_occurred.emit(f"Failed to restore state: {e}")
     
     def undo(self) -> bool:
         """Отменить последнее действие"""
