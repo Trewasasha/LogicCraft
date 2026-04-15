@@ -43,7 +43,10 @@ class DiagramController(QObject):
         self.engine = DiagramEngine()
         self.serializer = SerializationService()
         self.code_generator = CodeGenerator()
-        self.history = HistoryService()
+        
+        # Инициализируем историю с начальным состоянием (пустая диаграмма)
+        # Это позволяет отменить первое действие и вернуться к пустой диаграмме
+        self.history = HistoryService(initial_state=self.manager.diagram)
 
         # Словари для связи моделей и представлений
         self.card_map: Dict[str, UMLCard] = {}  # node_id -> UMLCard
@@ -51,6 +54,8 @@ class DiagramController(QObject):
         
         # Подключаем сигналы истории
         self.history.state_restored.connect(self._on_state_restored)
+        # Новый сигнал с параметрами can_undo и can_redo
+        self.history.history_changed.connect(self._on_history_changed)
 
     def add_card(self, x: float, y: float, name: str = None) -> Optional[UMLNode]:
         """Добавить карточку"""
@@ -265,6 +270,23 @@ class DiagramController(QObject):
     def generate_code(self, language: str = "python") -> str:
         """Сгенерировать код из диаграммы"""
         try:
+            # ВАЛИДАЦИЯ УРОВЕНЬ 3: Полная проверка перед генерацией кода
+            # Вызывается ТОЛЬКО вручную, не автоматически!
+            validation_errors = self.history.validate_for_codegen(self.manager.diagram)
+            
+            if validation_errors:
+                # Есть ошибки - не генерируем код
+                error_msg = f"Cannot generate code: {len(validation_errors)} validation errors found"
+                logger.warning(error_msg)
+                self.error_occurred.emit(error_msg)
+                
+                # Отправляем все ошибки в UI
+                for error in validation_errors:
+                    self.error_occurred.emit(f"Validation: {error}")
+                
+                return ""
+            
+            # Валидация прошла успешно - генерируем код
             code = self.code_generator.generate(self.manager.diagram, language)
             self.status_changed.emit(f"Generated {language} code")
             return code
@@ -272,18 +294,41 @@ class DiagramController(QObject):
             self.error_occurred.emit(f"Failed to generate code: {e}")
             return ""
 
-    def validate_diagram(self) -> List:
-        """Валидировать диаграмму"""
-        self.engine.load_diagram(self.manager.diagram)
-        errors = self.engine.validate()
+    def validate_diagram(self, full_validation: bool = False) -> List:
+        """
+        Валидировать диаграмму.
+        
+        Args:
+            full_validation: Если True, проводит полную проверку (УРОВЕНЬ 3)
+                           Если False, только быструю проверку связей (УРОВЕНЬ 2)
+        """
+        try:
+            if full_validation:
+                # Полная проверка для генерации кода
+                self.engine.load_diagram(self.manager.diagram)
+                errors = self.engine.validate()
+                
+                # Добавляем проверки для codegen
+                codegen_errors = self.history.validate_for_codegen(self.manager.diagram)
+                errors.extend(codegen_errors)
+            else:
+                # Быстрая проверка только связей
+                self.engine.load_diagram(self.manager.diagram)
+                errors = self.engine.validate()
 
-        if errors:
-            for error in errors:
-                self.error_occurred.emit(f"Validation {error.severity}: {error.message}")
-        else:
-            self.status_changed.emit("Diagram is valid")
+            if errors:
+                for error in errors:
+                    error_msg = error.message if hasattr(error, 'message') else str(error)
+                    severity = error.severity if hasattr(error, 'severity') else 'error'
+                    self.error_occurred.emit(f"Validation {severity}: {error_msg}")
+            else:
+                self.status_changed.emit("Diagram is valid")
 
-        return errors
+            return errors
+        except Exception as e:
+            logger.error(f"Failed to validate diagram: {e}", exc_info=True)
+            self.error_occurred.emit(f"Validation failed: {e}")
+            return []
 
     def get_statistics(self) -> Dict[str, int]:
         """Получить статистику диаграммы"""
@@ -338,6 +383,18 @@ class DiagramController(QObject):
         except Exception as e:
             logger.error(f"Failed to handle state restoration: {e}", exc_info=True)
             self.error_occurred.emit(f"Failed to restore state: {e}")
+    
+    def _on_history_changed(self, can_undo: bool, can_redo: bool) -> None:
+        """
+        Обработчик изменения истории.
+        Получает can_undo и can_redo напрямую из сигнала, без дополнительных вызовов.
+        """
+        try:
+            # Передаем информацию в UI через отдельный сигнал
+            self.undo_redo_changed.emit()
+            logger.debug(f"History changed callback: can_undo={can_undo}, can_redo={can_redo}")
+        except Exception as e:
+            logger.error(f"Failed to handle history changed: {e}", exc_info=True)
     
     def undo(self) -> bool:
         """Отменить последнее действие"""

@@ -31,17 +31,19 @@ class HistoryService(QObject):
     """
 
     # Сигналы для обновления UI
-    history_changed = pyqtSignal()  # Emit when undo/redo availability changes
+    # Передаем can_undo и can_redo напрямую, чтобы UI не вызывал методы отдельно
+    history_changed = pyqtSignal(bool, bool)  # (can_undo, can_redo)
     state_restored = pyqtSignal(object)  # Emit when state is restored (for views to update)
     state_validation_failed = pyqtSignal(str)  # Emit when validation fails
 
-    def __init__(self, max_history: int = 50, compression_threshold: int = 20):
+    def __init__(self, max_history: int = 50, compression_threshold: int = 20, initial_state: UMLDiagram = None):
         """
         Инициализация сервиса истории.
         
         Args:
             max_history: Максимальное количество состояний в истории
             compression_threshold: Порог для сжатия старых состояний
+            initial_state: Начальное состояние диаграммы (обычно пустая диаграмма)
         """
         super().__init__()
         self._stack: List[UMLDiagram] = []
@@ -51,6 +53,35 @@ class HistoryService(QObject):
         self._is_restoring = False  # Flag to prevent recording during restore
         self._lock = Lock()  # Thread-safe operations
         self._compressed_count: int = 0  # Track compression statistics
+        
+        # Если передано начальное состояние, сохраняем его
+        if initial_state is not None:
+            self._save_initial_state(initial_state)
+
+    def _save_initial_state(self, state: UMLDiagram) -> None:
+        """
+        Сохранить начальное состояние (базовая точка для undo).
+        Вызывается один раз при инициализации.
+        
+        Args:
+            state: Начальное состояние диаграммы
+        """
+        try:
+            with self._lock:
+                # Конвертируем dict в UMLDiagram если нужно
+                if isinstance(state, dict):
+                    state = self._dict_to_diagram(state)
+                
+                # Сохраняем копию начального состояния
+                state_copy = state.model_copy(deep=True)
+                self._stack.append(state_copy)
+                self._current_index = 0  # Устанавливаем индекс на 0
+                
+                logger.debug(f"Initial state saved. Stack size: {len(self._stack)}, Index: {self._current_index}")
+        
+        except Exception as e:
+            logger.error(f"Failed to save initial state: {e}", exc_info=True)
+            raise
 
     def push_state(self, state: Union[UMLDiagram, dict], validate: bool = True) -> None:
         """
@@ -69,18 +100,58 @@ class HistoryService(QObject):
                     logger.debug("Skipping state push during restoration")
                     return  # Don't record states during undo/redo operations
 
+                # Проверка на дубликат: не сохраняем если состояние не изменилось
+                if self._current_index >= 0 and self._current_index < len(self._stack):
+                    current_state = self._stack[self._current_index]
+                    # Быстрая проверка: если количество узлов и связей не изменилось, пропускаем
+                    if (len(state.nodes) == len(current_state.nodes) and 
+                        len(state.connections) == len(current_state.connections)):
+                        # Более глубокая проверка для position changes
+                        is_same = True
+                        for i, node in enumerate(state.nodes):
+                            if i >= len(current_state.nodes):
+                                is_same = False
+                                break
+                            current_node = current_state.nodes[i]
+                            if (node.id == current_node.id and 
+                                node.name == current_node.name and
+                                abs(node.x - current_node.x) < 0.1 and  # Небольшой допуск
+                                abs(node.y - current_node.y) < 0.1):
+                                continue
+                            else:
+                                is_same = False
+                                break
+                        
+                        if is_same:
+                            logger.debug("State unchanged, skipping push")
+                            return
+
                 # Конвертируем dict в UMLDiagram если нужно
                 if isinstance(state, dict):
                     state = self._dict_to_diagram(state)
                 
-                # Валидация состояния
+                # ВАЛИДАЦИЯ УРОВЕНЬ 1: Быстрая проверка (Pydantic model_validate)
+                # Используем встроенный механизм Pydantic - работает на C уровне
                 if validate:
-                    errors = self._validate_state(state)
-                    if errors:
-                        error_msg = f"State validation failed: {', '.join(errors)}"
+                    try:
+                        # Pydantic уже проверяет типы, required fields, etc.
+                        # Это БЫСТРОЕ потому что работает на уровне модели
+                        UMLDiagram.model_validate(state, strict=False)
+                    except Exception as e:
+                        error_msg = f"Pydantic validation failed: {str(e)}"
                         logger.warning(error_msg)
                         self.state_validation_failed.emit(error_msg)
-                        # Не блокируем, только предупреждаем
+                        # Не блокируем, Pydantic уже сделал основную работу
+
+                # ВАЛИДАЦИЯ УРОВЕНЬ 2: Быстрая проверка связей (только ID)
+                # Проверяем ТОЛЬКО что связи ссылаются на существующие узлы
+                # O(c) где c - количество связей, НЕ зависит от свойств/методов
+                if validate:
+                    errors_l2 = self._validate_connections_only(state)
+                    if errors_l2:
+                        error_msg = f"Connection validation failed: {', '.join(errors_l2)}"
+                        logger.warning(error_msg)
+                        self.state_validation_failed.emit(error_msg)
 
                 # Удаляем все состояния после текущего (очищаем redo стек)
                 if self._current_index < len(self._stack) - 1:
@@ -102,12 +173,14 @@ class HistoryService(QObject):
                 if len(self._stack) > self._compression_threshold:
                     self._compress_old_states()
 
-                self.history_changed.emit()
-                logger.debug(f"State pushed. Stack size: {len(self._stack)}, Index: {self._current_index}")
-        
         except Exception as e:
             logger.error(f"Failed to push state: {e}", exc_info=True)
             raise
+        
+        finally:
+            # Сигнал в finally - гарантированно сработает даже при ошибке
+            self._emit_history_changed()
+            logger.debug(f"State pushed. Stack size: {len(self._stack)}, Index: {self._current_index}")
 
     def undo(self) -> Optional[UMLDiagram]:
         """
@@ -131,7 +204,7 @@ class HistoryService(QObject):
                 finally:
                     self._is_restoring = False
 
-                self.history_changed.emit()
+                self._emit_history_changed()
                 self.state_restored.emit(state)
                 
                 return state
@@ -163,7 +236,7 @@ class HistoryService(QObject):
                 finally:
                     self._is_restoring = False
 
-                self.history_changed.emit()
+                self._emit_history_changed()
                 self.state_restored.emit(state)
                 
                 return state
@@ -191,6 +264,19 @@ class HistoryService(QObject):
         """
         return self._current_index < len(self._stack) - 1
 
+    def _emit_history_changed(self) -> None:
+        """
+        Испустить сигнал об изменении истории с параметрами can_undo и can_redo.
+        Это позволяет UI получить состояние сразу, без отдельных вызовов.
+        """
+        try:
+            can_undo = self.can_undo()
+            can_redo = self.can_redo()
+            self.history_changed.emit(can_undo, can_redo)
+            logger.debug(f"History changed: can_undo={can_undo}, can_redo={can_redo}")
+        except Exception as e:
+            logger.error(f"Failed to emit history_changed: {e}", exc_info=True)
+
     def clear(self) -> None:
         """Очистить всю историю"""
         try:
@@ -208,7 +294,7 @@ class HistoryService(QObject):
                     # Восстанавливаем предыдущее состояние флага
                     self._is_restoring = was_restoring
                     
-                self.history_changed.emit()
+                self._emit_history_changed()
         
         except Exception as e:
             logger.error(f"Failed to clear history: {e}", exc_info=True)
@@ -266,9 +352,10 @@ class HistoryService(QObject):
         with self._lock:
             return len(self._stack) > 0
 
-    def _validate_state(self, diagram: UMLDiagram) -> List[str]:
+    def _validate_connections_only(self, diagram: UMLDiagram) -> List[str]:
         """
-        Валидировать состояние диаграммы.
+        УРОВЕНЬ 2: Быстрая проверка связей (O(c) - только связи).
+        Проверяет что все связи ссылаются на существующие узлы.
         
         Args:
             diagram: Диаграмма для валидации
@@ -279,47 +366,106 @@ class HistoryService(QObject):
         errors = []
         
         try:
-            # Проверка имени диаграммы
-            if not diagram.name or not isinstance(diagram.name, str):
-                errors.append("Diagram name is invalid")
+            # Собираем все ID узлов в set для O(1) поиска
+            node_ids = {node.id for node in diagram.nodes}
             
-            # Проверка узлов
-            node_ids = set()
-            for i, node in enumerate(diagram.nodes):
-                # Проверка ID узла
-                if not node.id or node.id in node_ids:
-                    errors.append(f"Node {i} has invalid or duplicate ID: {node.id}")
-                node_ids.add(node.id)
-                
-                # Проверка имени узла
-                if not node.name or not isinstance(node.name, str):
-                    errors.append(f"Node {node.id} has invalid name")
-                
-                # Проверка координат
-                if not isinstance(node.x, (int, float)) or not isinstance(node.y, (int, float)):
-                    errors.append(f"Node {node.id} has invalid coordinates")
-                
-                # Проверка свойств
-                for j, prop in enumerate(node.properties):
-                    if not prop.name or not isinstance(prop.name, str):
-                        errors.append(f"Property {j} in node {node.id} has invalid name")
-                    if not prop.type or not isinstance(prop.type, str):
-                        errors.append(f"Property {j} in node {node.id} has invalid type")
-                
-                # Проверка методов
-                for j, method in enumerate(node.methods):
-                    if not method.name or not isinstance(method.name, str):
-                        errors.append(f"Method {j} in node {node.id} has invalid name")
-            
-            # Проверка связей
-            for i, conn in enumerate(diagram.connections):
+            # Проверяем ТОЛЬКО связи (быстро!)
+            for conn in diagram.connections:
                 if conn.source_id not in node_ids:
-                    errors.append(f"Connection {i}: source {conn.source_id} not found")
+                    errors.append(f"Connection {conn.id}: source {conn.source_id} not found")
                 if conn.target_id not in node_ids:
-                    errors.append(f"Connection {i}: target {conn.target_id} not found")
+                    errors.append(f"Connection {conn.id}: target {conn.target_id} not found")
         
         except Exception as e:
-            errors.append(f"Validation error: {str(e)}")
+            errors.append(f"Connection validation error: {str(e)}")
+        
+        return errors
+
+    def _validate_for_codegen(self, diagram: UMLDiagram) -> List[str]:
+        """
+        УРОВЕНЬ 3: Полная проверка для генерации кода (медленная, вызывается вручную).
+        Проверяет имена классов, наследование, style guide и т.д.
+        
+        Args:
+            diagram: Диаграмма для валидации
+            
+        Returns:
+            Список ошибок валидации
+        """
+        import re
+        errors = []
+        
+        try:
+            node_ids = {node.id for node in diagram.nodes}
+            
+            # Проверяем каждый узел
+            for node in diagram.nodes:
+                # 1. Проверка на пустое имя
+                if not node.name or not node.name.strip():
+                    errors.append(f"Node {node.id}: empty name")
+                    continue
+                
+                # 2. Проверка имени класса (style guide: PascalCase)
+                if not re.match(r'^[A-Z][a-zA-Z0-9]*$', node.name):
+                    errors.append(
+                        f"Node '{node.name}': invalid class name. "
+                        f"Should be PascalCase (e.g., MyClass, UserProfile)"
+                    )
+                
+                # 3. Проверка уникальности ID (на случай copy-paste)
+                if diagram.nodes.count(node) > 1:
+                    errors.append(f"Node {node.id}: duplicate ID detected")
+                
+                # 4. Проверка свойств и методов на пустые имена
+                for prop in node.properties:
+                    if not prop.name or not prop.name.strip():
+                        errors.append(f"Node '{node.name}': property with empty name")
+                    if not prop.type or not prop.type.strip():
+                        errors.append(f"Node '{node.name}': property '{prop.name}' with empty type")
+                
+                for method in node.methods:
+                    if not method.name or not method.name.strip():
+                        errors.append(f"Node '{node.name}': method with empty name")
+            
+            # 5. Проверка на наследование самого себя
+            for conn in diagram.connections:
+                if conn.type.value == 'inheritance':
+                    if conn.source_id == conn.target_id:
+                        source_node = diagram.get_node(conn.source_id)
+                        errors.append(
+                            f"Node '{source_node.name if source_node else conn.source_id}': "
+                            f"cannot inherit from itself"
+                        )
+            
+            # 6. Проверка на циклическое наследование (A -> B -> A)
+            inheritance_graph = {}
+            for conn in diagram.connections:
+                if conn.type.value == 'inheritance':
+                    inheritance_graph[conn.source_id] = conn.target_id
+            
+            # Detect cycles
+            visited = set()
+            for start_id in inheritance_graph:
+                if start_id in visited:
+                    continue
+                
+                path = set()
+                current = start_id
+                while current and current in inheritance_graph:
+                    if current in path:
+                        # Found cycle
+                        node = diagram.get_node(current)
+                        errors.append(
+                            f"Node '{node.name if node else current}': "
+                            f"cyclic inheritance detected"
+                        )
+                        break
+                    path.add(current)
+                    visited.add(current)
+                    current = inheritance_graph.get(current)
+        
+        except Exception as e:
+            errors.append(f"Codegen validation error: {str(e)}")
         
         return errors
 
@@ -396,3 +542,36 @@ class HistoryService(QObject):
                 'compressed_count': self._compressed_count,
                 'memory_optimized': self._compressed_count > 0
             }
+
+    def validate_for_codegen(self, diagram: UMLDiagram = None) -> List[str]:
+        """
+        Провести полную валидацию диаграммы перед генерацией кода.
+        Вызывается вручную, НЕ автоматически при push_state!
+        
+        Args:
+            diagram: Диаграмма для валидации (если None, использует текущее состояние)
+            
+        Returns:
+            Список ошибок валидации
+        """
+        try:
+            with self._lock:
+                # Если диаграмма не передана, берем текущее состояние
+                if diagram is None:
+                    diagram = self.get_current_state()
+                    if diagram is None:
+                        return ["No state available for validation"]
+                
+                # Запускаем полную проверку (УРОВЕНЬ 3)
+                errors = self._validate_for_codegen(diagram)
+                
+                if errors:
+                    logger.warning(f"Codegen validation found {len(errors)} errors")
+                else:
+                    logger.info("Codegen validation passed successfully")
+                
+                return errors
+        
+        except Exception as e:
+            logger.error(f"Failed to validate for codegen: {e}", exc_info=True)
+            return [f"Validation error: {str(e)}"]
