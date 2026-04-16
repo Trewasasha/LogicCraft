@@ -83,83 +83,64 @@ class HistoryService(QObject):
             logger.error(f"Failed to save initial state: {e}", exc_info=True)
             raise
 
-    def push_state(self, state: Union[UMLDiagram, dict], validate: bool = True) -> None:
+    def push_state(self, state: Union[UMLDiagram, dict], validate: bool = True, is_checkpoint: bool = False) -> None:
         """
         Добавить новое состояние в историю.
         
         Args:
             state: Состояние диаграммы (UMLDiagram или dict для обратной совместимости)
             validate: Проверять валидность состояния
+            is_checkpoint: Важная точка восстановления (не будет сжата)
             
         Raises:
             InvalidStateError: Если состояние невалидно
         """
-        try:
-            with self._lock:
-                if self._is_restoring:
-                    logger.debug("Skipping state push during restoration")
-                    return  # Don't record states during undo/redo operations
-
-                # Проверка на дубликат: не сохраняем если состояние не изменилось
-                if self._current_index >= 0 and self._current_index < len(self._stack):
-                    current_state = self._stack[self._current_index]
-                    # Быстрая проверка: если количество узлов и связей не изменилось, пропускаем
-                    if (len(state.nodes) == len(current_state.nodes) and 
-                        len(state.connections) == len(current_state.connections)):
-                        # Более глубокая проверка для position changes
-                        is_same = True
-                        for i, node in enumerate(state.nodes):
-                            if i >= len(current_state.nodes):
-                                is_same = False
-                                break
-                            current_node = current_state.nodes[i]
-                            if (node.id == current_node.id and 
-                                node.name == current_node.name and
-                                abs(node.x - current_node.x) < 0.1 and  # Небольшой допуск
-                                abs(node.y - current_node.y) < 0.1):
-                                continue
-                            else:
-                                is_same = False
-                                break
-                        
-                        if is_same:
-                            logger.debug("State unchanged, skipping push")
-                            return
-
-                # Конвертируем dict в UMLDiagram если нужно
+        # 1. Валидация БЕЗ блокировки (можно делать параллельно)
+        if validate:
+            try:
+                # Pydantic validation - работает на C уровне
                 if isinstance(state, dict):
                     state = self._dict_to_diagram(state)
                 
-                # ВАЛИДАЦИЯ УРОВЕНЬ 1: Быстрая проверка (Pydantic model_validate)
-                # Используем встроенный механизм Pydantic - работает на C уровне
-                if validate:
-                    try:
-                        # Pydantic уже проверяет типы, required fields, etc.
-                        # Это БЫСТРОЕ потому что работает на уровне модели
-                        UMLDiagram.model_validate(state, strict=False)
-                    except Exception as e:
-                        error_msg = f"Pydantic validation failed: {str(e)}"
-                        logger.warning(error_msg)
-                        self.state_validation_failed.emit(error_msg)
-                        # Не блокируем, Pydantic уже сделал основную работу
-
-                # ВАЛИДАЦИЯ УРОВЕНЬ 2: Быстрая проверка связей (только ID)
-                # Проверяем ТОЛЬКО что связи ссылаются на существующие узлы
-                # O(c) где c - количество связей, НЕ зависит от свойств/методов
-                if validate:
-                    errors_l2 = self._validate_connections_only(state)
-                    if errors_l2:
-                        error_msg = f"Connection validation failed: {', '.join(errors_l2)}"
-                        logger.warning(error_msg)
-                        self.state_validation_failed.emit(error_msg)
-
+                UMLDiagram.model_validate(state, strict=False)
+                
+                # Быстрая проверка связей
+                errors_l2 = self._validate_connections_only(state)
+                if errors_l2:
+                    error_msg = f"Connection validation failed: {', '.join(errors_l2)}"
+                    logger.warning(error_msg)
+                    self.state_validation_failed.emit(error_msg)
+            except Exception as e:
+                error_msg = f"Validation failed: {str(e)}"
+                logger.warning(error_msg)
+                self.state_validation_failed.emit(error_msg)
+                # Не блокируем, только предупреждаем
+        
+        # 2. Проверка на дубликат БЕЗ блокировки (только чтение)
+        if self._is_duplicate_state(state):
+            logger.debug("State unchanged, skipping push")
+            return
+        
+        # 3. Копирование БЕЗ блокировки (тяжелая операция)
+        try:
+            state_copy = state.model_copy(deep=True)
+            state_copy._is_checkpoint = is_checkpoint  # Метка важности
+        except Exception as e:
+            logger.error(f"Failed to copy state: {e}", exc_info=True)
+            raise
+        
+        # 4. Атомарное обновление С блокировкой (быстро!)
+        try:
+            with self._lock:
+                # Если в процессе подготовки состояние изменилось, проверяем снова
+                if self._is_restoring:
+                    logger.debug("Skipping state push during restoration")
+                    return
+                
                 # Удаляем все состояния после текущего (очищаем redo стек)
                 if self._current_index < len(self._stack) - 1:
                     self._stack = self._stack[:self._current_index + 1]
 
-                # Оптимизация: используем model_copy вместо deepcopy для Pydantic
-                state_copy = state.model_copy(deep=True)
-                
                 # Добавляем новое состояние
                 self._stack.append(state_copy)
                 self._current_index += 1
@@ -172,7 +153,7 @@ class HistoryService(QObject):
                 # Сжимаем старые состояния если нужно
                 if len(self._stack) > self._compression_threshold:
                     self._compress_old_states()
-
+        
         except Exception as e:
             logger.error(f"Failed to push state: {e}", exc_info=True)
             raise
@@ -276,6 +257,50 @@ class HistoryService(QObject):
             logger.debug(f"History changed: can_undo={can_undo}, can_redo={can_redo}")
         except Exception as e:
             logger.error(f"Failed to emit history_changed: {e}", exc_info=True)
+
+    def _is_duplicate_state(self, state: UMLDiagram) -> bool:
+        """
+        Проверить, является ли состояние дубликатом текущего.
+        Сравнивает по ID узлов, а не по индексу!
+        
+        Args:
+            state: Новое состояние для проверки
+            
+        Returns:
+            True если состояние не изменилось
+        """
+        if self._current_index < 0 or self._current_index >= len(self._stack):
+            return False
+        
+        current_state = self._stack[self._current_index]
+        
+        # Быстрая проверка: если количество узлов и связей не изменилось
+        if (len(state.nodes) != len(current_state.nodes) or 
+            len(state.connections) != len(current_state.connections)):
+            return False
+        
+        # Создаем dict для O(1) поиска по ID
+        current_nodes_map = {node.id: node for node in current_state.nodes}
+        
+        for node in state.nodes:
+            if node.id not in current_nodes_map:
+                return False  # Новый узел добавлен
+            
+            current_node = current_nodes_map[node.id]
+            
+            # Сравниваем важные поля
+            if (node.name != current_node.name or
+                abs(node.x - current_node.x) >= 0.1 or
+                abs(node.y - current_node.y) >= 0.1 or
+                len(node.properties) != len(current_node.properties) or
+                len(node.methods) != len(current_node.methods)):
+                return False
+        
+        # Проверяем связи по ID
+        current_conn_ids = {conn.id for conn in current_state.connections}
+        new_conn_ids = {conn.id for conn in state.connections}
+        
+        return current_conn_ids == new_conn_ids
 
     def clear(self) -> None:
         """Очистить всю историю"""
@@ -472,31 +497,39 @@ class HistoryService(QObject):
     def _compress_old_states(self) -> None:
         """
         Сжать старые состояния для экономии памяти.
-        Оставляет только каждое N-ное состояние после порога.
+        Оставляет checkpoint состояния и каждое 2-ое обычное.
+        Оптимизировано: не создает копии списков!
         """
         try:
             if len(self._stack) <= self._compression_threshold:
                 return
             
-            # Оставляем последние compression_threshold состояний без изменений
-            # Сжимаем более старые состояния, оставляя каждое 2-ое
             threshold = self._compression_threshold
-            old_states = self._stack[:-threshold]
-            recent_states = self._stack[-threshold:]
             
-            # Сжимаем: оставляем каждое 2-ое состояние из старых
-            compressed = old_states[::2]
-            self._compressed_count += len(old_states) - len(compressed)
+            # Разделяем на старые и новые
+            old_count = len(self._stack) - threshold
             
-            # Обновляем стек
-            self._stack = compressed + recent_states
+            # Находим индексы для удаления (только не-checkpoint)
+            indices_to_remove = []
+            for i in range(old_count):
+                state = self._stack[i]
+                is_checkpoint = getattr(state, '_is_checkpoint', False)
+                
+                # Не удаляем checkpoint и каждое 2-ое
+                if not is_checkpoint and i % 2 == 1:
+                    indices_to_remove.append(i)
             
-            # Корректируем индекс
-            removed_count = len(old_states) - len(compressed)
-            if self._current_index >= len(compressed):
-                self._current_index -= removed_count
+            # Удаляем в обратном порядке (чтобы индексы не смещались)
+            removed_count = 0
+            for i in reversed(indices_to_remove):
+                del self._stack[i]
+                removed_count += 1
+                if i <= self._current_index:
+                    self._current_index -= 1
             
-            logger.debug(f"Compressed history: {len(old_states)} -> {len(compressed)} states. "
+            self._compressed_count += removed_count
+            
+            logger.debug(f"Compressed history: removed {removed_count} states. "
                         f"Total compressed: {self._compressed_count}")
         
         except Exception as e:
