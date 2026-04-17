@@ -497,8 +497,13 @@ class HistoryService(QObject):
     def _compress_old_states(self) -> None:
         """
         Сжать старые состояния для экономии памяти.
-        Оставляет checkpoint состояния и каждое 2-ое обычное.
-        Оптимизировано: не создает копии списков!
+        ОТКЛЮЧЕНО: Сжатие ломает undo/redo.
+        TODO: Реализовать delta-based compression вместо state removal.
+        """
+        # Временно отключаем сжатие - оно ломает undo/redo
+        return
+        
+        # Старый код (закомментирован):
         """
         try:
             if len(self._stack) <= self._compression_threshold:
@@ -535,6 +540,7 @@ class HistoryService(QObject):
         except Exception as e:
             logger.error(f"Failed to compress states: {e}", exc_info=True)
             raise StateCompressionError(f"Compression failed: {e}")
+        """
 
     def _dict_to_diagram(self, data: dict) -> UMLDiagram:
         """
