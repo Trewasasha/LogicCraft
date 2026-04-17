@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.poetry/
+
+# Build and Distribution
+dist/
+build/
+*.spec
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*.iml
+.DS_Store
+
+# Project specific
+data/exports/*
+data/saves/*
+temp/
+theme_pref.json
+
+# Keep directories but ignore content
+!data/exports/.gitkeep
+!data/saves/.gitkeep
