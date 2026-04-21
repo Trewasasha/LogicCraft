@@ -11,6 +11,7 @@ from .widgets.uml_card import UMLCard
 from .widgets.connection_line import ConnectionLine
 from .dialogs.edit_class_dialog import EditClassDialog
 from .dialogs.connection_properties import ConnectionPropertiesDialog
+from .dialogs.code_generation_dialog import CodeGenerationDialog
 
 
 class DiagramView(QGraphicsView):
@@ -139,6 +140,15 @@ class MainWindow(QMainWindow):
         clear_action.triggered.connect(self._on_clear_clicked)
         edit_menu.addAction(clear_action)
         
+        # Меню Tools
+        tools_menu = menubar.addMenu("&Tools")
+        
+        # Code Generation
+        generate_code_action = QAction("🚀 Generate Code", self)
+        generate_code_action.setShortcut(QKeySequence("Ctrl+G"))
+        generate_code_action.triggered.connect(self._on_generate_code_clicked)
+        tools_menu.addAction(generate_code_action)
+        
         # Подключаем сигналы undo/redo от контроллера
         self.controller.history.history_changed.connect(self._on_history_changed)
 
@@ -177,6 +187,13 @@ class MainWindow(QMainWindow):
         edit_conn_action = QAction("🔗 Edit Connection", self)
         edit_conn_action.triggered.connect(self._on_edit_connection)
         toolbar.addAction(edit_conn_action)
+
+        toolbar.addSeparator()
+
+        # Code Generation
+        generate_code_action = QAction("🚀 Generate Code", self)
+        generate_code_action.triggered.connect(self._on_generate_code_clicked)
+        toolbar.addAction(generate_code_action)
 
     def _connect_signals(self):
         """Подключение сигналов сцены"""
@@ -378,3 +395,18 @@ class MainWindow(QMainWindow):
     def _on_redo(self):
         """Повторить отмененное действие"""
         self.controller.redo()
+
+    def _on_generate_code_clicked(self):
+        """Обработка генерации кода"""
+        # Проверяем, есть ли классы в диаграмме
+        if not self.controller.manager.diagram.nodes:
+            QMessageBox.information(
+                self, 
+                "Информация", 
+                "Диаграмма пуста. Добавьте классы для генерации кода."
+            )
+            return
+        
+        # Открываем диалог генерации кода
+        dialog = CodeGenerationDialog(self.controller.manager.diagram, self)
+        dialog.exec()

@@ -1,0 +1,37 @@
+{% for node in nodes %}
+{% if node.is_abstract %}abstract {% endif %}class {{ node.name }}{% if inheritance_map[node.name] %} extends {{ inheritance_map[node.name][0] }}{% endif %} {
+    {% if node.properties %}
+    // Attributes
+    {% for prop in node.properties %}
+    {% if prop.visibility == "private" %}private {% elif prop.visibility == "protected" %}protected {% else %}public {% endif %}{% if prop.is_static %}static {% endif %}{{ prop.name }}: {{ prop.type }}{% if prop.default_value %} = {{ prop.default_value }}{% endif %};
+    {% endfor %}
+    {% endif %}
+
+    {% if node.properties %}
+    constructor() {
+        {% if inheritance_map[node.name] %}
+        super();
+        {% endif %}
+        {% for prop in node.properties %}
+        {% if not prop.default_value %}
+        this.{{ prop.name }} = null;
+        {% endif %}
+        {% endfor %}
+    }
+    {% endif %}
+
+    {% if node.methods %}
+    // Methods
+    {% for method in node.methods %}
+    {% if method.visibility == "private" %}private {% elif method.visibility == "protected" %}protected {% else %}public {% endif %}{% if method.is_static %}static {% endif %}{% if method.is_abstract %}abstract {% endif %}{{ method.name }}({% for param in method.parameters %}{{ param.name }}: {{ param.type }}{% if not loop.last %}, {% endif %}{% endfor %}){% if method.return_type %}: {{ method.return_type }}{% else %}: void{% endif %}{% if method.is_abstract %};{% else %} {
+        // TODO: Implement method
+        {% if method.return_type and method.return_type != "void" %}
+        return null as any; // Return type: {{ method.return_type }}
+        {% endif %}
+    }{% endif %}
+
+    {% endfor %}
+    {% endif %}
+}
+
+{% endfor %}

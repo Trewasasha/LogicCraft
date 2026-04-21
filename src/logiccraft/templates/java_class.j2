@@ -1,0 +1,35 @@
+{% for node in nodes %}
+{% set modifiers = [] %}
+{% if node.is_abstract %}{% set _ = modifiers.append("abstract") %}{% endif %}
+public {% for mod in modifiers %}{{ mod }} {% endfor %}class {{ node.name }}{% if inheritance_map[node.name] %} extends {{ inheritance_map[node.name][0] }}{% endif %} {
+{% if node.properties %}
+
+    // Attributes
+{% for prop in node.properties %}
+    {{ get_java_visibility(prop.visibility) }}{% if prop.is_static %} static{% endif %} {{ prop.type }} {{ prop.name }};
+{% endfor %}
+{% endif %}
+{% if node.properties %}
+
+    // Constructor
+    public {{ node.name }}() {
+        // TODO: Initialize attributes
+    }
+{% endif %}
+{% if node.methods %}
+
+    // Methods
+{% for method in node.methods %}
+    {{ get_java_visibility(method.visibility) }}{% if method.is_abstract %} abstract{% endif %}{% if method.is_static %} static{% endif %} {{ method.return_type or "void" }} {{ method.name }}({% for param in method.parameters %}{{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}){% if method.is_abstract %};{% else %} {
+        // TODO: Implement method
+    }{% endif %}
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+{% endif %}
+}
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}

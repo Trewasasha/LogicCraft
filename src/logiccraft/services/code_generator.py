@@ -1,6 +1,10 @@
 """Генерация кода из диаграммы"""
 from typing import List, Dict, Optional
+import os
+from pathlib import Path
+from jinja2 import Environment, FileSystemLoader, Template
 from ..models.diagram import UMLDiagram, UMLNode, UMLProperty, UMLMethod
+from ..templates.config import get_language_config, get_supported_languages, map_type
 
 
 class CodeGenerator:
@@ -8,106 +12,107 @@ class CodeGenerator:
 
     def __init__(self):
         self.language = "python"
+        # Настройка Jinja2 окружения
+        templates_dir = Path(__file__).parent.parent / "templates"
+        self.env = Environment(
+            loader=FileSystemLoader(templates_dir),
+            trim_blocks=True,
+            lstrip_blocks=True
+        )
+        
+        # Регистрация функций-помощников для шаблонов
+        self.env.globals.update({
+            'get_python_visibility': self._get_python_visibility,
+            'get_java_visibility': self._get_java_visibility,
+            'generate_method_params': self._generate_method_params,
+        })
 
     def generate(self, diagram: UMLDiagram, language: str = "python") -> str:
         """Сгенерировать код для диаграммы"""
+        if language not in get_supported_languages():
+            raise ValueError(f"Unsupported language: {language}. Supported: {get_supported_languages()}")
+            
         self.language = language
+        config = get_language_config(language)
+        template = self.env.get_template(config["template"])
+        
+        # Создаем карту наследования
+        inheritance_map = self._build_inheritance_map(diagram)
+        
+        # Проверяем, есть ли абстрактные классы (для Python)
+        has_abstract_classes = any(node.is_abstract for node in diagram.nodes)
+        
+        return template.render(
+            diagram_name=diagram.name,
+            nodes=diagram.nodes,
+            inheritance_map=inheritance_map,
+            has_abstract_classes=has_abstract_classes,
+            language=language
+        )
 
-        if language == "python":
-            return self._generate_python(diagram)
-        elif language == "java":
-            return self._generate_java(diagram)
-        elif language == "javascript":
-            return self._generate_javascript(diagram)
-        else:
-            raise ValueError(f"Unsupported language: {language}")
-
-    def _generate_python(self, diagram: UMLDiagram) -> str:
-        """Генерация Python кода"""
-        lines = [
-            f'"""Generated from UML Diagram: {diagram.name}"""',
-            "from typing import List, Optional",
-            "",
-            ""
-        ]
-
+    def generate_files(self, diagram: UMLDiagram, language: str = "python") -> Dict[str, str]:
+        """Сгенерировать файлы для диаграммы (по одному файлу на класс)"""
+        if language not in get_supported_languages():
+            raise ValueError(f"Unsupported language: {language}. Supported: {get_supported_languages()}")
+            
+        files = {}
+        config = get_language_config(language)
+        
         for node in diagram.nodes:
-            lines.extend(self._generate_python_class(node))
-            lines.append("")
+            filename = f"{node.name}{config['extension']}"
+            content = self._generate_single_class(node, diagram, language)
+            files[filename] = content
+            
+        return files
 
-        return "\n".join(lines)
+    def get_supported_languages(self) -> List[str]:
+        """Получить список поддерживаемых языков"""
+        return get_supported_languages()
 
-    def _generate_python_class(self, node: UMLNode) -> List[str]:
-        """Генерация Python класса"""
-        lines = []
+    def _get_filename(self, class_name: str, language: str) -> str:
+        """Получить имя файла для класса"""
+        config = get_language_config(language)
+        return f"{class_name}{config['extension']}"
 
-        # Аннотация для абстрактного класса
-        if node.is_abstract:
-            lines.append("from abc import ABC, abstractmethod")
-            lines.append("")
-            class_line = f"class {node.name}(ABC):"
-        else:
-            class_line = f"class {node.name}:"
+    def _generate_single_class(self, node: UMLNode, diagram: UMLDiagram, language: str) -> str:
+        """Сгенерировать код для одного класса"""
+        config = get_language_config(language)
+        template = self.env.get_template(config["template"])
+        
+        # Создаем карту наследования
+        inheritance_map = self._build_inheritance_map(diagram)
+        
+        # Проверяем, есть ли абстрактные классы (для Python)
+        has_abstract_classes = node.is_abstract
+        
+        return template.render(
+            diagram_name=diagram.name,
+            nodes=[node],
+            inheritance_map=inheritance_map,
+            has_abstract_classes=has_abstract_classes,
+            language=language
+        )
 
-        lines.append(class_line)
-
-        # Docstring
-        if node.stereotype:
-            lines.append(f'    """{node.stereotype}"""')
-        else:
-            lines.append('    """Class generated from UML diagram"""')
-
-        # Атрибуты
-        if node.properties:
-            lines.append("")
-            lines.append("    # Attributes")
-            for prop in node.properties:
-                visibility = self._get_python_visibility(prop.visibility)
-                default = f" = {prop.default_value}" if prop.default_value else ""
-                lines.append(f"    {visibility}{prop.name}: {prop.type}{default}")
-
-        # Конструктор
-        lines.append("")
-        lines.append("    def __init__(self):")
-
-        # Инициализация атрибутов в конструкторе
-        for prop in node.properties:
-            if prop.default_value:
-                lines.append(f"        self.{prop.name} = {prop.default_value}")
-            else:
-                lines.append(f"        self.{prop.name} = None")
-
-        # Методы
-        if node.methods:
-            lines.append("")
-            lines.append("    # Methods")
-            for method in node.methods:
-                params = self._generate_method_params(method)
-                return_type = method.return_type or "None"
-
-                # Декораторы
-                if method.is_abstract:
-                    lines.append("    @abstractmethod")
-                elif method.is_static:
-                    lines.append("    @staticmethod")
-
-                # Сигнатура метода
-                if method.is_static:
-                    signature = f"    def {method.name}({params}) -> {return_type}:"
-                else:
-                    signature = f"    def {method.name}(self{', ' + params if params else ''}) -> {return_type}:"
-
-                lines.append(signature)
-
-                # Тело метода
-                if method.is_abstract:
-                    lines.append("        raise NotImplementedError")
-                else:
-                    lines.append("        pass")
-
-                lines.append("")
-
-        return lines
+    def _build_inheritance_map(self, diagram: UMLDiagram) -> Dict[str, List[str]]:
+        """Построить карту наследования из связей диаграммы"""
+        inheritance_map = {}
+        
+        # Инициализируем пустые списки для всех узлов
+        for node in diagram.nodes:
+            inheritance_map[node.name] = []
+        
+        # Заполняем карту на основе связей (если они есть)
+        if hasattr(diagram, 'connections'):
+            for connection in diagram.connections:
+                if connection.type.value == "inheritance":
+                    # Находим имена узлов по ID
+                    source_node = next((n for n in diagram.nodes if n.id == connection.source_id), None)
+                    target_node = next((n for n in diagram.nodes if n.id == connection.target_id), None)
+                    
+                    if source_node and target_node:
+                        inheritance_map[source_node.name].append(target_node.name)
+        
+        return inheritance_map
 
     def _generate_method_params(self, method: UMLMethod) -> str:
         """Генерация параметров метода"""
@@ -125,77 +130,6 @@ class CodeGenerator:
         else:  # public
             return ""
 
-    def _generate_java(self, diagram: UMLDiagram) -> str:
-        """Генерация Java кода"""
-        lines = []
-
-        for node in diagram.nodes:
-            lines.extend(self._generate_java_class(node))
-            lines.append("")
-
-        return "\n".join(lines)
-
-    def _generate_java_class(self, node: UMLNode) -> List[str]:
-        """Генерация Java класса"""
-        lines = []
-
-        # Модификаторы
-        modifiers = []
-        if node.is_abstract:
-            modifiers.append("abstract")
-
-        class_declaration = f"public {' '.join(modifiers)} class {node.name}"
-
-        # Наследование
-        inherits_from = []
-        for conn in self._get_inheritance_connections(node):
-            inherits_from.append(conn.target_id)
-
-        if inherits_from:
-            class_declaration += f" extends {inherits_from[0]}"
-
-        lines.append(class_declaration + " {")
-
-        # Атрибуты
-        for prop in node.properties:
-            visibility = self._get_java_visibility(prop.visibility)
-            static_mod = " static" if prop.is_static else ""
-            lines.append(f"    {visibility}{static_mod} {prop.type} {prop.name};")
-
-        # Конструктор
-        if node.properties:
-            lines.append("")
-            lines.append(f"    public {node.name}() {{")
-            lines.append("        // TODO: Initialize attributes")
-            lines.append("    }")
-
-        # Методы
-        for method in node.methods:
-            lines.append("")
-            visibility = self._get_java_visibility(method.visibility)
-            abstract_mod = " abstract" if method.is_abstract else ""
-            static_mod = " static" if method.is_static else ""
-
-            params = []
-            for param in method.parameters:
-                params.append(f"{param.type} {param.name}")
-
-            params_str = ", ".join(params)
-            return_type = method.return_type or "void"
-
-            signature = f"    {visibility}{abstract_mod}{static_mod} {return_type} {method.name}({params_str})"
-
-            if method.is_abstract:
-                lines.append(signature + ";")
-            else:
-                lines.append(signature + " {")
-                lines.append("        // TODO: Implement method")
-                lines.append("    }")
-
-        lines.append("}")
-
-        return lines
-
     def _get_java_visibility(self, visibility: str) -> str:
         """Преобразовать видимость в Java"""
         if visibility == "private":
@@ -204,55 +138,3 @@ class CodeGenerator:
             return "protected"
         else:  # public
             return "public"
-
-    def _generate_javascript(self, diagram: UMLDiagram) -> str:
-        """Генерация JavaScript кода"""
-        lines = []
-
-        for node in diagram.nodes:
-            lines.extend(self._generate_javascript_class(node))
-            lines.append("")
-
-        return "\n".join(lines)
-
-    def _generate_javascript_class(self, node: UMLNode) -> List[str]:
-        """Генерация JavaScript класса (ES6)"""
-        lines = []
-
-        lines.append(f"class {node.name} {{")
-
-        # Конструктор
-        if node.properties:
-            lines.append("    constructor() {")
-            for prop in node.properties:
-                lines.append(f"        this.{prop.name} = null;")
-            lines.append("    }")
-
-        # Методы
-        for method in node.methods:
-            lines.append("")
-            params = []
-            for param in method.parameters:
-                params.append(param.name)
-
-            params_str = ", ".join(params)
-            lines.append(f"    {method.name}({params_str}) {{")
-
-            if method.return_type and method.return_type != "void":
-                lines.append("        // TODO: Implement method")
-                lines.append(f"        return null; // Return type: {method.return_type}")
-            else:
-                lines.append("        // TODO: Implement method")
-
-            lines.append("    }")
-
-        lines.append("}")
-
-        return lines
-
-    def _get_inheritance_connections(self, node: UMLNode) -> List:
-        """Получить связи наследования для узла"""
-        # Этот метод будет вызываться из контроллера
-        # Здесь нужно получать связи из диаграммы
-        # В реальной реализации нужно передавать диаграмму
-        return []

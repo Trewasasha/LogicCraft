@@ -1,0 +1,66 @@
+"""Generated from UML Diagram: {{ diagram_name }}"""
+from typing import List, Optional
+{% if has_abstract_classes %}
+from abc import ABC, abstractmethod
+{% endif %}
+
+{% for node in nodes %}
+{% if node.is_abstract %}
+class {{ node.name }}(ABC):
+{% else %}
+class {{ node.name }}:
+{% endif %}
+    {% if node.stereotype %}
+    """{{ node.stereotype }}"""
+    {% else %}
+    """Class generated from UML diagram"""
+    {% endif %}
+{% if node.properties %}
+
+    # Attributes
+{% for prop in node.properties %}
+    {{ get_python_visibility(prop.visibility) }}{{ prop.name }}: {{ prop.type }}{% if prop.default_value %} = {{ prop.default_value }}{% endif %}
+{% endfor %}
+{% endif %}
+
+    def __init__(self):
+{% if node.properties %}
+{% for prop in node.properties %}
+        {% if prop.default_value %}
+        self.{{ prop.name }} = {{ prop.default_value }}
+        {% else %}
+        self.{{ prop.name }} = None
+        {% endif %}
+{% endfor %}
+{% else %}
+        pass
+{% endif %}
+{% if node.methods %}
+
+    # Methods
+{% for method in node.methods %}
+{% if method.is_abstract %}
+    @abstractmethod
+{% elif method.is_static %}
+    @staticmethod
+{% endif %}
+    {% if method.is_static %}
+    def {{ method.name }}({{ generate_method_params(method) }}){% if method.return_type %} -> {{ method.return_type }}{% endif %}:
+    {% else %}
+    def {{ method.name }}(self{% if generate_method_params(method) %}, {{ generate_method_params(method) }}{% endif %}){% if method.return_type %} -> {{ method.return_type }}{% else %} -> None{% endif %}:
+    {% endif %}
+        {% if method.is_abstract %}
+        raise NotImplementedError
+        {% else %}
+        pass
+        {% endif %}
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if not loop.last %}
+
+
+{% endif %}
+{% endfor %}

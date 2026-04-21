@@ -1,0 +1,26 @@
+{% for node in nodes %}
+class {{ node.name }} {
+    {% if node.properties %}
+    constructor() {
+        {% for prop in node.properties %}
+        this.{{ prop.name }} = null;
+        {% endfor %}
+    }
+    {% endif %}
+
+    {% if node.methods %}
+    {% for method in node.methods %}
+    {{ method.name }}({% for param in method.parameters %}{{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}) {
+        {% if method.return_type and method.return_type != "void" %}
+        // TODO: Implement method
+        return null; // Return type: {{ method.return_type }}
+        {% else %}
+        // TODO: Implement method
+        {% endif %}
+    }
+
+    {% endfor %}
+    {% endif %}
+}
+
+{% endfor %}

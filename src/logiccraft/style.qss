@@ -1,0 +1,136 @@
+/* === Toolbar === */
+QToolBar {
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #cccccc;
+    spacing: 4px;
+}
+
+/* === Context Menu === */
+QMenu {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 4px 0px;
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+QMenu::item {
+    background-color: transparent;
+    color: #333333;
+    padding: 6px 16px;
+    margin: 1px 4px;
+    border-radius: 2px;
+}
+
+QMenu::item:selected {
+    background-color: #4169E1;
+    color: white;
+}
+
+QMenu::item:disabled {
+    color: #999999;
+}
+
+QMenu::separator {
+    height: 1px;
+    background-color: #e0e0e0;
+    margin: 4px 8px;
+}
+
+/* === Dialogs === */
+QDialog {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+}
+
+QDialog QLabel {
+    color: #333333;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+QDialog QLineEdit {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: #333333;
+    font-size: 13px;
+}
+
+QDialog QLineEdit:focus {
+    border-color: #4169E1;
+    outline: none;
+}
+
+QDialog QListWidget {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 4px;
+    color: #333333;
+    selection-background-color: #4169E1;
+    selection-color: white;
+}
+
+QDialog QListWidget::item {
+    padding: 4px 8px;
+    border-radius: 2px;
+    margin: 1px;
+}
+
+QDialog QListWidget::item:selected {
+    background-color: #4169E1;
+    color: white;
+}
+
+QDialog QListWidget::item:hover {
+    background-color: #e8f0fe;
+}
+
+QDialog QPushButton {
+    background-color: #4169E1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: 500;
+    min-width: 80px;
+}
+
+QDialog QPushButton:hover {
+    background-color: #3558c0;
+}
+
+QDialog QPushButton:pressed {
+    background-color: #2d4aa3;
+}
+
+QDialog QPushButton:disabled {
+    background-color: #cccccc;
+    color: #666666;
+}
+
+/* Кнопки OK/Cancel */
+QDialogButtonBox QPushButton {
+    min-width: 80px;
+    padding: 8px 16px;
+}
+
+/* Кнопка Cancel */
+QDialogButtonBox QPushButton[text="Cancel"] {
+    background-color: #f5f5f5;
+    color: #333333;
+    border: 1px solid #cccccc;
+}
+
+QDialogButtonBox QPushButton[text="Cancel"]:hover {
+    background-color: #e8e8e8;
+}
+
+/* === StatusBar === */
+QStatusBar {
+    background-color: #f0f0f0;
+    color: #333333;
+}
