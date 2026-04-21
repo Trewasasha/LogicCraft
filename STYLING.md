@@ -366,3 +366,116 @@ poetry run python -m src.logiccraft.main
 | Белый | `#FFFFFF` | Обводка точек привязки, текст заголовка |
 | Почти белый | `#fafafa` | Фон холста |
 | Светло-серый | `#e0e0e0` | Сетка холста |
+
+## Стилизация диалогов и контекстных меню
+
+### Контекстные меню (QMenu)
+
+Контекстные меню стилизуются через QSS селекторы:
+
+```css
+/* Основной стиль меню */
+QMenu {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 4px 0px;
+}
+
+/* Элементы меню */
+QMenu::item {
+    background-color: transparent;
+    color: #333333;
+    padding: 6px 16px;
+    margin: 1px 4px;
+    border-radius: 2px;
+}
+
+/* Выделенный элемент */
+QMenu::item:selected {
+    background-color: #4169E1;
+    color: white;
+}
+```
+
+### Диалоги (QDialog)
+
+Диалоги стилизуются через комбинацию QSS и Python кода:
+
+#### QSS стили для диалогов:
+
+```css
+/* Основной диалог */
+QDialog {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+}
+
+/* Поля ввода */
+QDialog QLineEdit {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 6px 8px;
+}
+
+/* Списки */
+QDialog QListWidget {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    selection-background-color: #4169E1;
+}
+
+/* Кнопки */
+QDialog QPushButton {
+    background-color: #4169E1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+}
+```
+
+#### Константы стилей в theme.py:
+
+```python
+@dataclass(frozen=True)
+class _DialogStyle:
+    BACKGROUND: str = "#ffffff"
+    BORDER: str = "#cccccc"
+    TEXT_COLOR: str = "#333333"
+    BUTTON_PRIMARY: str = "#4169E1"
+    SELECTION_COLOR: str = "#4169E1"
+
+@dataclass(frozen=True)
+class _MenuStyle:
+    BACKGROUND: str = "#ffffff"
+    BORDER: str = "#cccccc"
+    HOVER_BACKGROUND: str = "#4169E1"
+    HOVER_TEXT: str = "white"
+```
+
+### Применение стилей
+
+1. **QSS файл** (`src/logiccraft/style.qss`) - основные стили
+2. **theme.py** - константы цветов и размеров
+3. **Python код** - дополнительная настройка в `_apply_styles()`
+
+### Создание темной темы
+
+Для создания темной темы:
+
+1. Создайте новый QSS файл `dark_style.qss`
+2. Добавьте темные константы в `theme.py`
+3. Измените функцию `apply_stylesheet()` для выбора темы
+
+Пример темных цветов:
+```python
+# Темная тема
+BACKGROUND: str = "#2b2b2b"
+BORDER: str = "#555555"
+TEXT_COLOR: str = "#ffffff"
+BUTTON_PRIMARY: str = "#0d7377"
+```

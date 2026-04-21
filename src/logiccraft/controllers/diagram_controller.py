@@ -111,6 +111,14 @@ class DiagramController(QObject):
         if self.update_card(card_id, x=x, y=y):
             self._save_state()
 
+    def edit_card(self, card_id: str, name: str,
+                  attributes: List[str], methods: List[str]) -> bool:
+        """Редактирование содержимого карточки с сохранением в историю"""
+        if self.update_card(card_id, name, attributes=attributes, methods=methods):
+            self._save_state()
+            return True
+        return False
+
     def remove_card(self, card_id: str) -> bool:
         try:
             # Сначала удаляем все связи этого узла

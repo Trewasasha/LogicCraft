@@ -65,11 +65,39 @@ class _ArrowStyle:
     SIZE: int = 12
 
 
+@dataclass(frozen=True)
+class _DialogStyle:
+    BACKGROUND: str = "#ffffff"
+    BORDER: str = "#cccccc"
+    TEXT_COLOR: str = "#333333"
+    INPUT_BACKGROUND: str = "#ffffff"
+    INPUT_BORDER: str = "#cccccc"
+    INPUT_FOCUS_BORDER: str = "#4169E1"
+    BUTTON_PRIMARY: str = "#4169E1"
+    BUTTON_PRIMARY_HOVER: str = "#3558c0"
+    BUTTON_SECONDARY: str = "#f5f5f5"
+    BUTTON_SECONDARY_HOVER: str = "#e8e8e8"
+    SELECTION_COLOR: str = "#4169E1"
+
+
+@dataclass(frozen=True)
+class _MenuStyle:
+    BACKGROUND: str = "#ffffff"
+    BORDER: str = "#cccccc"
+    TEXT_COLOR: str = "#333333"
+    HOVER_BACKGROUND: str = "#4169E1"
+    HOVER_TEXT: str = "white"
+    DISABLED_TEXT: str = "#999999"
+    SEPARATOR: str = "#e0e0e0"
+
+
 CardStyle = _CardStyle()
 ConnectionStyle = _ConnectionStyle()
 SceneStyle = _SceneStyle()
 AnchorStyle = _AnchorStyle()
 ArrowStyle = _ArrowStyle()
+DialogStyle = _DialogStyle()
+MenuStyle = _MenuStyle()
 
 
 def apply_stylesheet(app) -> None:

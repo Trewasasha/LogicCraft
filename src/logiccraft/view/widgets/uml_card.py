@@ -12,6 +12,9 @@ from ..theme import CardStyle
 class CardSignals(QObject):
     """Сигналы для карточки"""
     position_changed = pyqtSignal()
+    move_finished = pyqtSignal(str, float, float)  # card_id, x, y
+    edit_requested = pyqtSignal(str)  # card_id
+    delete_requested = pyqtSignal(str)  # card_id
     about_to_delete = pyqtSignal(object)
 
 
@@ -179,6 +182,26 @@ class UMLCard(QGraphicsRectItem):
     def isSelected(self) -> bool:
         """Возвращает состояние выделения"""
         return self._is_selected
+
+    def mouseReleaseEvent(self, event):
+        """Сохраняем позицию после завершения перетаскивания"""
+        super().mouseReleaseEvent(event)
+        self.signals.move_finished.emit(self.id, self.pos().x(), self.pos().y())
+
+    def contextMenuEvent(self, event):
+        """Обработка правого клика - показываем контекстное меню"""
+        from PyQt6.QtWidgets import QMenu
+        
+        menu = QMenu()
+        edit_action = menu.addAction("Edit")
+        delete_action = menu.addAction("Delete")
+        
+        action = menu.exec(event.screenPos())
+        
+        if action == edit_action:
+            self.signals.edit_requested.emit(self.id)
+        elif action == delete_action:
+            self.signals.delete_requested.emit(self.id)
 
     def to_dict(self) -> dict:
         """Сериализация в словарь"""

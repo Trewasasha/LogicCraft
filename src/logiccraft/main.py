@@ -51,11 +51,33 @@ class Application:
                            attributes=[p.name for p in node.properties],
                            methods=[m.name for m in node.methods],
                            card_id=node.id)
+            card.signals.move_finished.connect(self._on_card_move_finished)
+            card.signals.edit_requested.connect(self._on_card_edit_requested)
+            card.signals.delete_requested.connect(self._on_card_delete_requested)
             self.controller.register_card_view(node.id, card)
             self.window.add_card_to_scene(card)
 
     def _on_card_added(self, node):
         pass  # handled in _on_add_card
+
+    def _on_card_move_finished(self, card_id: str, x: float, y: float):
+        """Сохраняем состояние после завершения перетаскивания"""
+        self.controller.on_card_move_finished(card_id, x, y)
+
+    def _on_card_edit_requested(self, card_id: str):
+        """Обработка запроса на редактирование карточки из контекстного меню"""
+        from logiccraft.view.dialogs.edit_class_dialog import EditClassDialog
+        
+        card = self.controller.card_map.get(card_id)
+        if card:
+            dialog = EditClassDialog(card, self.window)
+            if dialog.exec():
+                name, attributes, methods = dialog.get_data()
+                self._on_edit_card(card_id, name, attributes, methods)
+
+    def _on_card_delete_requested(self, card_id: str):
+        """Обработка запроса на удаление карточки из контекстного меню"""
+        self.controller.remove_card(card_id)
 
     def _on_card_removed(self, card_id):
         self.window.remove_card_from_scene(card_id)
@@ -89,7 +111,7 @@ class Application:
         self.controller.clear_diagram()
 
     def _on_edit_card(self, card_id: str, name: str, attributes: list, methods: list):
-        self.controller.update_card(card_id, name, attributes=attributes, methods=methods)
+        self.controller.edit_card(card_id, name, attributes, methods)
         card = self.controller.card_map.get(card_id)
         if card:
             card.name = name
@@ -127,6 +149,9 @@ class Application:
                            attributes=[p.name for p in node.properties],
                            methods=[m.name for m in node.methods],
                            card_id=node.id)
+            card.signals.move_finished.connect(self._on_card_move_finished)
+            card.signals.edit_requested.connect(self._on_card_edit_requested)
+            card.signals.delete_requested.connect(self._on_card_delete_requested)
             self.controller.register_card_view(node.id, card)
             self.window.add_card_to_scene(card)
 
