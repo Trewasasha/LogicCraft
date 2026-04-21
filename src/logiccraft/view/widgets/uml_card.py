@@ -6,6 +6,7 @@ import uuid
 from typing import List, Optional
 
 from .anchor_point import AnchorPoint
+from ..theme import CardStyle
 
 
 class CardSignals(QObject):
@@ -43,8 +44,8 @@ class UMLCard(QGraphicsRectItem):
         self.signals = CardSignals()
 
         # Настройка внешнего вида
-        self.setBrush(QBrush(QColor("#f5f5dc")))
-        self.setPen(QPen(QColor("#4169E1"), 2))
+        self.setBrush(QBrush(QColor(CardStyle.BACKGROUND)))
+        self.setPen(QPen(QColor(CardStyle.BORDER), CardStyle.BORDER_WIDTH))
         self.setFlags(
             QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
             QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable |
@@ -59,31 +60,31 @@ class UMLCard(QGraphicsRectItem):
         """Создает визуальные элементы карточки"""
         # Фон заголовка
         self.header_bg = QGraphicsRectItem(0, 0, self.rect().width(), 30, self)
-        self.header_bg.setBrush(QBrush(QColor("#4169E1")))
+        self.header_bg.setBrush(QBrush(QColor(CardStyle.HEADER_BG)))
         self.header_bg.setPen(QPen(Qt.PenStyle.NoPen))
 
         # Текст заголовка
         self.header_text = QGraphicsTextItem(self.name, self)
-        self.header_text.setDefaultTextColor(QColor("white"))
-        self.header_text.setFont(QFont("Arial", 10, QFont.Weight.Bold))
+        self.header_text.setDefaultTextColor(QColor(CardStyle.HEADER_TEXT))
+        self.header_text.setFont(CardStyle.HEADER_FONT)
 
         # Секция атрибутов
         self.attrs_text = QGraphicsTextItem("", self)
-        self.attrs_text.setFont(QFont("Menlo", 9))
-        self.attrs_text.setDefaultTextColor(QColor("#2c3e50"))
+        self.attrs_text.setFont(CardStyle.ATTRS_FONT)
+        self.attrs_text.setDefaultTextColor(QColor(CardStyle.ATTRS_TEXT))
 
         # Секция методов
         self.methods_text = QGraphicsTextItem("", self)
-        self.methods_text.setFont(QFont("Menlo", 9))
-        self.methods_text.setDefaultTextColor(QColor("#27ae60"))
+        self.methods_text.setFont(CardStyle.METHODS_FONT)
+        self.methods_text.setDefaultTextColor(QColor(CardStyle.METHODS_TEXT))
 
         # Разделители
         self.divider1 = QGraphicsRectItem(0, 32, self.rect().width(), 1, self)
-        self.divider1.setBrush(QBrush(QColor("#4169E1")))
+        self.divider1.setBrush(QBrush(QColor(CardStyle.DIVIDER)))
         self.divider1.setPen(QPen(Qt.PenStyle.NoPen))
 
         self.divider2 = QGraphicsRectItem(0, 0, self.rect().width(), 1, self)
-        self.divider2.setBrush(QBrush(QColor("#4169E1")))
+        self.divider2.setBrush(QBrush(QColor(CardStyle.DIVIDER)))
         self.divider2.setPen(QPen(Qt.PenStyle.NoPen))
 
     def _create_anchors(self):
@@ -168,8 +169,8 @@ class UMLCard(QGraphicsRectItem):
         self._is_selected = selected
 
         # Меняем цвет рамки
-        pen_color = QColor("#DC143C") if selected else QColor("#4169E1")
-        self.setPen(QPen(pen_color, 3 if selected else 2))
+        pen_color = QColor(CardStyle.SELECTED_BORDER) if selected else QColor(CardStyle.BORDER)
+        self.setPen(QPen(pen_color, CardStyle.SELECTED_BORDER_WIDTH if selected else CardStyle.BORDER_WIDTH))
 
         # Показываем/скрываем точки привязки
         for anchor in self.anchors.values():

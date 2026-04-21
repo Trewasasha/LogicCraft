@@ -3,6 +3,8 @@ from PyQt6.QtWidgets import QGraphicsScene, QGraphicsLineItem
 from PyQt6.QtCore import Qt, QPointF, QLineF, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QPen, QPainter
 
+from ..theme import SceneStyle
+
 class DiagramScene(QGraphicsScene):
     """Сцена для отображения UML диаграммы с сеткой и поддержкой связей"""
 
@@ -11,7 +13,7 @@ class DiagramScene(QGraphicsScene):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setBackgroundBrush(QBrush(QColor("#fafafa")))
+        self.setBackgroundBrush(QBrush(QColor(SceneStyle.BACKGROUND)))
         self.setSceneRect(-5000, -5000, 10000, 10000)
 
         self.temp_line = None
@@ -22,15 +24,15 @@ class DiagramScene(QGraphicsScene):
     def drawBackground(self, painter, rect):
         """Сетка фона"""
         super().drawBackground(painter, rect)
-        pen = QPen(QColor("#e0e0e0"), 0.5)
+        pen = QPen(QColor(SceneStyle.GRID_COLOR), SceneStyle.GRID_WIDTH)
         painter.setPen(pen)
 
-        left = int(rect.left()) - (int(rect.left()) % 50)
-        top = int(rect.top()) - (int(rect.top()) % 50)
+        left = int(rect.left()) - (int(rect.left()) % SceneStyle.GRID_STEP)
+        top = int(rect.top()) - (int(rect.top()) % SceneStyle.GRID_STEP)
 
-        for x in range(left, int(rect.right()), 50):
+        for x in range(left, int(rect.right()), SceneStyle.GRID_STEP):
             painter.drawLine(x, int(rect.top()), x, int(rect.bottom()))
-        for y in range(top, int(rect.bottom()), 50):
+        for y in range(top, int(rect.bottom()), SceneStyle.GRID_STEP):
             painter.drawLine(int(rect.left()), y, int(rect.right()), y)
 
     def start_connection(self, source_card, anchor_name):
@@ -41,7 +43,7 @@ class DiagramScene(QGraphicsScene):
 
         start_pos = source_card.get_anchor_point(anchor_name)
         self.temp_line = QGraphicsLineItem(QLineF(start_pos, start_pos))
-        self.temp_line.setPen(QPen(QColor("#4169E1"), 2, Qt.PenStyle.DashLine))
+        self.temp_line.setPen(QPen(QColor(SceneStyle.TEMP_LINE_COLOR), 2, Qt.PenStyle.DashLine))
 
         # Временная линия должна быть прозрачной для кликов
         self.temp_line.setAcceptedMouseButtons(Qt.MouseButton.NoButton)

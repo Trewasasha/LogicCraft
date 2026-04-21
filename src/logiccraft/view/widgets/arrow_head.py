@@ -5,6 +5,8 @@ from PyQt6.QtCore import QPointF, Qt
 from PyQt6.QtGui import QPolygonF, QBrush, QPen, QColor
 from enum import Enum
 
+from ..theme import ArrowStyle
+
 
 class ConnectionType(Enum):
     """Типы связей"""
@@ -23,70 +25,36 @@ class ArrowHead(QGraphicsPolygonItem):
         self.direction = direction
         self._update_shape()
         self._update_rotation()
-        print(f"DEBUG: ArrowHead created with type {connection_type}")
 
     def _update_shape(self):
         """Обновляет форму наконечника в зависимости от типа связи"""
-        size = 12  # размер наконечника
-
-        # Получаем строковое значение типа
+        size = ArrowStyle.SIZE
         type_value = self.connection_type.value if hasattr(self.connection_type, 'value') else str(self.connection_type)
-        print(f"DEBUG: ArrowHead._update_shape called with type: {type_value}")
 
         if type_value == "inheritance":
-            # Треугольник (полый) для наследования
-            points = [
-                QPointF(size, 0),
-                QPointF(0, -size * 0.6),
-                QPointF(0, size * 0.6)
-            ]
-            polygon = QPolygonF(points)
-            self.setPolygon(polygon)
+            points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(0, size * 0.6)]
+            self.setPolygon(QPolygonF(points))
             self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
-            self.setPen(QPen(QColor("#666666"), 2))
-            print("DEBUG: Set INHERITANCE shape")
+            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
 
         elif type_value == "composition":
-            # Закрашенный ромб для композиции
-            points = [
-                QPointF(size, 0),
-                QPointF(size / 2, -size * 0.6),
-                QPointF(0, 0),
-                QPointF(size / 2, size * 0.6)
-            ]
-            polygon = QPolygonF(points)
-            self.setPolygon(polygon)
-            self.setBrush(QBrush(QColor("#666666")))
-            self.setPen(QPen(QColor("#666666"), 1.5))
-            print("DEBUG: Set COMPOSITION shape")
+            points = [QPointF(size, 0), QPointF(size / 2, -size * 0.6), QPointF(0, 0), QPointF(size / 2, size * 0.6)]
+            self.setPolygon(QPolygonF(points))
+            self.setBrush(QBrush(QColor(ArrowStyle.COLOR)))
+            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_THIN))
 
         elif type_value == "aggregation":
-            # Пустой ромб для агрегации
-            points = [
-                QPointF(size, 0),
-                QPointF(size / 2, -size * 0.6),
-                QPointF(0, 0),
-                QPointF(size / 2, size * 0.6)
-            ]
-            polygon = QPolygonF(points)
-            self.setPolygon(polygon)
+            points = [QPointF(size, 0), QPointF(size / 2, -size * 0.6), QPointF(0, 0), QPointF(size / 2, size * 0.6)]
+            self.setPolygon(QPolygonF(points))
             self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
-            self.setPen(QPen(QColor("#666666"), 2))
-            print("DEBUG: Set AGGREGATION shape")
-        else:
-            # Ассоциация - закрашенный треугольник (по умолчанию)
-            points = [
-                QPointF(size, 0),
-                QPointF(0, -size * 0.6),
-                QPointF(0, size * 0.6)
-            ]
-            polygon = QPolygonF(points)
-            self.setPolygon(polygon)
-            self.setBrush(QBrush(QColor("#666666")))
-            self.setPen(QPen(QColor("#666666"), 1.5))
-            print("DEBUG: Set ASSOCIATION shape")
+            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
 
-        # Принудительно обновляем отображение
+        else:  # association
+            points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(0, size * 0.6)]
+            self.setPolygon(QPolygonF(points))
+            self.setBrush(QBrush(QColor(ArrowStyle.COLOR)))
+            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_THIN))
+
         self.update()
 
     def _update_rotation(self):
@@ -96,14 +64,10 @@ class ArrowHead(QGraphicsPolygonItem):
             self.setRotation(angle)
 
     def set_direction(self, direction: QPointF):
-        """Устанавливает направление и обновляет поворот"""
         self.direction = direction
         self._update_rotation()
 
     def set_connection_type(self, connection_type: ConnectionType):
-        """Устанавливает тип связи и обновляет форму"""
-        print(f"DEBUG: ArrowHead.set_connection_type called with {connection_type}")
         self.connection_type = connection_type
         self._update_shape()
         self.update()
-        print(f"DEBUG: ArrowHead type updated to {self.connection_type}")

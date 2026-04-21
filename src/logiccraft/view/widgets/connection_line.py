@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt, QPointF, QLineF, QObject, pyqtSignal
 from PyQt6.QtGui import QPen, QColor
 
 from .arrow_head import ArrowHead, ConnectionType
+from ..theme import ConnectionStyle
 
 class ConnectionSignals(QObject):
     """Сигналы для линии связи"""
@@ -32,7 +33,7 @@ class ConnectionLine(QGraphicsLineItem):
         self.signals = ConnectionSignals()
 
         # Настройка пера
-        self.setPen(QPen(QColor("#666666"), 2))
+        self.setPen(QPen(QColor(ConnectionStyle.LINE_COLOR), ConnectionStyle.LINE_WIDTH))
         self.setFlags(QGraphicsLineItem.GraphicsItemFlag.ItemIsSelectable)
 
         # Создаем наконечник ОДИН раз и сохраняем ссылку
@@ -85,8 +86,8 @@ class ConnectionLine(QGraphicsLineItem):
     def set_selected(self, selected):
         """Управляет визуальным выделением"""
         self._is_selected = selected
-        color = QColor("#DC143C") if selected else QColor("#666666")
-        width = 3 if selected else 2
+        color = QColor(ConnectionStyle.SELECTED_COLOR) if selected else QColor(ConnectionStyle.LINE_COLOR)
+        width = ConnectionStyle.SELECTED_WIDTH if selected else ConnectionStyle.LINE_WIDTH
         pen = QPen(color, width)
         self.setPen(pen)
         if self.arrow_head:

@@ -185,8 +185,7 @@ class MainWindow(QMainWindow):
 
     def _connect_controller_signals(self):
         """Подключение сигналов контроллера"""
-        self.controller.connection_added.connect(self._on_connection_added)
-        self.controller.connection_updated.connect(self._on_connection_updated)  # ← добавить
+        self.controller.connection_updated.connect(self._on_connection_updated)
         self.controller.card_added.connect(self._on_card_added)
         self.controller.card_removed.connect(self._on_card_removed)
         self.controller.diagram_cleared.connect(self._on_diagram_cleared)
@@ -194,38 +193,23 @@ class MainWindow(QMainWindow):
         self.controller.error_occurred.connect(self.show_error)
 
     def handle_key_press(self, event):
-        """Обработка нажатий клавиш (вызывается из DiagramView)
-        
-        Returns:
-            True если событие обработано, False иначе
-        """
-        # Ctrl+S - Save
+        """Обработка нажатий клавиш (вызывается из DiagramView)"""
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_S:
-            print("DEBUG: Ctrl+S pressed - Save")
             self._on_save_clicked()
             return True
-        
-        # Ctrl+Z - Undo
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_Z:
             self._on_undo()
             return True
-        
-        # Ctrl+Y или Ctrl+Shift+Z - Redo
         if event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier) and event.key() == Qt.Key.Key_Z:
             self._on_redo()
             return True
-        
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_Y:
             self._on_redo()
             return True
-        
-        # Delete или Backspace - удалить выбранное
         if event.key() == Qt.Key.Key_Delete or event.key() == Qt.Key.Key_Backspace:
-            print("DEBUG: Delete/Backspace key pressed")
             self._on_delete_selected()
             return True
-        
-        return False  # Не обработано
+        return False
     
     def keyPressEvent(self, event):
         """Обработка нажатий клавиш (для MainWindow)"""
@@ -266,57 +250,34 @@ class MainWindow(QMainWindow):
 
     def _on_edit_selected(self):
         """Редактирование выбранной карточки"""
-        # Используем встроенный метод сцены для получения всех выделенных объектов
-        selected_items = self.scene.selectedItems()
-
-        # Фильтруем только карточки (UMLCard)
-        selected_cards = [item for item in selected_items if isinstance(item, UMLCard)]
-
+        selected_cards = [item for item in self.scene.selectedItems() if isinstance(item, UMLCard)]
         if selected_cards:
             card = selected_cards[0]
-            print(f"DEBUG: Editing card {card.id}") # Добавь лог для проверки
             dialog = EditClassDialog(card, self)
             if dialog.exec():
                 name, attributes, methods = dialog.get_data()
-                # Эмиттим сигнал контроллеру для обновления данных в модели
                 self.edit_card_requested.emit(card.id, name, attributes, methods)
         else:
             self.show_info("Please select a class card to edit.")
 
     def _on_delete_selected(self):
-        """Удаление выбранных элементов (карточек или связей)"""
-        print("DEBUG: _on_delete_selected called")
-        
-        # Получаем все выделенные объекты на сцене
+        """Удаление выбранных элементов"""
         selected_items = self.scene.selectedItems()
-        print(f"DEBUG: Found {len(selected_items)} selected items")
-
         if not selected_items:
-            print("DEBUG: No items selected, returning")
             self.show_info("Please select items to delete.")
             return
 
-        # Спрашиваем подтверждение
         reply = QMessageBox.question(
             self, "Confirm Delete",
             f"Delete {len(selected_items)} selected item(s)?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
-
         if reply == QMessageBox.StandardButton.Yes:
             for item in selected_items:
-                # Если это карточка
                 if isinstance(item, UMLCard):
-                    print(f"DEBUG: Requesting card removal: {item.id}")
                     self.controller.remove_card(item.id)
-
-                # Если это связь (ConnectionLine)
                 elif isinstance(item, ConnectionLine):
-                    print(f"DEBUG: Requesting connection removal: {item.id}")
-                    # Вызываем метод напрямую у контроллера
                     self.controller.remove_connection(item.id)
-            
-            print("DEBUG: Delete operation completed")
 
     def _on_edit_connection(self):
         """Редактирование выбранной связи"""
@@ -330,77 +291,28 @@ class MainWindow(QMainWindow):
                 self.edit_connection_requested.emit(connection.id, new_type.value)
 
     def _on_connection_ready(self, source_id, target_id, source_anchor, target_anchor):
-        """Создание связи - вызывается когда пользователь завершил создание связи на сцене"""
-        print(f"DEBUG: MainWindow._on_connection_ready - {source_id} -> {target_id}")
-        print(f"DEBUG: Calling controller.add_connection with source={source_id}, target={target_id}, anchors={source_anchor}->{target_anchor}")
-        # Вызываем контроллер для создания связи в модели
-        result = self.controller.add_connection(
-            source_id, target_id, "association",  # по умолчанию ассоциация
-            source_anchor, target_anchor
-        )
-        print(f"DEBUG: controller.add_connection returned: {result}")
+        self.controller.add_connection(source_id, target_id, "association", source_anchor, target_anchor)
 
     def _on_card_moved(self, card_id, x, y):
         """Перемещение карточки - вызывается когда пользователь переместил карточку на сцене"""
         # Обновляем позицию карточки в модели
         self.controller.update_card(card_id, x=x, y=y)
 
-    def _on_connection_added(self, connection_model):
-        """Обработка добавления связи в модель - создаем визуальное представление"""
-        print(f"DEBUG: Connection added to model: {connection_model.id}")
-
-        # Находим карточки по ID
-        source_card = self.card_map.get(connection_model.source_id)
-        target_card = self.card_map.get(connection_model.target_id)
-
-        if source_card and target_card:
-            # Создаем визуальное представление связи
-            connection = ConnectionLine(
-                source_card, target_card,
-                connection_model.source_anchor,
-                connection_model.target_anchor,
-                connection_model.type,
-                connection_model.id
-            )
-            self.scene.addItem(connection)
-            self.connection_map[connection_model.id] = connection  # ← добавить
-            print(f"DEBUG: Connection view created and added to scene")
-        else:
-            print(f"DEBUG: Could not find cards for connection: source={source_card}, target={target_card}")
-
     def _on_connection_updated(self, connection_id):
-        """Обработка обновления связи в модели"""
-        print(f"DEBUG: Connection updated: {connection_id}")
-
-        # Находим визуальное представление связи
         connection = self.connection_map.get(connection_id)
         if connection:
-            # Получаем обновленную модель связи
             connection_model = self.controller.get_connection_model(connection_id)
             if connection_model:
-                # Обновляем тип связи в визуальном представлении
                 connection.set_connection_type(connection_model.type)
-                print(f"DEBUG: Connection visual updated to {connection_model.type}")
-        else:
-            print(f"DEBUG: Connection view not found for {connection_id}")
 
     def _on_card_added(self, node_model):
-        """Обработка добавления карточки в модель"""
-        print(f"DEBUG: Card added to model: {node_model.id}")
-        # Карточка уже должна быть создана и добавлена на сцену в другом месте
-        pass
+        pass  # handled in Application._on_add_card
 
     def _on_card_removed(self, card_id):
-        """Обработка удаления карточки из модели"""
-        print(f"DEBUG: Card removed from model: {card_id}")
         self.remove_card_from_scene(card_id)
 
     def _on_diagram_cleared(self):
-        """Обработка очистки диаграммы"""
-        print(f"DEBUG: Diagram cleared")
         self.clear_scene()
-        self.card_map.clear()
-        self.connection_map.clear()  # ← добавить
 
     def add_card_to_scene(self, card: UMLCard):
         """Добавить карточку на сцену"""
@@ -418,41 +330,23 @@ class MainWindow(QMainWindow):
                 break
 
     def add_connection_to_scene(self, connection: ConnectionLine):
-        """Добавить связь на сцену"""
-        # Проверка на дубликаты по ID
         if connection.id in self.connection_map:
-            print(f"DEBUG: Connection {connection.id} already on scene, skipping.")
             return
-
         self.scene.addItem(connection)
         self.connection_map[connection.id] = connection
-
-        # Подключаем сигнал удаления, чтобы при удалении карточки
-        # связь корректно исчезала из нашего словаря
         connection.signals.about_to_delete.connect(
             lambda c: self.remove_connection_from_scene(c.id)
         )
 
     def remove_connection_from_scene(self, connection_id: str):
-        """Удалить связь со сцены полностью"""
-        print(f"DEBUG: Attempting to remove connection {connection_id}")
-
         connection = self.connection_map.get(connection_id)
         if connection:
-            # Явно удаляем наконечник (защита для Mac)
             if hasattr(connection, 'arrow_head') and connection.arrow_head:
                 if connection.arrow_head.scene():
                     self.scene.removeItem(connection.arrow_head)
-
-            # Удаляем саму линию
             if connection.scene():
                 self.scene.removeItem(connection)
-
-            # Убираем из словаря
             del self.connection_map[connection_id]
-            print(f"DEBUG: Connection {connection_id} successfully removed from scene")
-        else:
-            print(f"DEBUG: Connection {connection_id} not found in connection_map")
 
     def clear_scene(self):
         """Очистить сцену"""
