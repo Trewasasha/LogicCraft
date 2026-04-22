@@ -15,6 +15,8 @@ from .diagram import (
 
 from .diagram_manager import DiagramManager
 from .engine import DiagramEngine, ValidationError
+from .project_settings import ProjectSettings, CodeStyleSettings
+from .structure_template import StructureTemplate
 
 __all__ = [
     "UMLDiagram",
@@ -29,5 +31,8 @@ __all__ = [
     "DiagramModel",
     "DiagramManager",
     "DiagramEngine",
-    "ValidationError"
+    "ValidationError",
+    "ProjectSettings",
+    "CodeStyleSettings",
+    "StructureTemplate"
 ]

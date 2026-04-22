@@ -12,6 +12,7 @@ from .widgets.connection_line import ConnectionLine
 from .dialogs.edit_class_dialog import EditClassDialog
 from .dialogs.connection_properties import ConnectionPropertiesDialog
 from .dialogs.code_generation_dialog import CodeGenerationDialog
+from .dialogs.project_export_dialog import ProjectExportDialog
 
 
 class DiagramView(QGraphicsView):
@@ -148,6 +149,12 @@ class MainWindow(QMainWindow):
         generate_code_action.setShortcut(QKeySequence("Ctrl+G"))
         generate_code_action.triggered.connect(self._on_generate_code_clicked)
         tools_menu.addAction(generate_code_action)
+
+        # Export Project
+        export_project_action = QAction("📦 Export Project...", self)
+        export_project_action.setShortcut(QKeySequence("Ctrl+E"))
+        export_project_action.triggered.connect(self._on_export_project_clicked)
+        tools_menu.addAction(export_project_action)
         
         # Подключаем сигналы undo/redo от контроллера
         self.controller.history.history_changed.connect(self._on_history_changed)
@@ -194,6 +201,11 @@ class MainWindow(QMainWindow):
         generate_code_action = QAction("🚀 Generate Code", self)
         generate_code_action.triggered.connect(self._on_generate_code_clicked)
         toolbar.addAction(generate_code_action)
+
+        # Export Project
+        export_project_action = QAction("📦 Export Project", self)
+        export_project_action.triggered.connect(self._on_export_project_clicked)
+        toolbar.addAction(export_project_action)
 
     def _connect_signals(self):
         """Подключение сигналов сцены"""
@@ -409,4 +421,9 @@ class MainWindow(QMainWindow):
         
         # Открываем диалог генерации кода
         dialog = CodeGenerationDialog(self.controller.manager.diagram, self)
+        dialog.exec()
+
+    def _on_export_project_clicked(self):
+        """Обработка экспорта проекта"""
+        dialog = ProjectExportDialog(self.controller.manager.diagram, self)
         dialog.exec()
