@@ -7,7 +7,7 @@ import pytest
 from uuid import UUID
 from logiccraft.models.diagram import (
     UMLProperty, UMLMethod, UMLNode, UMLConnection, UMLDiagram,
-    ConnectionType
+    ConnectionType, NodeType, UMLEnumLiteral
 )
 
 
@@ -267,3 +267,140 @@ class TestBackwardCompatibility:
         
         diagram = DiagramModel(name="Test", nodes=[], connections=[])
         assert isinstance(diagram, UMLDiagram)
+
+
+class TestNodeType:
+    """Tests for NodeType enum."""
+
+    def test_node_type_values(self):
+        """Test NodeType enum values."""
+        assert NodeType.CLASS.value == "class"
+        assert NodeType.INTERFACE.value == "interface"
+        assert NodeType.ENUM.value == "enum"
+        assert NodeType.ABSTRACT_CLASS.value == "abstract_class"
+
+    def test_node_type_is_string(self):
+        """Test NodeType is string-based."""
+        assert isinstance(NodeType.CLASS, str)
+        assert NodeType.CLASS == "class"
+
+
+class TestUMLEnumLiteral:
+    """Tests for UMLEnumLiteral model."""
+
+    def test_create_enum_literal(self):
+        """Test creating enum literal."""
+        literal = UMLEnumLiteral(name="RED")
+        assert literal.name == "RED"
+        assert literal.value is None
+
+    def test_create_enum_literal_with_value(self):
+        """Test creating enum literal with value."""
+        literal = UMLEnumLiteral(name="MAX", value="100")
+        assert literal.name == "MAX"
+        assert literal.value == "100"
+
+
+class TestUMLNodeWithTypes:
+    """Tests for UMLNode with node types."""
+
+    def test_create_class_node(self):
+        """Test creating a regular class node."""
+        node = UMLNode(name="MyClass", x=0.0, y=0.0)
+        assert node.node_type == NodeType.CLASS
+        assert node.enum_literals == []
+
+    def test_create_interface_node(self):
+        """Test creating an interface node."""
+        node = UMLNode(
+            name="IRepository",
+            x=0.0,
+            y=0.0,
+            node_type=NodeType.INTERFACE
+        )
+        assert node.node_type == NodeType.INTERFACE
+        assert node.name == "IRepository"
+
+    def test_create_enum_node(self):
+        """Test creating an enum node."""
+        node = UMLNode(
+            name="Color",
+            x=0.0,
+            y=0.0,
+            node_type=NodeType.ENUM
+        )
+        assert node.node_type == NodeType.ENUM
+
+    def test_create_abstract_class_node(self):
+        """Test creating an abstract class node."""
+        node = UMLNode(
+            name="BaseController",
+            x=0.0,
+            y=0.0,
+            node_type=NodeType.ABSTRACT_CLASS
+        )
+        assert node.node_type == NodeType.ABSTRACT_CLASS
+
+    def test_add_enum_literals(self):
+        """Test adding enum literals to node."""
+        node = UMLNode(name="Status", x=0.0, y=0.0, node_type=NodeType.ENUM)
+        node.add_enum_literal("ACTIVE")
+        node.add_enum_literal("INACTIVE", value="0")
+        
+        assert len(node.enum_literals) == 2
+        assert node.enum_literals[0].name == "ACTIVE"
+        assert node.enum_literals[0].value is None
+        assert node.enum_literals[1].name == "INACTIVE"
+        assert node.enum_literals[1].value == "0"
+
+    def test_remove_enum_literal(self):
+        """Test removing enum literal."""
+        node = UMLNode(name="Status", x=0.0, y=0.0, node_type=NodeType.ENUM)
+        node.add_enum_literal("ACTIVE")
+        node.add_enum_literal("INACTIVE")
+        
+        assert node.remove_enum_literal(0) is True
+        assert len(node.enum_literals) == 1
+        assert node.enum_literals[0].name == "INACTIVE"
+        
+        assert node.remove_enum_literal(10) is False
+
+
+class TestDiagramManagerWithTypes:
+    """Tests for DiagramManager with node types."""
+
+    def test_add_interface_node(self):
+        """Test adding interface node with auto-naming."""
+        from logiccraft.models.diagram_manager import DiagramManager
+        
+        mgr = DiagramManager()
+        node = mgr.add_node(0, 0, node_type=NodeType.INTERFACE)
+        
+        assert node.node_type == NodeType.INTERFACE
+        assert node.name.startswith("IInterface")
+
+    def test_add_enum_node(self):
+        """Test adding enum node with auto-naming."""
+        from logiccraft.models.diagram_manager import DiagramManager
+        
+        mgr = DiagramManager()
+        node = mgr.add_node(0, 0, node_type=NodeType.ENUM)
+        
+        assert node.node_type == NodeType.ENUM
+        assert node.name.startswith("Enum")
+
+    def test_statistics_with_types(self):
+        """Test statistics include node types."""
+        from logiccraft.models.diagram_manager import DiagramManager
+        
+        mgr = DiagramManager()
+        mgr.add_node(0, 0, "MyClass", NodeType.CLASS)
+        mgr.add_node(100, 0, "IRepo", NodeType.INTERFACE)
+        mgr.add_node(200, 0, "Color", NodeType.ENUM)
+        
+        stats = mgr.get_statistics()
+        
+        assert stats["classes"] == 1
+        assert stats["interfaces"] == 1
+        assert stats["enums"] == 1
+        assert stats["nodes"] == 3

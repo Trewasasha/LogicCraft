@@ -1,7 +1,7 @@
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 import json
-from .diagram import UMLDiagram, UMLNode, UMLConnection, ConnectionType, UMLProperty, UMLMethod
+from .diagram import UMLDiagram, UMLNode, UMLConnection, ConnectionType, UMLProperty, UMLMethod, NodeType
 
 
 class DiagramManager:
@@ -14,17 +14,23 @@ class DiagramManager:
             connections=[]
         )
 
-    def add_node(self, x: float, y: float, name: str = None) -> UMLNode:
+    def add_node(self, x: float, y: float, name: str = None, node_type: NodeType = NodeType.CLASS) -> UMLNode:
         """Добавить узел"""
         if name is None:
-            name = f"Class{len(self.diagram.nodes) + 1}"
+            if node_type == NodeType.INTERFACE:
+                name = f"IInterface{len([n for n in self.diagram.nodes if n.node_type == NodeType.INTERFACE]) + 1}"
+            elif node_type == NodeType.ENUM:
+                name = f"Enum{len([n for n in self.diagram.nodes if n.node_type == NodeType.ENUM]) + 1}"
+            else:
+                name = f"Class{len(self.diagram.nodes) + 1}"
 
         node = UMLNode(
             name=name,
             x=x,
             y=y,
             properties=[],
-            methods=[]
+            methods=[],
+            node_type=node_type
         )
         self.diagram.nodes.append(node)
         return node
@@ -40,7 +46,9 @@ class DiagramManager:
     def update_node(self, node_id: str, name: str = None,
                     x: float = None, y: float = None,
                     properties: List[Dict] = None,
-                    methods: List[Dict] = None) -> bool:
+                    methods: List[Dict] = None,
+                    node_type: NodeType = None,
+                    enum_literals: List[Dict] = None) -> bool:
         """Обновить узел"""
         node = self.get_node_by_id(node_id)
         if not node:
@@ -56,6 +64,11 @@ class DiagramManager:
             node.properties = [UMLProperty(**p) for p in properties]
         if methods is not None:
             node.methods = [UMLMethod(**m) for m in methods]
+        if node_type is not None:
+            node.node_type = node_type
+        if enum_literals is not None:
+            from .diagram import UMLEnumLiteral
+            node.enum_literals = [UMLEnumLiteral(**el) for el in enum_literals]
 
         return True
 
@@ -152,7 +165,11 @@ class DiagramManager:
         return {
             "nodes": len(self.diagram.nodes),
             "connections": len(self.diagram.connections),
-            "abstract_classes": sum(1 for n in self.diagram.nodes if n.is_abstract),
+            "classes": sum(1 for n in self.diagram.nodes if n.node_type.value == 'class'),
+            "interfaces": sum(1 for n in self.diagram.nodes if n.node_type.value == 'interface'),
+            "enums": sum(1 for n in self.diagram.nodes if n.node_type.value == 'enum'),
+            "abstract_classes": sum(1 for n in self.diagram.nodes if n.node_type.value == 'abstract_class' or n.is_abstract),
             "total_attributes": sum(len(n.properties) for n in self.diagram.nodes),
-            "total_methods": sum(len(n.methods) for n in self.diagram.nodes)
+            "total_methods": sum(len(n.methods) for n in self.diagram.nodes),
+            "total_enum_literals": sum(len(n.enum_literals) for n in self.diagram.nodes)
         }

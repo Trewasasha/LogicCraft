@@ -6,7 +6,7 @@ import logging
 from PyQt6.QtCore import QObject, pyqtSignal
 from typing import List, Dict, Optional, Any
 
-from ..models.diagram import UMLDiagram, UMLNode, UMLConnection
+from ..models.diagram import UMLDiagram, UMLNode, UMLConnection, NodeType
 from ..models.diagram_manager import DiagramManager
 from ..models.engine import DiagramEngine
 from ..services.code_generator import CodeGenerator
@@ -70,9 +70,9 @@ class DiagramController(QObject):
 
     # --- ОПЕРАЦИИ С КАРТОЧКАМИ ---
 
-    def add_card(self, x: float, y: float, name: str = None) -> Optional[UMLNode]:
+    def add_card(self, x: float, y: float, name: str = None, node_type: NodeType = NodeType.CLASS) -> Optional[UMLNode]:
         try:
-            node = self.manager.add_node(x, y, name)
+            node = self.manager.add_node(x, y, name, node_type)
             self.card_added.emit(node)
             self._save_state()
             self.status_changed.emit(f"Класс {node.name} добавлен")

@@ -1,17 +1,35 @@
 """Generated from UML Diagram: {{ diagram_name }}"""
 from typing import List, Optional
-{% if has_abstract_classes %}
+{% if has_abstract_classes or has_interfaces %}
 from abc import ABC, abstractmethod
+{% endif %}
+{% if has_enums %}
+from enum import Enum
 {% endif %}
 
 {% for node in nodes %}
-{% if node.is_abstract %}
+{% if node.node_type == 'interface' %}
+class {{ node.name }}(ABC):
+    """Interface: {{ node.name }}"""
+{% elif node.node_type == 'enum' %}
+class {{ node.name }}(Enum):
+    """Enumeration: {{ node.name }}"""
+{% if node.enum_literals %}
+{% for literal in node.enum_literals %}
+    {{ literal.name }}{% if literal.value %} = {{ literal.value }}{% endif %}
+{% endfor %}
+{% endif %}
+{% elif node.node_type == 'abstract_class' or node.is_abstract %}
 class {{ node.name }}(ABC):
 {% else %}
 class {{ node.name }}:
 {% endif %}
     {% if node.stereotype %}
     """{{ node.stereotype }}"""
+    {% elif node.node_type == 'interface' %}
+    """Interface generated from UML diagram"""
+    {% elif node.node_type == 'enum' %}
+    """Enumeration generated from UML diagram"""
     {% else %}
     """Class generated from UML diagram"""
     {% endif %}
