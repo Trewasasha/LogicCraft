@@ -65,7 +65,20 @@ class Application:
             self.window.add_card_to_scene(card)
 
     def _on_card_added(self, node):
-        pass  # handled in _on_add_card
+        """Создать карточку на сцене при добавлении через контроллер (дублирование, вставка)"""
+        # Если карточка уже есть на сцене — пропускаем (обработано в _on_add_card)
+        if node.id in self.controller.card_map:
+            return
+        card = UMLCard(node.name, node.x, node.y,
+                       attributes=[p.name for p in node.properties],
+                       methods=[m.name for m in node.methods],
+                       card_id=node.id,
+                       node_type=node.node_type)
+        card.signals.move_finished.connect(self._on_card_move_finished)
+        card.signals.edit_requested.connect(self._on_card_edit_requested)
+        card.signals.delete_requested.connect(self._on_card_delete_requested)
+        self.controller.register_card_view(node.id, card)
+        self.window.add_card_to_scene(card)
 
     def _on_card_move_finished(self, card_id: str, x: float, y: float):
         """Сохраняем состояние после завершения перетаскивания"""
