@@ -511,7 +511,16 @@ class MainWindow(QMainWindow):
             dialog = ConnectionPropertiesDialog(connection, self)
             if dialog.exec():
                 new_type = dialog.get_connection_type()
-                self.edit_connection_requested.emit(connection.id, new_type.value)
+                multiplicity = dialog.get_multiplicity()
+                name = dialog.get_name()
+                self.controller.update_connection_properties(
+                    connection.id,
+                    new_type=new_type.value,
+                    multiplicity=multiplicity,
+                    name=name
+                )
+        else:
+            self.show_info("Выберите связь для редактирования.")
 
     def _on_connection_ready(self, source_id, target_id, source_anchor, target_anchor):
         conn_type = getattr(self, '_default_connection_type', 'association')
@@ -528,6 +537,8 @@ class MainWindow(QMainWindow):
             connection_model = self.controller.get_connection_model(connection_id)
             if connection_model:
                 connection.set_connection_type(connection_model.type)
+                connection.set_multiplicity(connection_model.multiplicity or "")
+                connection.set_name(connection_model.name or "")
 
     def _on_card_added(self, node_model):
         pass  # handled in Application._on_add_card

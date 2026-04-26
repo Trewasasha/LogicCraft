@@ -169,6 +169,28 @@ class DiagramController(QObject):
             self.error_occurred.emit(f"Ошибка обновления типа: {e}")
             return False
 
+    def update_connection_properties(self, connection_id: str,
+                                     new_type: str = None,
+                                     multiplicity: str = None,
+                                     name: str = None) -> bool:
+        """Обновить тип, множественность и имя связи"""
+        try:
+            conn = self.manager.get_connection_by_id(connection_id)
+            if not conn:
+                return False
+            if new_type is not None:
+                self.manager.update_connection_type(connection_id, new_type)
+            if multiplicity is not None:
+                conn.multiplicity = multiplicity
+            if name is not None:
+                conn.name = name
+            self.connection_updated.emit(connection_id)
+            self._save_state()
+            return True
+        except Exception as e:
+            self.error_occurred.emit(f"Ошибка обновления связи: {e}")
+            return False
+
     def get_connection_model(self, connection_id: str) -> Optional[UMLConnection]:
         """Возвращает данные связи по ID (нужно для перерисовки)"""
         for conn in self.manager.diagram.connections:

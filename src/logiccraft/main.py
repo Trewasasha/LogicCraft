@@ -174,7 +174,9 @@ class Application:
                     conn.source_anchor,
                     conn.target_anchor,
                     conn.type,
-                    conn.id
+                    conn.id,
+                    multiplicity=conn.multiplicity or "",
+                    name=conn.name or ""
                 )
                 self.controller.register_connection_view(conn.id, conn_line)
                 self.window.add_connection_to_scene(conn_line)

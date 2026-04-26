@@ -1,59 +1,98 @@
 """Диалог свойств связи"""
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-    QComboBox, QDialogButtonBox
+    QComboBox, QDialogButtonBox, QLineEdit, QFormLayout, QGroupBox
 )
-from enum import Enum
+from PyQt6.QtCore import Qt
+from logiccraft.models.diagram import ConnectionType
 
 
-class ConnectionType(Enum):
-    """Типы связей"""
-    ASSOCIATION = "association"
-    INHERITANCE = "inheritance"
-    COMPOSITION = "composition"
-    AGGREGATION = "aggregation"
+CONNECTION_TYPE_LABELS = [
+    ("→  Ассоциация",    "association"),
+    ("▷  Наследование",  "inheritance"),
+    ("◆  Композиция",    "composition"),
+    ("◇  Агрегация",     "aggregation"),
+    ("⇢  Зависимость",   "dependency"),
+    ("⇒  Реализация",    "realization"),
+]
+
+MULTIPLICITY_PRESETS = [
+    "", "1", "0..1", "0..*", "1..*", "*", "1..1", "n", "m..n"
+]
 
 
 class ConnectionPropertiesDialog(QDialog):
-    """Диалог для выбора типа связи"""
+    """Диалог для редактирования свойств связи"""
 
     def __init__(self, connection, parent=None):
         super().__init__(parent)
         self.connection = connection
-        self.setWindowTitle("Connection Properties")
-        self.setMinimumWidth(300)
-
+        self.setWindowTitle("Свойства связи")
+        self.setMinimumWidth(360)
         self._setup_ui()
 
     def _setup_ui(self):
-        """Настройка UI диалога"""
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
+        layout.setSpacing(16)
+        layout.setContentsMargins(20, 20, 20, 20)
 
-        # Тип связи
-        layout.addWidget(QLabel("Connection Type:"))
+        # --- Тип связи ---
+        type_group = QGroupBox("Тип связи")
+        type_layout = QVBoxLayout(type_group)
         self.type_combo = QComboBox()
-        self.type_combo.addItem("Association", ConnectionType.ASSOCIATION.value)
-        self.type_combo.addItem("Inheritance", ConnectionType.INHERITANCE.value)
-        self.type_combo.addItem("Composition", ConnectionType.COMPOSITION.value)
-        self.type_combo.addItem("Aggregation", ConnectionType.AGGREGATION.value)
+        for label, value in CONNECTION_TYPE_LABELS:
+            self.type_combo.addItem(label, value)
 
-        # Устанавливаем текущее значение
-        # connection.type может быть либо строкой, либо объектом ConnectionType
         current_type = self.connection.type
-        if hasattr(current_type, 'value'):
-            # Если это объект ConnectionType
-            current_value = current_type.value
+        current_value = current_type.value if hasattr(current_type, 'value') else str(current_type)
+        idx = self.type_combo.findData(current_value)
+        if idx >= 0:
+            self.type_combo.setCurrentIndex(idx)
+        type_layout.addWidget(self.type_combo)
+        layout.addWidget(type_group)
+
+        # --- Множественность ---
+        mult_group = QGroupBox("Множественность")
+        mult_layout = QFormLayout(mult_group)
+        mult_layout.setSpacing(8)
+
+        self.source_mult = QComboBox()
+        self.source_mult.setEditable(True)
+        for p in MULTIPLICITY_PRESETS:
+            self.source_mult.addItem(p)
+
+        self.target_mult = QComboBox()
+        self.target_mult.setEditable(True)
+        for p in MULTIPLICITY_PRESETS:
+            self.target_mult.addItem(p)
+
+        # Заполняем текущие значения
+        current_mult = getattr(self.connection, 'multiplicity', None) or ""
+        parts = current_mult.split("..") if ".." in current_mult else [current_mult, ""]
+        # Если multiplicity хранится как "source:target"
+        if ":" in current_mult:
+            src_m, tgt_m = current_mult.split(":", 1)
         else:
-            # Если это строка
-            current_value = current_type
+            src_m, tgt_m = "", current_mult
 
-        index = self.type_combo.findData(current_value)
-        if index >= 0:
-            self.type_combo.setCurrentIndex(index)
+        self.source_mult.setCurrentText(src_m)
+        self.target_mult.setCurrentText(tgt_m)
 
-        layout.addWidget(self.type_combo)
+        mult_layout.addRow("Источник:", self.source_mult)
+        mult_layout.addRow("Цель:", self.target_mult)
+        layout.addWidget(mult_group)
 
-        # Кнопки OK/Cancel
+        # --- Имя связи ---
+        name_group = QGroupBox("Имя связи (необязательно)")
+        name_layout = QVBoxLayout(name_group)
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText("Например: использует, содержит...")
+        current_name = getattr(self.connection, 'name', None) or ""
+        self.name_edit.setText(current_name)
+        name_layout.addWidget(self.name_edit)
+        layout.addWidget(name_group)
+
+        # --- Кнопки ---
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel
@@ -62,12 +101,20 @@ class ConnectionPropertiesDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
-        self.setLayout(layout)
-
     def get_connection_type(self) -> ConnectionType:
-        """Возвращает выбранный тип связи"""
         value = self.type_combo.currentData()
-        for ct in ConnectionType:
-            if ct.value == value:
-                return ct
-        return ConnectionType.ASSOCIATION
+        try:
+            return ConnectionType(value)
+        except ValueError:
+            return ConnectionType.association
+
+    def get_multiplicity(self) -> str:
+        """Возвращает множественность в формате 'source:target'"""
+        src = self.source_mult.currentText().strip()
+        tgt = self.target_mult.currentText().strip()
+        if src or tgt:
+            return f"{src}:{tgt}"
+        return ""
+
+    def get_name(self) -> str:
+        return self.name_edit.text().strip()
