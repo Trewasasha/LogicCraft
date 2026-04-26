@@ -358,55 +358,14 @@ QComboBox QAbstractItemView {
 
 /* Welcome Close Button */
 #WelcomeCloseButton {
-    background-color: #FF5F57;
-    color: transparent;
-    font-size: 16px;
+    background-color: transparent;
+    color: #9B72F5;
+    font-size: 24px;
     font-weight: bold;
     border: none;
-    border-radius: 14px;
+    border-radius: 16px;
 }
 
 #WelcomeCloseButton:hover {
-    color: #7A0000;
-}
-
-/* Welcome Title Bar */
-#WelcomeTitleBar {
-    background-color: #E8E2FC;
-    border-top-left-radius: 20px;
-    border-top-right-radius: 20px;
-}
-
-#WelcomeContent {
-    background-color: #F0EFFE;
-    border-bottom-left-radius: 20px;
-    border-bottom-right-radius: 20px;
-}
-
-/* Welcome Minimize Button */
-#WelcomeMinimizeButton {
-    background-color: #FEBC2E;
-    color: transparent;
-    font-size: 16px;
-    font-weight: bold;
-    border: none;
-    border-radius: 14px;
-}
-
-#WelcomeMinimizeButton:hover {
-    color: #7A5000;
-}
-
-/* Welcome Maximize Button */
-#WelcomeMaximizeButton {
-    background-color: #28C840;
-    color: transparent;
-    font-size: 14px;
-    font-weight: bold;
-    border: none;
-    border-radius: 14px;
-}
-
-#WelcomeMaximizeButton:hover {
-    color: #004D00;
+    background-color: rgba(155, 114, 245, 0.1);
 }
