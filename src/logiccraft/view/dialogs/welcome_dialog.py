@@ -11,7 +11,7 @@ class WelcomeCard(QPushButton):
     
     def __init__(self, icon: str, title: str, subtitle: str, is_primary: bool = False):
         super().__init__()
-        self.setFixedSize(280, 160)
+        self.setFixedSize(320, 180)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         
         # Стили
@@ -89,19 +89,38 @@ class WelcomeDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("LogicCraft")
-        self.setFixedSize(700, 500)
+        self.setFixedSize(800, 600)
         self.setModal(True)
         
         # Убираем рамку окна для современного вида
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog)
         
+        # Для перемещения окна
+        self._drag_position = None
+        
         self._setup_ui()
+    
+    def mousePressEvent(self, event):
+        """Начало перемещения окна"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+    
+    def mouseMoveEvent(self, event):
+        """Перемещение окна"""
+        if event.buttons() == Qt.MouseButton.LeftButton and self._drag_position is not None:
+            self.move(event.globalPosition().toPoint() - self._drag_position)
+            event.accept()
+    
+    def mouseReleaseEvent(self, event):
+        """Конец перемещения окна"""
+        self._drag_position = None
     
     def _setup_ui(self):
         """Настройка UI"""
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(40, 40, 40, 40)
-        main_layout.setSpacing(30)
+        main_layout.setContentsMargins(50, 50, 50, 50)
+        main_layout.setSpacing(40)
         
         # Фон
         self.setStyleSheet("""
@@ -135,7 +154,7 @@ class WelcomeDialog(QDialog):
         
         # Карточки
         cards_layout = QHBoxLayout()
-        cards_layout.setSpacing(20)
+        cards_layout.setSpacing(30)
         cards_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # Карточка "Открыть проект"
