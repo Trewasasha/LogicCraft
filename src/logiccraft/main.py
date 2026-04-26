@@ -45,8 +45,13 @@ class Application:
         self.controller.status_changed.connect(self.window.update_status)
         self.controller.error_occurred.connect(self.window.show_error)
 
-    def _on_add_card(self, x: float, y: float):
-        node = self.controller.add_card(x, y)
+    def _on_add_card(self, x: float, y: float, node_type: str = "class"):
+        from logiccraft.models.diagram import NodeType
+        try:
+            nt = NodeType(node_type)
+        except ValueError:
+            nt = NodeType.CLASS
+        node = self.controller.add_card(x, y, node_type=nt)
         if node:
             card = UMLCard(node.name, node.x, node.y,
                            attributes=[p.name for p in node.properties],

@@ -53,7 +53,7 @@ class MainWindow(QMainWindow):
     """Главное окно приложения"""
 
     # Сигналы для контроллера
-    add_card_requested = pyqtSignal(float, float)
+    add_card_requested = pyqtSignal(float, float, str)  # x, y, node_type
     save_requested = pyqtSignal(str)
     load_requested = pyqtSignal(str)
     clear_requested = pyqtSignal()
@@ -321,17 +321,11 @@ class MainWindow(QMainWindow):
 
     def _on_toolbox_add_element(self, node_type: str):
         """Добавить элемент из тулбокса в центр холста"""
-        from logiccraft.models.diagram import NodeType
         center = self.view.mapToScene(self.view.viewport().rect().center())
         import random
         offset_x = random.randint(-60, 60)
         offset_y = random.randint(-60, 60)
-        try:
-            nt = NodeType(node_type)
-        except ValueError:
-            nt = NodeType.CLASS
-        self.add_card_requested.emit(center.x() + offset_x, center.y() + offset_y)
-        self._pending_node_type = nt
+        self.add_card_requested.emit(center.x() + offset_x, center.y() + offset_y, node_type)
 
     def _on_scene_selection_changed(self):
         """Обновить панель свойств при изменении выделения"""
@@ -427,10 +421,9 @@ class MainWindow(QMainWindow):
             super().keyPressEvent(event)
     
     def _on_add_clicked(self):
-        """Обработка добавления карточки"""
-        # Центрируем новую карточку в поле зрения
+        """Обработка добавления карточки — обычный класс"""
         center = self.view.mapToScene(self.view.viewport().rect().center())
-        self.add_card_requested.emit(center.x(), center.y())
+        self.add_card_requested.emit(center.x(), center.y(), "class")
 
     def _on_save_clicked(self):
         """Обработка сохранения"""
