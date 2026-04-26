@@ -1,19 +1,21 @@
 {% for node in nodes %}
-{% if node.node_type == 'interface' %}
-public interface {{ node.name }} {
-{% elif node.node_type == 'enum' %}
+{% set ntype = node.node_type.value %}
+{% if ntype == 'interface' %}
+public interface {{ node.name }}{% if inheritance_map[node.name] %} extends {{ inheritance_map[node.name] | join(', ') }}{% endif %} {
+{% elif ntype == 'enum' %}
 public enum {{ node.name }} {
 {% if node.enum_literals %}
 {% for literal in node.enum_literals %}
     {{ literal.name }}{% if not loop.last %},{% else %};{% endif %}
+
 {% endfor %}
 {% endif %}
-{% elif node.node_type == 'abstract_class' or node.is_abstract %}
-{% set modifiers = ["abstract"] %}
-public {% for mod in modifiers %}{{ mod }} {% endfor %}class {{ node.name }}{% if inheritance_map[node.name] %} extends {{ inheritance_map[node.name][0] }}{% endif %} {
+{% elif ntype == 'abstract_class' or node.is_abstract %}
+public abstract class {{ node.name }}{% if inheritance_map[node.name] %} extends {{ inheritance_map[node.name][0] }}{% endif %} {
 {% else %}
 public class {{ node.name }}{% if inheritance_map[node.name] %} extends {{ inheritance_map[node.name][0] }}{% endif %} {
 {% endif %}
+{% if ntype != 'enum' %}
 {% if node.properties %}
 
     // Attributes
@@ -21,7 +23,7 @@ public class {{ node.name }}{% if inheritance_map[node.name] %} extends {{ inher
     {{ get_java_visibility(prop.visibility) }}{% if prop.is_static %} static{% endif %} {{ prop.type }} {{ prop.name }};
 {% endfor %}
 {% endif %}
-{% if node.properties %}
+{% if ntype not in ['interface'] and node.properties %}
 
     // Constructor
     public {{ node.name }}() {
@@ -32,13 +34,14 @@ public class {{ node.name }}{% if inheritance_map[node.name] %} extends {{ inher
 
     // Methods
 {% for method in node.methods %}
-    {{ get_java_visibility(method.visibility) }}{% if method.is_abstract %} abstract{% endif %}{% if method.is_static %} static{% endif %} {{ method.return_type or "void" }} {{ method.name }}({% for param in method.parameters %}{{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}){% if method.is_abstract %};{% else %} {
+    {{ get_java_visibility(method.visibility) }}{% if method.is_abstract or ntype == 'interface' %} abstract{% endif %}{% if method.is_static %} static{% endif %} {{ method.return_type or "void" }} {{ method.name }}({% for param in method.parameters %}{{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}){% if method.is_abstract or ntype == 'interface' %};{% else %} {
         // TODO: Implement method
     }{% endif %}
 {% if not loop.last %}
 
 {% endif %}
 {% endfor %}
+{% endif %}
 {% endif %}
 }
 {% if not loop.last %}

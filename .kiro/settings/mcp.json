@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "power-figma-figma": {
+      "command": "npx",
+      "args": ["-y", "@figma/mcp-server-figma"],
+      "env": {},
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

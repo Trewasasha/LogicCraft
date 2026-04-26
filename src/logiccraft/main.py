@@ -50,7 +50,8 @@ class Application:
             card = UMLCard(node.name, node.x, node.y,
                            attributes=[p.name for p in node.properties],
                            methods=[m.name for m in node.methods],
-                           card_id=node.id)
+                           card_id=node.id,
+                           node_type=node.node_type)
             card.signals.move_finished.connect(self._on_card_move_finished)
             card.signals.edit_requested.connect(self._on_card_edit_requested)
             card.signals.delete_requested.connect(self._on_card_delete_requested)
@@ -67,13 +68,13 @@ class Application:
     def _on_card_edit_requested(self, card_id: str):
         """Обработка запроса на редактирование карточки из контекстного меню"""
         from logiccraft.view.dialogs.edit_class_dialog import EditClassDialog
-        
+
         card = self.controller.card_map.get(card_id)
         if card:
             dialog = EditClassDialog(card, self.window)
             if dialog.exec():
-                name, attributes, methods = dialog.get_data()
-                self._on_edit_card(card_id, name, attributes, methods)
+                name, attributes, methods, node_type = dialog.get_data()
+                self._on_edit_card(card_id, name, attributes, methods, node_type)
 
     def _on_card_delete_requested(self, card_id: str):
         """Обработка запроса на удаление карточки из контекстного меню"""
@@ -110,13 +111,15 @@ class Application:
     def _on_clear(self):
         self.controller.clear_diagram()
 
-    def _on_edit_card(self, card_id: str, name: str, attributes: list, methods: list):
-        self.controller.edit_card(card_id, name, attributes, methods)
+    def _on_edit_card(self, card_id: str, name: str, attributes: list, methods: list, node_type=None):
+        self.controller.edit_card(card_id, name, attributes, methods, node_type)
         card = self.controller.card_map.get(card_id)
         if card:
             card.name = name
             card.attributes = attributes
             card.methods = methods
+            if node_type is not None:
+                card.node_type = node_type
             card.update_content()
 
     def _on_delete_selected(self):
@@ -148,7 +151,8 @@ class Application:
             card = UMLCard(node.name, node.x, node.y,
                            attributes=[p.name for p in node.properties],
                            methods=[m.name for m in node.methods],
-                           card_id=node.id)
+                           card_id=node.id,
+                           node_type=node.node_type)
             card.signals.move_finished.connect(self._on_card_move_finished)
             card.signals.edit_requested.connect(self._on_card_edit_requested)
             card.signals.delete_requested.connect(self._on_card_delete_requested)

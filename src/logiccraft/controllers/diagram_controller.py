@@ -84,17 +84,18 @@ class DiagramController(QObject):
     def update_card(self, card_id: str, name: str = None,
                     x: float = None, y: float = None,
                     attributes: List[str] = None,
-                    methods: List[str] = None) -> bool:
+                    methods: List[str] = None,
+                    node_type=None) -> bool:
         """Обновление данных и позиции карточки"""
         try:
-            # Парсим списки строк в объекты модели
-            prop_objs = [self._parse_attribute_string(a) for a in attributes] if attributes else None
-            method_objs = [self._parse_method_string(m) for m in methods] if methods else None
+            prop_objs = [self._parse_attribute_string(a) for a in attributes] if attributes is not None else None
+            method_objs = [self._parse_method_string(m) for m in methods] if methods is not None else None
 
             success = self.manager.update_node(
                 card_id, name, x, y,
                 properties=prop_objs,
-                methods=method_objs
+                methods=method_objs,
+                node_type=node_type
             )
 
             if success:
@@ -112,9 +113,13 @@ class DiagramController(QObject):
             self._save_state()
 
     def edit_card(self, card_id: str, name: str,
-                  attributes: List[str], methods: List[str]) -> bool:
+                  attributes: List[str], methods: List[str],
+                  node_type=None) -> bool:
         """Редактирование содержимого карточки с сохранением в историю"""
-        if self.update_card(card_id, name, attributes=attributes, methods=methods):
+        kwargs = {}
+        if node_type is not None:
+            kwargs['node_type'] = node_type
+        if self.update_card(card_id, name, attributes=attributes, methods=methods, **kwargs):
             self._save_state()
             return True
         return False

@@ -345,10 +345,10 @@ class MainWindow(QMainWindow):
             card = selected_cards[0]
             dialog = EditClassDialog(card, self)
             if dialog.exec():
-                name, attributes, methods = dialog.get_data()
-                self.edit_card_requested.emit(card.id, name, attributes, methods)
+                name, attributes, methods, node_type = dialog.get_data()
+                self.controller.edit_card(card.id, name, attributes, methods, node_type)
         else:
-            self.show_info("Please select a class card to edit.")
+            self.show_info("Выберите карточку класса для редактирования.")
 
     def _on_delete_selected(self):
         """Удаление выбранных элементов"""

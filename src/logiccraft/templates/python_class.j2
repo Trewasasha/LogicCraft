@@ -8,38 +8,36 @@ from enum import Enum
 {% endif %}
 
 {% for node in nodes %}
-{% if node.node_type == 'interface' %}
+{% set ntype = node.node_type.value %}
+{% if ntype == 'interface' %}
 class {{ node.name }}(ABC):
     """Interface: {{ node.name }}"""
-{% elif node.node_type == 'enum' %}
+{% elif ntype == 'enum' %}
 class {{ node.name }}(Enum):
     """Enumeration: {{ node.name }}"""
 {% if node.enum_literals %}
 {% for literal in node.enum_literals %}
-    {{ literal.name }}{% if literal.value %} = {{ literal.value }}{% endif %}
+    {{ literal.name }}{% if literal.value %} = {{ literal.value }}{% else %} = {{ loop.index }}{% endif %}
+
 {% endfor %}
 {% endif %}
-{% elif node.node_type == 'abstract_class' or node.is_abstract %}
-class {{ node.name }}(ABC):
+{% elif ntype == 'abstract_class' or node.is_abstract %}
+class {{ node.name }}(ABC{% if inheritance_map[node.name] %}, {{ inheritance_map[node.name] | join(', ') }}{% endif %}):
+    """Abstract class: {{ node.name }}"""
 {% else %}
-class {{ node.name }}:
-{% endif %}
-    {% if node.stereotype %}
-    """{{ node.stereotype }}"""
-    {% elif node.node_type == 'interface' %}
-    """Interface generated from UML diagram"""
-    {% elif node.node_type == 'enum' %}
-    """Enumeration generated from UML diagram"""
-    {% else %}
+class {{ node.name }}{% if inheritance_map[node.name] %}({{ inheritance_map[node.name] | join(', ') }}){% endif %}:
     """Class generated from UML diagram"""
-    {% endif %}
+{% endif %}
+{% if ntype != 'enum' %}
 {% if node.properties %}
 
     # Attributes
 {% for prop in node.properties %}
     {{ get_python_visibility(prop.visibility) }}{{ prop.name }}: {{ prop.type }}{% if prop.default_value %} = {{ prop.default_value }}{% endif %}
+
 {% endfor %}
 {% endif %}
+{% if ntype != 'interface' %}
 
     def __init__(self):
 {% if node.properties %}
@@ -53,11 +51,12 @@ class {{ node.name }}:
 {% else %}
         pass
 {% endif %}
+{% endif %}
 {% if node.methods %}
 
     # Methods
 {% for method in node.methods %}
-{% if method.is_abstract %}
+{% if method.is_abstract or ntype == 'interface' %}
     @abstractmethod
 {% elif method.is_static %}
     @staticmethod
@@ -67,7 +66,7 @@ class {{ node.name }}:
     {% else %}
     def {{ method.name }}(self{% if generate_method_params(method) %}, {{ generate_method_params(method) }}{% endif %}){% if method.return_type %} -> {{ method.return_type }}{% else %} -> None{% endif %}:
     {% endif %}
-        {% if method.is_abstract %}
+        {% if method.is_abstract or ntype == 'interface' %}
         raise NotImplementedError
         {% else %}
         pass
@@ -76,6 +75,7 @@ class {{ node.name }}:
 
 {% endif %}
 {% endfor %}
+{% endif %}
 {% endif %}
 {% if not loop.last %}
 

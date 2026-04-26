@@ -33,7 +33,7 @@ class UMLCard(QGraphicsRectItem):
     def __init__(self, name: str, x: float = 0, y: float = 0,
                  width: float = 180, height: float = 100,
                  attributes: List[str] = None, methods: List[str] = None,
-                 card_id: str = None):
+                 card_id: str = None, node_type=None):
         super().__init__(0, 0, width, height)
         self.setPos(x, y)
 
@@ -41,6 +41,7 @@ class UMLCard(QGraphicsRectItem):
         self.name = name
         self.attributes = attributes or []
         self.methods = methods or []
+        self.node_type = node_type or "class"
 
         self.anchors = {}
         self._anchor_size = 8
@@ -82,7 +83,21 @@ class UMLCard(QGraphicsRectItem):
         painter.setBrush(QBrush(QColor(CardStyle.BACKGROUND)))
         painter.drawRoundedRect(r, radius, radius)
 
-        # Заголовок — фиолетовый прямоугольник с скруглением только сверху
+        # Определяем цвет заголовка по типу узла
+        node_type = getattr(self, 'node_type', 'class')
+        if hasattr(node_type, 'value'):
+            node_type = node_type.value
+
+        if node_type == 'interface':
+            header_color = QColor("#9B72F5")  # Светло-фиолетовый для интерфейсов
+        elif node_type == 'enum':
+            header_color = QColor("#10B981")  # Зелёный для enum
+        elif node_type == 'abstract_class':
+            header_color = QColor("#8B5CF6")  # Средне-фиолетовый для абстрактных
+        else:
+            header_color = QColor(CardStyle.HEADER_BG)  # Стандартный фиолетовый
+
+        # Заголовок — цветной прямоугольник с скруглением только сверху
         header_path = QPainterPath()
         header_path.moveTo(r.left() + radius, r.top())
         header_path.lineTo(r.right() - radius, r.top())
@@ -93,7 +108,7 @@ class UMLCard(QGraphicsRectItem):
         header_path.closeSubpath()
 
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(QColor(CardStyle.HEADER_BG)))
+        painter.setBrush(QBrush(header_color))
         painter.drawPath(header_path)
 
     def _create_elements(self):
@@ -148,10 +163,49 @@ class UMLCard(QGraphicsRectItem):
 
         self.setRect(0, 0, width, new_height)
 
-        # Заголовок с иконкой
-        self.header_text.setHtml(f'<span style="font-size:13px;">⬡ <b>{self.name}</b></span>')
+        # Определяем тип узла
+        node_type = getattr(self, 'node_type', 'class')
+        if hasattr(node_type, 'value'):
+            node_type = node_type.value
+
+        # Визуальное отличие по типу
+        if node_type == 'interface':
+            stereotype = '«interface»'
+            icon = '◇'
+            name_style = 'font-style:italic; font-weight:bold;'
+        elif node_type == 'enum':
+            stereotype = '«enumeration»'
+            icon = '≡'
+            name_style = 'font-weight:bold;'
+        elif node_type == 'abstract_class':
+            stereotype = '«abstract»'
+            icon = '△'
+            name_style = 'font-style:italic; font-weight:bold;'
+        else:
+            stereotype = ''
+            icon = '⬡'
+            name_style = 'font-weight:bold;'
+
+        # Формируем HTML заголовка
+        if stereotype:
+            header_html = (
+                f'<div style="text-align:center;">'
+                f'<div style="font-size:9px; color:rgba(255,255,255,200); margin-bottom:2px;">'
+                f'{stereotype}</div>'
+                f'<div style="font-size:13px; {name_style}">'
+                f'{icon} {self.name}</div>'
+                f'</div>'
+            )
+        else:
+            header_html = (
+                f'<div style="text-align:center; font-size:13px; {name_style}">'
+                f'{icon} {self.name}</div>'
+            )
+
+        self.header_text.setHtml(header_html)
         tw = self.header_text.boundingRect().width()
-        self.header_text.setPos((width - tw) / 2, (self.HEADER_HEIGHT - self.header_text.boundingRect().height()) / 2)
+        th = self.header_text.boundingRect().height()
+        self.header_text.setPos((width - tw) / 2, (self.HEADER_HEIGHT - th) / 2)
 
         # Атрибуты
         attr_text = "\n".join(self.attributes) if self.attributes else ""
