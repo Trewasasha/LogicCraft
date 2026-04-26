@@ -14,46 +14,17 @@ class WelcomeCard(QPushButton):
         self.setFixedSize(360, 200)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         
-        # Стили
+        # Устанавливаем objectName для применения стилей из QSS
         if is_primary:
-            self.setStyleSheet("""
-                QPushButton {
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 #8B5CF6, stop:1 #7C3AED);
-                    border: none;
-                    border-radius: 16px;
-                    padding: 20px;
-                }
-                QPushButton:hover {
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 #7C3AED, stop:1 #6D28D9);
-                }
-                QPushButton:pressed {
-                    background: #6D28D9;
-                }
-            """)
-            icon_color = "rgba(255, 255, 255, 200)"
-            title_color = "#FFFFFF"
-            subtitle_color = "rgba(255, 255, 255, 180)"
+            self.setObjectName("WelcomeCardPrimary")
+            icon_obj_name = "WelcomeCardIconPrimary"
+            title_obj_name = "WelcomeCardTitlePrimary"
+            subtitle_obj_name = "WelcomeCardSubtitlePrimary"
         else:
-            self.setStyleSheet("""
-                QPushButton {
-                    background-color: #FFFFFF;
-                    border: 2px solid #E5E0F8;
-                    border-radius: 16px;
-                    padding: 20px;
-                }
-                QPushButton:hover {
-                    background-color: #F8F6FF;
-                    border-color: #C4B5FD;
-                }
-                QPushButton:pressed {
-                    background-color: #EDE9FE;
-                }
-            """)
-            icon_color = "#9B72F5"
-            title_color = "#1F1F1F"
-            subtitle_color = "#6B7280"
+            self.setObjectName("WelcomeCardSecondary")
+            icon_obj_name = "WelcomeCardIconSecondary"
+            title_obj_name = "WelcomeCardTitleSecondary"
+            subtitle_obj_name = "WelcomeCardSubtitleSecondary"
         
         # Лейаут
         layout = QVBoxLayout(self)
@@ -62,13 +33,13 @@ class WelcomeCard(QPushButton):
         
         # Иконка
         icon_label = QLabel(icon)
-        icon_label.setStyleSheet(f"font-size: 48px; color: {icon_color};")
+        icon_label.setObjectName(icon_obj_name)
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_label)
         
         # Заголовок
         title_label = QLabel(title)
-        title_label.setStyleSheet(f"font-size: 18px; font-weight: 600; color: {title_color};")
+        title_label.setObjectName(title_obj_name)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setWordWrap(True)
         title_label.setMaximumWidth(300)
@@ -76,7 +47,7 @@ class WelcomeCard(QPushButton):
         
         # Подзаголовок
         subtitle_label = QLabel(subtitle)
-        subtitle_label.setStyleSheet(f"font-size: 13px; color: {subtitle_color};")
+        subtitle_label.setObjectName(subtitle_obj_name)
         subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle_label.setWordWrap(True)
         layout.addWidget(subtitle_label)
@@ -93,6 +64,7 @@ class WelcomeDialog(QDialog):
         self.setWindowTitle("LogicCraft")
         self.setFixedSize(900, 620)
         self.setModal(True)
+        self.setObjectName("WelcomeDialog")
         
         # Убираем рамку окна для современного вида
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog)
@@ -124,34 +96,16 @@ class WelcomeDialog(QDialog):
         main_layout.setContentsMargins(50, 50, 50, 50)
         main_layout.setSpacing(40)
         
-        # Фон
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #F0EFFE;
-                border-radius: 20px;
-            }
-        """)
-        
         # Заголовок
         title = QLabel("СХЕМАТУС")
+        title.setObjectName("WelcomeTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("""
-            font-size: 56px;
-            font-weight: 800;
-            color: #7C3AED;
-            letter-spacing: 2px;
-            margin-bottom: 10px;
-        """)
         main_layout.addWidget(title)
         
         # Подзаголовок
         subtitle = QLabel("Начните работу с вашими схемами и классами")
+        subtitle.setObjectName("WelcomeSubtitle")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setStyleSheet("""
-            font-size: 16px;
-            color: #6B7280;
-            margin-bottom: 20px;
-        """)
         main_layout.addWidget(subtitle)
         
         # Карточки
@@ -184,20 +138,8 @@ class WelcomeDialog(QDialog):
         
         # Кнопка закрытия (маленький крестик в углу)
         close_btn = QPushButton("×")
+        close_btn.setObjectName("WelcomeCloseButton")
         close_btn.setFixedSize(32, 32)
-        close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: transparent;
-                color: #9B72F5;
-                font-size: 24px;
-                font-weight: bold;
-                border: none;
-                border-radius: 16px;
-            }
-            QPushButton:hover {
-                background-color: rgba(155, 114, 245, 0.1);
-            }
-        """)
         close_btn.clicked.connect(self.reject)
         
         # Размещаем крестик в правом верхнем углу

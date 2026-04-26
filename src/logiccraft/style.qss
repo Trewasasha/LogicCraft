@@ -265,3 +265,107 @@ QComboBox QAbstractItemView {
     selection-background-color: #7C3AED;
     selection-color: white;
 }
+
+/* === Welcome Dialog === */
+#WelcomeDialog {
+    background-color: #F0EFFE;
+    border-radius: 20px;
+}
+
+#WelcomeTitle {
+    font-size: 56px;
+    font-weight: 800;
+    color: #7C3AED;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}
+
+#WelcomeSubtitle {
+    font-size: 16px;
+    color: #6B7280;
+    margin-bottom: 20px;
+}
+
+/* Welcome Card - Primary */
+#WelcomeCardPrimary {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #8B5CF6, stop:1 #7C3AED);
+    border: none;
+    border-radius: 16px;
+    padding: 20px;
+}
+
+#WelcomeCardPrimary:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #7C3AED, stop:1 #6D28D9);
+}
+
+#WelcomeCardPrimary:pressed {
+    background: #6D28D9;
+}
+
+/* Welcome Card - Secondary */
+#WelcomeCardSecondary {
+    background-color: #FFFFFF;
+    border: 2px solid #E5E0F8;
+    border-radius: 16px;
+    padding: 20px;
+}
+
+#WelcomeCardSecondary:hover {
+    background-color: #F8F6FF;
+    border-color: #C4B5FD;
+}
+
+#WelcomeCardSecondary:pressed {
+    background-color: #EDE9FE;
+}
+
+/* Welcome Card Icons */
+#WelcomeCardIconPrimary {
+    font-size: 48px;
+    color: rgba(255, 255, 255, 200);
+}
+
+#WelcomeCardIconSecondary {
+    font-size: 48px;
+    color: #9B72F5;
+}
+
+/* Welcome Card Titles */
+#WelcomeCardTitlePrimary {
+    font-size: 18px;
+    font-weight: 600;
+    color: #FFFFFF;
+}
+
+#WelcomeCardTitleSecondary {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1F1F1F;
+}
+
+/* Welcome Card Subtitles */
+#WelcomeCardSubtitlePrimary {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 180);
+}
+
+#WelcomeCardSubtitleSecondary {
+    font-size: 13px;
+    color: #6B7280;
+}
+
+/* Welcome Close Button */
+#WelcomeCloseButton {
+    background-color: transparent;
+    color: #9B72F5;
+    font-size: 24px;
+    font-weight: bold;
+    border: none;
+    border-radius: 16px;
+}
+
+#WelcomeCloseButton:hover {
+    background-color: rgba(155, 114, 245, 0.1);
+}
