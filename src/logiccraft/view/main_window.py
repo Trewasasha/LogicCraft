@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QMenu, QMenuBar, QDockWidget, QSizePolicy
 )
 from PyQt6.QtGui import QAction, QPainter, QKeySequence
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import pyqtSignal, Qt, QTimer
 
 from .scenes.diagram_scene import DiagramScene
 from .widgets.uml_card import UMLCard
@@ -19,34 +19,117 @@ from .panels.properties_panel import PropertiesPanel
 
 
 class DiagramView(QGraphicsView):
-    """Вид для отображения сцены"""
+    """Вид для отображения сцены с поддержкой навигации"""
+
+    zoom_changed = pyqtSignal(int)  # процент масштаба
 
     def __init__(self, scene: DiagramScene, parent=None):
         super().__init__(scene, parent)
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.scale_factor = 1.15
-        self.main_window = parent  # Ссылка на главное окно
-    
+        self._zoom_level = 100  # текущий масштаб в %
+        self._min_zoom = 20
+        self._max_zoom = 400
+        self._panning = False
+        self._pan_start = None
+        self.main_window = parent
+
     def keyPressEvent(self, event):
-        """Обработка нажатий клавиш"""
-        # Проверяем, есть ли обработчик в главном окне
         if self.main_window and hasattr(self.main_window, 'handle_key_press'):
             if self.main_window.handle_key_press(event):
-                return  # Обработано в главном окне
-        
-        # Иначе используем стандартную обработку
+                return
+        # Пробел — режим панорамирования
+        if event.key() == Qt.Key.Key_Space:
+            self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+            return
         super().keyPressEvent(event)
 
+    def keyReleaseEvent(self, event):
+        if event.key() == Qt.Key.Key_Space:
+            self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
+        super().keyReleaseEvent(event)
+
     def wheelEvent(self, event):
+        """Zoom колесом мыши + Ctrl, прокрутка без Ctrl"""
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            if event.angleDelta().y() > 0:
-                self.scale(self.scale_factor, self.scale_factor)
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self._zoom_in()
             else:
-                self.scale(1 / self.scale_factor, 1 / self.scale_factor)
+                self._zoom_out()
         else:
             super().wheelEvent(event)
+
+    def mousePressEvent(self, event):
+        """Средняя кнопка — панорамирование"""
+        if event.button() == Qt.MouseButton.MiddleButton:
+            self._panning = True
+            self._pan_start = event.position().toPoint()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._panning and self._pan_start is not None:
+            delta = event.position().toPoint() - self._pan_start
+            self._pan_start = event.position().toPoint()
+            self.horizontalScrollBar().setValue(
+                self.horizontalScrollBar().value() - delta.x()
+            )
+            self.verticalScrollBar().setValue(
+                self.verticalScrollBar().value() - delta.y()
+            )
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.MiddleButton:
+            self._panning = False
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def _zoom_in(self):
+        if self._zoom_level < self._max_zoom:
+            self.scale(self.scale_factor, self.scale_factor)
+            self._zoom_level = min(self._max_zoom, int(self._zoom_level * self.scale_factor))
+            self.zoom_changed.emit(self._zoom_level)
+
+    def _zoom_out(self):
+        if self._zoom_level > self._min_zoom:
+            self.scale(1 / self.scale_factor, 1 / self.scale_factor)
+            self._zoom_level = max(self._min_zoom, int(self._zoom_level / self.scale_factor))
+            self.zoom_changed.emit(self._zoom_level)
+
+    def set_zoom(self, percent: int):
+        """Установить масштаб в процентах"""
+        percent = max(self._min_zoom, min(self._max_zoom, percent))
+        factor = percent / self._zoom_level
+        self.scale(factor, factor)
+        self._zoom_level = percent
+        self.zoom_changed.emit(self._zoom_level)
+
+    def reset_zoom(self):
+        """Сбросить масштаб до 100%"""
+        self.set_zoom(100)
+
+    def fit_in_view_all(self):
+        """Вписать всю диаграмму в экран"""
+        items = self.scene().items()
+        if not items:
+            return
+        self.fitInView(self.scene().itemsBoundingRect().adjusted(-40, -40, 40, 40),
+                       Qt.AspectRatioMode.KeepAspectRatio)
+        # Обновляем zoom_level
+        transform = self.transform()
+        self._zoom_level = int(transform.m11() * 100)
+        self.zoom_changed.emit(self._zoom_level)
 
 
 class MainWindow(QMainWindow):
@@ -94,10 +177,52 @@ class MainWindow(QMainWindow):
         self.status_bar = self.statusBar()
         self.status_label = QLabel("Ready")
         self.status_bar.addWidget(self.status_label)
-        # Правая часть статусбара — статистика
+
+        # Правая часть статусбара — zoom контролы + статистика
+        from PyQt6.QtWidgets import QPushButton, QSpinBox
+
+        zoom_widget = QWidget()
+        zoom_layout = QHBoxLayout(zoom_widget)
+        zoom_layout.setContentsMargins(0, 0, 8, 0)
+        zoom_layout.setSpacing(4)
+
+        zoom_out_btn = QPushButton("−")
+        zoom_out_btn.setFixedSize(22, 22)
+        zoom_out_btn.setObjectName("ZoomButton")
+        zoom_out_btn.clicked.connect(lambda: self.view._zoom_out())
+
+        self.zoom_label = QLabel("100%")
+        self.zoom_label.setObjectName("ZoomLabel")
+        self.zoom_label.setFixedWidth(44)
+
+        zoom_in_btn = QPushButton("+")
+        zoom_in_btn.setFixedSize(22, 22)
+        zoom_in_btn.setObjectName("ZoomButton")
+        zoom_in_btn.clicked.connect(lambda: self.view._zoom_in())
+
+        fit_btn = QPushButton("⊡")
+        fit_btn.setFixedSize(22, 22)
+        fit_btn.setObjectName("ZoomButton")
+        fit_btn.setToolTip("Вписать в экран")
+        fit_btn.clicked.connect(lambda: self.view.fit_in_view_all())
+
+        reset_btn = QPushButton("1:1")
+        reset_btn.setFixedSize(28, 22)
+        reset_btn.setObjectName("ZoomButton")
+        reset_btn.setToolTip("Сбросить масштаб")
+        reset_btn.clicked.connect(lambda: self.view.reset_zoom())
+
+        zoom_layout.addWidget(zoom_out_btn)
+        zoom_layout.addWidget(self.zoom_label)
+        zoom_layout.addWidget(zoom_in_btn)
+        zoom_layout.addWidget(fit_btn)
+        zoom_layout.addWidget(reset_btn)
+
         self.stats_label = QLabel("")
         self.stats_label.setObjectName("StatusBarStats")
+
         self.status_bar.addPermanentWidget(self.stats_label)
+        self.status_bar.addPermanentWidget(zoom_widget)
     
     def _setup_menubar(self):
         """Настройка меню"""
@@ -320,6 +445,9 @@ class MainWindow(QMainWindow):
         # Слушаем изменение выделения на сцене
         self.scene.selectionChanged.connect(self._on_scene_selection_changed)
 
+        # Подключаем zoom сигнал
+        self.view.zoom_changed.connect(self._on_zoom_changed)
+
     def _on_toolbox_add_element(self, node_type: str):
         """Добавить элемент из тулбокса в центр холста"""
         center = self.view.mapToScene(self.view.viewport().rect().center())
@@ -416,6 +544,10 @@ class MainWindow(QMainWindow):
         self.controller.status_changed.connect(self.update_status)
         self.controller.error_occurred.connect(self.show_error)
 
+    def _on_zoom_changed(self, percent: int):
+        """Обновить индикатор масштаба"""
+        self.zoom_label.setText(f"{percent}%")
+
     def handle_key_press(self, event):
         """Обработка нажатий клавиш (вызывается из DiagramView)"""
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_S:
@@ -432,6 +564,19 @@ class MainWindow(QMainWindow):
             return True
         if event.key() == Qt.Key.Key_Delete or event.key() == Qt.Key.Key_Backspace:
             self._on_delete_selected()
+            return True
+        # Zoom горячие клавиши
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_Equal:
+            self.view._zoom_in()
+            return True
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_Minus:
+            self.view._zoom_out()
+            return True
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_0:
+            self.view.reset_zoom()
+            return True
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_F:
+            self.view.fit_in_view_all()
             return True
         return False
     

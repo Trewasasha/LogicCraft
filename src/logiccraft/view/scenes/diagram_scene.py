@@ -89,4 +89,10 @@ class DiagramScene(QGraphicsScene):
         self.connection_active = False
 
     def on_card_moved(self, card):
+        # Snap to grid
+        grid = SceneStyle.GRID_STEP
+        x = round(card.pos().x() / grid) * grid
+        y = round(card.pos().y() / grid) * grid
+        if card.pos().x() != x or card.pos().y() != y:
+            card.setPos(x, y)
         self.card_moved.emit(card.id, card.pos().x(), card.pos().y())

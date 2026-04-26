@@ -550,3 +550,35 @@ QDockWidget::title {
     padding: 6px 10px;
     border-bottom: 1px solid #E5E0F8;
 }
+
+/* === Zoom Controls === */
+#ZoomButton {
+    background-color: transparent;
+    color: #7C3AED;
+    border: 1px solid #E5E0F8;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 0px;
+}
+
+#ZoomButton:hover {
+    background-color: #F3EEFF;
+    border-color: #C4B5FD;
+}
+
+#ZoomButton:pressed {
+    background-color: #EDE9FE;
+}
+
+#ZoomLabel {
+    color: #6B7280;
+    font-size: 12px;
+    text-align: center;
+}
+
+#StatusBarStats {
+    color: #6B7280;
+    font-size: 12px;
+    padding-right: 12px;
+}
