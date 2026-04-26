@@ -389,6 +389,8 @@ class MainWindow(QMainWindow):
 
     def _on_properties_delete(self, card_id: str):
         self.controller.remove_card(card_id)
+
+    def _connect_signals(self):
         """Подключение сигналов сцены"""
         self.scene.connection_ready.connect(self._on_connection_ready)
         self.scene.card_moved.connect(self._on_card_moved)
