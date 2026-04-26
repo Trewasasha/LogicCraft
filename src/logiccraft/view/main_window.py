@@ -308,6 +308,7 @@ class MainWindow(QMainWindow):
 
         # Подключаем сигналы Toolbox
         self.toolbox_panel.add_element_requested.connect(self._on_toolbox_add_element)
+        self.toolbox_panel.set_connection_mode.connect(self._on_toolbox_set_connection_type)
 
         # Подключаем сигналы Properties
         self.properties_panel.name_changed.connect(self._on_properties_name_changed)
@@ -326,6 +327,25 @@ class MainWindow(QMainWindow):
         offset_x = random.randint(-60, 60)
         offset_y = random.randint(-60, 60)
         self.add_card_requested.emit(center.x() + offset_x, center.y() + offset_y, node_type)
+
+    def _on_toolbox_set_connection_type(self, connection_type: str):
+        """Применить тип связи к выбранной связи или запомнить для следующей"""
+        # Ищем выбранную связь на сцене
+        selected_connections = [
+            item for item in self.scene.selectedItems()
+            if isinstance(item, ConnectionLine)
+        ]
+        if selected_connections:
+            # Меняем тип у всех выбранных связей
+            for conn in selected_connections:
+                self.controller.update_connection_type(conn.id, connection_type)
+                conn.set_connection_type(connection_type)
+                conn.update_position()
+            self.update_status(f"Тип связи изменён: {connection_type}")
+        else:
+            # Запоминаем тип для следующей создаваемой связи
+            self._default_connection_type = connection_type
+            self.update_status(f"Следующая связь: {connection_type}")
 
     def _on_scene_selection_changed(self):
         """Обновить панель свойств при изменении выделения"""
@@ -494,7 +514,8 @@ class MainWindow(QMainWindow):
                 self.edit_connection_requested.emit(connection.id, new_type.value)
 
     def _on_connection_ready(self, source_id, target_id, source_anchor, target_anchor):
-        self.controller.add_connection(source_id, target_id, "association", source_anchor, target_anchor)
+        conn_type = getattr(self, '_default_connection_type', 'association')
+        self.controller.add_connection(source_id, target_id, conn_type, source_anchor, target_anchor)
 
     def _on_card_moved(self, card_id, x, y):
         """Перемещение карточки - вызывается когда пользователь переместил карточку на сцене"""
