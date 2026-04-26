@@ -14,6 +14,9 @@ class ConnectionType(Enum):
     INHERITANCE = "inheritance"
     COMPOSITION = "composition"
     AGGREGATION = "aggregation"
+    DEPENDENCY = "dependency"
+    REALIZATION = "realization"
+    INTERACTION = "interaction"
 
 
 class ArrowHead(QGraphicsPolygonItem):
@@ -32,24 +35,42 @@ class ArrowHead(QGraphicsPolygonItem):
         type_value = self.connection_type.value if hasattr(self.connection_type, 'value') else str(self.connection_type)
 
         if type_value == "inheritance":
+            # Пустой треугольник
             points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(0, size * 0.6)]
             self.setPolygon(QPolygonF(points))
             self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
             self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
 
         elif type_value == "composition":
+            # Закрашенный ромб
             points = [QPointF(size, 0), QPointF(size / 2, -size * 0.6), QPointF(0, 0), QPointF(size / 2, size * 0.6)]
             self.setPolygon(QPolygonF(points))
             self.setBrush(QBrush(QColor(ArrowStyle.COLOR)))
             self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_THIN))
 
         elif type_value == "aggregation":
+            # Пустой ромб
             points = [QPointF(size, 0), QPointF(size / 2, -size * 0.6), QPointF(0, 0), QPointF(size / 2, size * 0.6)]
             self.setPolygon(QPolygonF(points))
             self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
             self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
 
-        else:  # association
+        elif type_value == "realization":
+            # Пустой треугольник (как inheritance, но линия пунктирная — задаётся в connection_line)
+            points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(0, size * 0.6)]
+            self.setPolygon(QPolygonF(points))
+            self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
+
+        elif type_value == "dependency":
+            # Открытая стрелка (как association, но линия пунктирная — задаётся в connection_line)
+            points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(size * 0.4, 0), QPointF(0, size * 0.6)]
+            self.setPolygon(QPolygonF(points))
+            self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
+
+        else:  # association, interaction
+            # Закрашенная стрелка
             points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(0, size * 0.6)]
             self.setPolygon(QPolygonF(points))
             self.setBrush(QBrush(QColor(ArrowStyle.COLOR)))

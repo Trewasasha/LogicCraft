@@ -33,7 +33,11 @@ class ConnectionLine(QGraphicsLineItem):
         self.signals = ConnectionSignals()
 
         # Настройка пера
-        self.setPen(QPen(QColor(ConnectionStyle.LINE_COLOR), ConnectionStyle.LINE_WIDTH))
+        pen = QPen(QColor(ConnectionStyle.LINE_COLOR), ConnectionStyle.LINE_WIDTH)
+        type_value = connection_type.value if hasattr(connection_type, 'value') else str(connection_type)
+        if type_value in ("dependency", "realization"):
+            pen.setStyle(Qt.PenStyle.DashLine)
+        self.setPen(pen)
         self.setFlags(QGraphicsLineItem.GraphicsItemFlag.ItemIsSelectable)
 
         # Создаем наконечник ОДИН раз и сохраняем ссылку
@@ -110,4 +114,12 @@ class ConnectionLine(QGraphicsLineItem):
         self.connection_type = connection_type
         if self.arrow_head:
             self.arrow_head.set_connection_type(connection_type)
+        # Пунктирная линия для dependency и realization
+        type_value = connection_type.value if hasattr(connection_type, 'value') else str(connection_type)
+        pen = self.pen()
+        if type_value in ("dependency", "realization"):
+            pen.setStyle(Qt.PenStyle.DashLine)
+        else:
+            pen.setStyle(Qt.PenStyle.SolidLine)
+        self.setPen(pen)
         self.update_position()
