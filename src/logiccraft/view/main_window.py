@@ -1,7 +1,8 @@
 """Главное окно приложения"""
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QToolBar, QLabel, QFileDialog, QMessageBox, QGraphicsView, QMenu, QMenuBar
+    QToolBar, QLabel, QFileDialog, QMessageBox, QGraphicsView,
+    QMenu, QMenuBar, QDockWidget, QSizePolicy
 )
 from PyQt6.QtGui import QAction, QPainter, QKeySequence
 from PyQt6.QtCore import pyqtSignal, Qt
@@ -13,6 +14,8 @@ from .dialogs.edit_class_dialog import EditClassDialog
 from .dialogs.connection_properties import ConnectionPropertiesDialog
 from .dialogs.code_generation_dialog import CodeGenerationDialog
 from .dialogs.project_export_dialog import ProjectExportDialog
+from .panels.toolbox_panel import ToolboxPanel
+from .panels.properties_panel import PropertiesPanel
 
 
 class DiagramView(QGraphicsView):
@@ -61,14 +64,15 @@ class MainWindow(QMainWindow):
     def __init__(self, controller):
         super().__init__()
         self.controller = controller
-        self.card_map = {}  # card_id -> UMLCard
-        self.connection_map = {}  # connection_id -> ConnectionLine  # ← добавить
+        self.card_map = {}
+        self.connection_map = {}
         self.setWindowTitle("LogicCraft UML Architect")
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1400, 860)
 
         self._setup_ui()
         self._setup_menubar()
         self._setup_toolbar()
+        self._setup_panels()
         self._connect_signals()
         self._connect_controller_signals()
 
@@ -90,6 +94,10 @@ class MainWindow(QMainWindow):
         self.status_bar = self.statusBar()
         self.status_label = QLabel("Ready")
         self.status_bar.addWidget(self.status_label)
+        # Правая часть статусбара — статистика
+        self.stats_label = QLabel("")
+        self.stats_label.setObjectName("StatusBarStats")
+        self.status_bar.addPermanentWidget(self.stats_label)
     
     def _setup_menubar(self):
         """Настройка меню"""
@@ -268,7 +276,119 @@ class MainWindow(QMainWindow):
             QPushButton:pressed { background-color: #EDE9FE; }
         """
 
-    def _connect_signals(self):
+    def _setup_panels(self):
+        """Настройка боковых панелей через QDockWidget"""
+        # Левая панель — Toolbox
+        self.toolbox_panel = ToolboxPanel()
+        toolbox_dock = QDockWidget("Инструменты", self)
+        toolbox_dock.setWidget(self.toolbox_panel)
+        toolbox_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea |
+            Qt.DockWidgetArea.RightDockWidgetArea
+        )
+        toolbox_dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetClosable
+        )
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, toolbox_dock)
+
+        # Правая панель — Properties
+        self.properties_panel = PropertiesPanel()
+        properties_dock = QDockWidget("Свойства", self)
+        properties_dock.setWidget(self.properties_panel)
+        properties_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea |
+            Qt.DockWidgetArea.RightDockWidgetArea
+        )
+        properties_dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetClosable
+        )
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, properties_dock)
+
+        # Подключаем сигналы Toolbox
+        self.toolbox_panel.add_element_requested.connect(self._on_toolbox_add_element)
+
+        # Подключаем сигналы Properties
+        self.properties_panel.name_changed.connect(self._on_properties_name_changed)
+        self.properties_panel.type_changed.connect(self._on_properties_type_changed)
+        self.properties_panel.attributes_changed.connect(self._on_properties_attrs_changed)
+        self.properties_panel.methods_changed.connect(self._on_properties_methods_changed)
+        self.properties_panel.delete_requested.connect(self._on_properties_delete)
+
+        # Слушаем изменение выделения на сцене
+        self.scene.selectionChanged.connect(self._on_scene_selection_changed)
+
+    def _on_toolbox_add_element(self, node_type: str):
+        """Добавить элемент из тулбокса в центр холста"""
+        from ...models.diagram import NodeType
+        center = self.view.mapToScene(self.view.viewport().rect().center())
+        # Небольшое смещение чтобы не накладывались
+        import random
+        offset_x = random.randint(-60, 60)
+        offset_y = random.randint(-60, 60)
+        try:
+            nt = NodeType(node_type)
+        except ValueError:
+            nt = NodeType.CLASS
+        self.add_card_requested.emit(center.x() + offset_x, center.y() + offset_y)
+        # Сохраняем тип для следующего добавления
+        self._pending_node_type = nt
+
+    def _on_scene_selection_changed(self):
+        """Обновить панель свойств при изменении выделения"""
+        selected = [item for item in self.scene.selectedItems()
+                    if isinstance(item, UMLCard)]
+        if selected:
+            card = selected[0]
+            node_type = card.node_type
+            if hasattr(node_type, 'value'):
+                node_type = node_type.value
+            self.properties_panel.show_card(
+                card_id=card.id,
+                name=card.name,
+                node_type=node_type,
+                attributes=card.attributes,
+                methods=card.methods
+            )
+        else:
+            self.properties_panel.show_empty()
+
+    def _on_properties_name_changed(self, card_id: str, name: str):
+        card = self.card_map.get(card_id)
+        if card and card.name != name:
+            self.controller.edit_card(card_id, name, card.attributes, card.methods)
+            card.name = name
+            card.update_content()
+
+    def _on_properties_type_changed(self, card_id: str, node_type: str):
+        from ...models.diagram import NodeType
+        card = self.card_map.get(card_id)
+        if card:
+            try:
+                nt = NodeType(node_type)
+            except ValueError:
+                nt = NodeType.CLASS
+            self.controller.update_card(card_id, node_type=nt)
+            card.node_type = nt
+            card.update_content()
+
+    def _on_properties_attrs_changed(self, card_id: str, attributes: list):
+        card = self.card_map.get(card_id)
+        if card:
+            self.controller.edit_card(card_id, card.name, attributes, card.methods)
+            card.attributes = attributes
+            card.update_content()
+
+    def _on_properties_methods_changed(self, card_id: str, methods: list):
+        card = self.card_map.get(card_id)
+        if card:
+            self.controller.edit_card(card_id, card.name, card.attributes, methods)
+            card.methods = methods
+            card.update_content()
+
+    def _on_properties_delete(self, card_id: str):
+        self.controller.remove_card(card_id)
         """Подключение сигналов сцены"""
         self.scene.connection_ready.connect(self._on_connection_ready)
         self.scene.card_moved.connect(self._on_card_moved)
@@ -447,6 +567,10 @@ class MainWindow(QMainWindow):
     def update_status(self, text: str):
         """Обновить статус"""
         self.status_label.setText(text)
+        # Обновляем статистику
+        n_nodes = len(self.controller.manager.diagram.nodes)
+        n_conns = len(self.controller.manager.diagram.connections)
+        self.stats_label.setText(f"Классов: {n_nodes}  |  Связей: {n_conns}")
 
     def show_error(self, message: str):
         """Показать ошибку"""

@@ -1,0 +1,113 @@
+"""Левая панель инструментов — типы элементов и связей"""
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QPushButton, QFrame, QSizePolicy
+)
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont
+
+
+class ToolboxSection(QWidget):
+    """Секция с заголовком и кнопками"""
+
+    def __init__(self, title: str, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        label = QLabel(title)
+        label.setObjectName("ToolboxSectionTitle")
+        layout.addWidget(label)
+
+        self._buttons_layout = QVBoxLayout()
+        self._buttons_layout.setSpacing(4)
+        layout.addLayout(self._buttons_layout)
+
+    def add_button(self, btn: QPushButton):
+        self._buttons_layout.addWidget(btn)
+
+
+class ToolboxButton(QPushButton):
+    """Кнопка элемента в тулбоксе"""
+
+    def __init__(self, icon: str, label: str, data: str, parent=None):
+        super().__init__(f"  {icon}  {label}", parent)
+        self.setObjectName("ToolboxButton")
+        self.data = data
+        self.setFixedHeight(36)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+
+class ToolboxPanel(QWidget):
+    """Левая панель с типами UML элементов и связей"""
+
+    # Сигналы
+    add_element_requested = pyqtSignal(str)   # node_type
+    set_connection_mode = pyqtSignal(str)      # connection_type
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("ToolboxPanel")
+        self.setFixedWidth(200)
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(16)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        # Заголовок панели
+        title = QLabel("Элементы")
+        title.setObjectName("ToolboxTitle")
+        layout.addWidget(title)
+
+        # Секция: Типы классов
+        elements_section = ToolboxSection("Классы")
+
+        btn_class = ToolboxButton("⬡", "Класс", "class")
+        btn_class.clicked.connect(lambda: self.add_element_requested.emit("class"))
+        elements_section.add_button(btn_class)
+
+        btn_abstract = ToolboxButton("△", "Абстрактный", "abstract_class")
+        btn_abstract.clicked.connect(lambda: self.add_element_requested.emit("abstract_class"))
+        elements_section.add_button(btn_abstract)
+
+        btn_interface = ToolboxButton("◇", "Интерфейс", "interface")
+        btn_interface.clicked.connect(lambda: self.add_element_requested.emit("interface"))
+        elements_section.add_button(btn_interface)
+
+        btn_enum = ToolboxButton("≡", "Перечисление", "enum")
+        btn_enum.clicked.connect(lambda: self.add_element_requested.emit("enum"))
+        elements_section.add_button(btn_enum)
+
+        layout.addWidget(elements_section)
+
+        # Разделитель
+        layout.addWidget(self._make_divider())
+
+        # Секция: Типы связей
+        connections_section = ToolboxSection("Связи")
+
+        conn_types = [
+            ("→", "Ассоциация", "association"),
+            ("▷", "Наследование", "inheritance"),
+            ("◆", "Композиция", "composition"),
+            ("◇", "Агрегация", "aggregation"),
+            ("⇢", "Зависимость", "dependency"),
+            ("⇒", "Реализация", "realization"),
+        ]
+        for icon, label, ctype in conn_types:
+            btn = ToolboxButton(icon, label, ctype)
+            btn.clicked.connect(lambda checked, t=ctype: self.set_connection_mode.emit(t))
+            connections_section.add_button(btn)
+
+        layout.addWidget(connections_section)
+        layout.addStretch()
+
+    def _make_divider(self) -> QFrame:
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setObjectName("ToolboxDivider")
+        return line

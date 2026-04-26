@@ -369,3 +369,184 @@ QComboBox QAbstractItemView {
 #WelcomeCloseButton:hover {
     background-color: rgba(155, 114, 245, 0.1);
 }
+
+/* === Toolbox Panel === */
+#ToolboxPanel {
+    background-color: #FFFFFF;
+    border-right: 1px solid #E5E0F8;
+}
+
+#ToolboxTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1F1F1F;
+    padding-bottom: 4px;
+}
+
+#ToolboxSectionTitle {
+    font-size: 11px;
+    font-weight: 600;
+    color: #9B72F5;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 0px 2px 0px;
+}
+
+#ToolboxButton {
+    background-color: transparent;
+    color: #1F1F1F;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    text-align: left;
+}
+
+#ToolboxButton:hover {
+    background-color: #F3EEFF;
+    border-color: #E5E0F8;
+    color: #7C3AED;
+}
+
+#ToolboxButton:pressed {
+    background-color: #EDE9FE;
+}
+
+#ToolboxDivider {
+    color: #E5E0F8;
+    margin: 4px 0px;
+}
+
+/* === Properties Panel === */
+#PropertiesPanel {
+    background-color: #FFFFFF;
+    border-left: 1px solid #E5E0F8;
+}
+
+#PropertiesPanelTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1F1F1F;
+    padding: 12px 12px 8px 12px;
+    border-bottom: 1px solid #E5E0F8;
+    background-color: #FFFFFF;
+}
+
+#PropertiesScroll {
+    background-color: #FAFAFE;
+}
+
+#PropertiesContent {
+    background-color: #FAFAFE;
+}
+
+#PropertiesEmptyLabel {
+    color: #9B72F5;
+    font-size: 13px;
+    padding: 40px 20px;
+}
+
+#PropertiesSectionLabel {
+    font-size: 11px;
+    font-weight: 600;
+    color: #9B72F5;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#PropertiesInput {
+    background-color: #FFFFFF;
+    border: 1px solid #D4C9F8;
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: #1F1F1F;
+    font-size: 13px;
+}
+
+#PropertiesInput:focus {
+    border-color: #7C3AED;
+}
+
+#PropertiesCombo {
+    background-color: #FFFFFF;
+    border: 1px solid #D4C9F8;
+    border-radius: 8px;
+    padding: 5px 10px;
+    color: #1F1F1F;
+    font-size: 13px;
+}
+
+#PropertiesList {
+    background-color: #FFFFFF;
+    border: 1px solid #E5E0F8;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #1F1F1F;
+}
+
+#PropertiesList::item {
+    padding: 4px 6px;
+    border-radius: 4px;
+}
+
+#PropertiesList::item:selected {
+    background-color: #EDE9FE;
+    color: #7C3AED;
+}
+
+#PropertiesSmallButton {
+    background-color: #F3EEFF;
+    color: #7C3AED;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#PropertiesSmallButton:hover {
+    background-color: #EDE9FE;
+}
+
+#PropertiesSmallButtonDanger {
+    background-color: #FEF2F2;
+    color: #EF4444;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#PropertiesSmallButtonDanger:hover {
+    background-color: #FEE2E2;
+}
+
+#PropertiesDeleteButton {
+    background-color: #FEF2F2;
+    color: #EF4444;
+    border: 1px solid #FECACA;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 8px;
+}
+
+#PropertiesDeleteButton:hover {
+    background-color: #FEE2E2;
+}
+
+/* === QDockWidget === */
+QDockWidget {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1F1F1F;
+    titlebar-close-icon: none;
+}
+
+QDockWidget::title {
+    background-color: #F8F6FF;
+    padding: 6px 10px;
+    border-bottom: 1px solid #E5E0F8;
+}
