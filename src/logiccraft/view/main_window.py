@@ -321,9 +321,8 @@ class MainWindow(QMainWindow):
 
     def _on_toolbox_add_element(self, node_type: str):
         """Добавить элемент из тулбокса в центр холста"""
-        from ...models.diagram import NodeType
+        from logiccraft.models.diagram import NodeType
         center = self.view.mapToScene(self.view.viewport().rect().center())
-        # Небольшое смещение чтобы не накладывались
         import random
         offset_x = random.randint(-60, 60)
         offset_y = random.randint(-60, 60)
@@ -332,7 +331,6 @@ class MainWindow(QMainWindow):
         except ValueError:
             nt = NodeType.CLASS
         self.add_card_requested.emit(center.x() + offset_x, center.y() + offset_y)
-        # Сохраняем тип для следующего добавления
         self._pending_node_type = nt
 
     def _on_scene_selection_changed(self):
@@ -362,7 +360,7 @@ class MainWindow(QMainWindow):
             card.update_content()
 
     def _on_properties_type_changed(self, card_id: str, node_type: str):
-        from ...models.diagram import NodeType
+        from logiccraft.models.diagram import NodeType
         card = self.card_map.get(card_id)
         if card:
             try:
