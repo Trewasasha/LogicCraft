@@ -93,27 +93,67 @@ class WelcomeDialog(QDialog):
     def _setup_ui(self):
         """Настройка UI"""
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(50, 50, 50, 50)
-        main_layout.setSpacing(40)
-        
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # Верхняя панель с кнопками управления окном
+        title_bar = QWidget()
+        title_bar.setObjectName("WelcomeTitleBar")
+        title_bar.setFixedHeight(44)
+        title_bar_layout = QHBoxLayout(title_bar)
+        title_bar_layout.setContentsMargins(16, 0, 16, 0)
+        title_bar_layout.addStretch()
+
+        # Кнопка свернуть
+        minimize_btn = QPushButton("−")
+        minimize_btn.setObjectName("WelcomeMinimizeButton")
+        minimize_btn.setFixedSize(28, 28)
+        minimize_btn.setToolTip("Свернуть")
+        minimize_btn.clicked.connect(self.showMinimized)
+        title_bar_layout.addWidget(minimize_btn)
+
+        # Кнопка на весь экран
+        maximize_btn = QPushButton("□")
+        maximize_btn.setObjectName("WelcomeMaximizeButton")
+        maximize_btn.setFixedSize(28, 28)
+        maximize_btn.setToolTip("Развернуть")
+        maximize_btn.clicked.connect(self._toggle_maximize)
+        title_bar_layout.addWidget(maximize_btn)
+
+        # Кнопка закрыть
+        close_btn = QPushButton("×")
+        close_btn.setObjectName("WelcomeCloseButton")
+        close_btn.setFixedSize(28, 28)
+        close_btn.setToolTip("Закрыть")
+        close_btn.clicked.connect(self.reject)
+        title_bar_layout.addWidget(close_btn)
+
+        main_layout.addWidget(title_bar)
+
+        # Контент
+        content = QWidget()
+        content.setObjectName("WelcomeContent")
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(50, 20, 50, 50)
+        content_layout.setSpacing(40)
+
         # Заголовок
         title = QLabel("СХЕМАТУС")
         title.setObjectName("WelcomeTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.addWidget(title)
-        
+        content_layout.addWidget(title)
+
         # Подзаголовок
         subtitle = QLabel("Начните работу с вашими схемами и классами")
         subtitle.setObjectName("WelcomeSubtitle")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.addWidget(subtitle)
-        
+        content_layout.addWidget(subtitle)
+
         # Карточки
         cards_layout = QHBoxLayout()
         cards_layout.setSpacing(30)
         cards_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        # Карточка "Открыть проект"
+
         open_card = WelcomeCard(
             icon="📂",
             title="Открыть проект",
@@ -122,8 +162,7 @@ class WelcomeDialog(QDialog):
         )
         open_card.clicked.connect(self._on_open_project)
         cards_layout.addWidget(open_card)
-        
-        # Карточка "Создать новый проект"
+
         new_card = WelcomeCard(
             icon="✨",
             title="Создать новый проект",
@@ -132,18 +171,18 @@ class WelcomeDialog(QDialog):
         )
         new_card.clicked.connect(self._on_new_project)
         cards_layout.addWidget(new_card)
-        
-        main_layout.addLayout(cards_layout)
-        main_layout.addStretch()
-        
-        # Кнопка закрытия (маленький крестик в углу)
-        close_btn = QPushButton("×")
-        close_btn.setObjectName("WelcomeCloseButton")
-        close_btn.setFixedSize(32, 32)
-        close_btn.clicked.connect(self.reject)
-        
-        # Размещаем крестик в правом верхнем углу
-        close_btn.move(self.width() - 40, 8)
+
+        content_layout.addLayout(cards_layout)
+        content_layout.addStretch()
+
+        main_layout.addWidget(content)
+
+    def _toggle_maximize(self):
+        """Переключить полноэкранный режим"""
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
     
     def _on_new_project(self):
         """Создать новый проект"""
