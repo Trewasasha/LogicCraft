@@ -11,7 +11,7 @@ class WelcomeCard(QPushButton):
     
     def __init__(self, icon: str, title: str, subtitle: str, is_primary: bool = False):
         super().__init__()
-        self.setFixedSize(320, 180)
+        self.setFixedSize(340, 200)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         
         # Стили
@@ -70,6 +70,8 @@ class WelcomeCard(QPushButton):
         title_label = QLabel(title)
         title_label.setStyleSheet(f"font-size: 18px; font-weight: 600; color: {title_color};")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setWordWrap(True)
+        title_label.setMaximumWidth(300)
         layout.addWidget(title_label)
         
         # Подзаголовок
@@ -89,7 +91,7 @@ class WelcomeDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("LogicCraft")
-        self.setFixedSize(800, 600)
+        self.setFixedSize(850, 620)
         self.setModal(True)
         
         # Убираем рамку окна для современного вида
