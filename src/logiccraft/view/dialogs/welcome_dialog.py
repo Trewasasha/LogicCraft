@@ -1,6 +1,6 @@
 """Стартовое окно приложения"""
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QWidget
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -10,10 +10,11 @@ class WelcomeCard(QPushButton):
 
     def __init__(self, icon: str, title: str, subtitle: str, is_primary: bool = False):
         super().__init__()
-        # Размер кнопок: первое число — ширина, второе — высота
-        self.setFixedWidth(280)
-        self.setMinimumHeight(220)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        # Растягиваемся вместе с окном
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setMinimumSize(200, 180)
 
         if is_primary:
             self.setObjectName("WelcomeCardPrimary")
@@ -28,6 +29,7 @@ class WelcomeCard(QPushButton):
 
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         icon_label = QLabel(icon)
@@ -58,10 +60,9 @@ class WelcomeDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("LogicCraft — Добро пожаловать")
         self.resize(700, 560)
-        self.setMinimumSize(600, 480)
+        self.setMinimumSize(500, 400)
         self.setModal(True)
         self.setObjectName("WelcomeDialog")
-        # Включаем все системные кнопки: свернуть, развернуть, закрыть
         self.setWindowFlags(
             Qt.WindowType.Window |
             Qt.WindowType.WindowMinimizeButtonHint |
@@ -87,10 +88,9 @@ class WelcomeDialog(QDialog):
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle)
 
-        # Карточки
+        # Карточки — растягиваются вместе с окном
         cards_layout = QHBoxLayout()
         cards_layout.setSpacing(30)
-        cards_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         open_card = WelcomeCard(
             icon="📂",
@@ -111,7 +111,6 @@ class WelcomeDialog(QDialog):
         cards_layout.addWidget(new_card)
 
         layout.addLayout(cards_layout)
-        layout.addStretch()
 
     def _on_new_project(self):
         self.new_project_requested.emit()

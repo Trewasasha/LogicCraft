@@ -293,8 +293,6 @@ QComboBox QAbstractItemView {
     border: none;
     border-radius: 16px;
     padding: 20px;
-    min-width: 280px;
-    min-height: 220px;
 }
 
 #WelcomeCardPrimary:hover {
@@ -312,8 +310,6 @@ QComboBox QAbstractItemView {
     border: 2px solid #E5E0F8;
     border-radius: 16px;
     padding: 20px;
-    min-width: 280px;
-    min-height: 220px;
 }
 
 #WelcomeCardSecondary:hover {
