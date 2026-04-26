@@ -1,4 +1,27 @@
 {% for node in nodes %}
+{% if node.node_type == 'interface' %}
+// Interface: {{ node.name }} (JavaScript doesn't support interfaces natively)
+// Using JSDoc for type checking
+/**
+ * @interface {{ node.name }}
+ */
+{% for method in node.methods %}
+/**
+ * @method {{ method.name }}
+ * {% for param in method.parameters %}@param { {{ param.type }} } {{ param.name }}
+ * {% endfor %}{% if method.return_type %}@returns { {{ method.return_type }} }{% endif %}
+ */
+{% endfor %}
+{% elif node.node_type == 'enum' %}
+// Enumeration: {{ node.name }}
+const {{ node.name }} = Object.freeze({
+{% if node.enum_literals %}
+{% for literal in node.enum_literals %}
+    {{ literal.name }}: {% if literal.value %}{{ literal.value }}{% else %}'{{ literal.name }}'{% endif %}{% if not loop.last %},{% endif %}
+{% endfor %}
+{% endif %}
+});
+{% else %}
 class {{ node.name }} {
     {% if node.properties %}
     constructor() {
@@ -22,5 +45,6 @@ class {{ node.name }} {
     {% endfor %}
     {% endif %}
 }
+{% endif %}
 
 {% endfor %}

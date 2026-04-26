@@ -1,9 +1,33 @@
 using System;
 using System.Collections.Generic;
+{% if has_enums %}
+using System.ComponentModel;
+{% endif %}
 
 {% for node in nodes %}
-{% if node.is_abstract %}public abstract class {{ node.name }}{% if inheritance_map[node.name] %} : {{ inheritance_map[node.name][0] }}{% endif %}
-{% else %}public class {{ node.name }}{% if inheritance_map[node.name] %} : {{ inheritance_map[node.name][0] }}{% endif %}
+{% if node.node_type == 'interface' %}
+public interface I{{ node.name }}
+{
+{% for prop in node.properties %}
+    {{ prop.type }} {{ prop.name | title }} { get; set; }
+{% endfor %}
+{% for method in node.methods %}
+    {{ method.return_type or "void" }} {{ method.name }}({% for param in method.parameters %}{{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %});
+{% endfor %}
+}
+{% elif node.node_type == 'enum' %}
+public enum {{ node.name }}
+{
+{% if node.enum_literals %}
+{% for literal in node.enum_literals %}
+    {{ literal.name }}{% if literal.value %} = {{ literal.value }}{% endif %}{% if not loop.last %},{% endif %}
+{% endfor %}
+{% endif %}
+}
+{% elif node.node_type == 'abstract_class' or node.is_abstract %}
+public abstract class {{ node.name }}{% if inheritance_map[node.name] %} : {{ inheritance_map[node.name][0] }}{% endif %}
+{% else %}
+public class {{ node.name }}{% if inheritance_map[node.name] %} : {{ inheritance_map[node.name][0] }}{% endif %}
 {% endif %}
 {
     {% if node.properties %}
@@ -39,5 +63,6 @@ using System.Collections.Generic;
     {% endfor %}
     {% endif %}
 }
+{% endif %}
 
 {% endfor %}

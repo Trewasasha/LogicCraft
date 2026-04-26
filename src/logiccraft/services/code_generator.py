@@ -3,7 +3,7 @@ from typing import List, Dict, Optional
 import os
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, Template
-from ..models.diagram import UMLDiagram, UMLNode, UMLProperty, UMLMethod
+from ..models.diagram import UMLDiagram, UMLNode, UMLProperty, UMLMethod, NodeType
 from ..templates.config import get_language_config, get_supported_languages, map_type
 
 
@@ -39,14 +39,18 @@ class CodeGenerator:
         # Создаем карту наследования
         inheritance_map = self._build_inheritance_map(diagram)
         
-        # Проверяем, есть ли абстрактные классы (для Python)
-        has_abstract_classes = any(node.is_abstract for node in diagram.nodes)
+        # Проверяем типы узлов для импортов
+        has_abstract_classes = any(node.is_abstract or node.node_type.value == 'abstract_class' for node in diagram.nodes)
+        has_interfaces = any(node.node_type.value == 'interface' for node in diagram.nodes)
+        has_enums = any(node.node_type.value == 'enum' for node in diagram.nodes)
         
         return template.render(
             diagram_name=diagram.name,
             nodes=diagram.nodes,
             inheritance_map=inheritance_map,
             has_abstract_classes=has_abstract_classes,
+            has_interfaces=has_interfaces,
+            has_enums=has_enums,
             language=language
         )
 

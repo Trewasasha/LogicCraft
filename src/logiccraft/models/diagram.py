@@ -1,7 +1,21 @@
 from pydantic import BaseModel, Field
 from enum import Enum
 from uuid import uuid4
-from typing import Optional
+from typing import Optional, List
+
+
+class NodeType(str, Enum):
+    """Типы UML узлов"""
+    CLASS = "class"
+    INTERFACE = "interface"
+    ENUM = "enum"
+    ABSTRACT_CLASS = "abstract_class"
+
+
+class UMLEnumLiteral(BaseModel):
+    """Значение перечисления (Enum literal)"""
+    name: str
+    value: Optional[str] = None
 
 
 class UMLProperty(BaseModel):
@@ -33,6 +47,20 @@ class UMLNode(BaseModel):
     methods: list[UMLMethod] = Field(default_factory=list)
     is_abstract: bool = False
     stereotype: Optional[str] = None
+    node_type: NodeType = NodeType.CLASS
+    enum_literals: List[UMLEnumLiteral] = Field(default_factory=list)
+
+    def add_enum_literal(self, name: str, value: Optional[str] = None) -> None:
+        """Добавить значение перечисления"""
+        literal = UMLEnumLiteral(name=name, value=value)
+        self.enum_literals.append(literal)
+
+    def remove_enum_literal(self, index: int) -> bool:
+        """Удалить значение перечисления по индексу"""
+        if 0 <= index < len(self.enum_literals):
+            self.enum_literals.pop(index)
+            return True
+        return False
 
     def add_attribute(self, name: str, type: str, visibility: str = "public",
                       is_static: bool = False, default_value: Optional[str] = None) -> None:
