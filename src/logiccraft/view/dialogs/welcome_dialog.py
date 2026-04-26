@@ -11,7 +11,7 @@ class WelcomeCard(QPushButton):
     
     def __init__(self, icon: str, title: str, subtitle: str, is_primary: bool = False):
         super().__init__()
-        self.setFixedSize(340, 200)
+        self.setFixedSize(360, 200)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         
         # Стили
@@ -91,7 +91,7 @@ class WelcomeDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("LogicCraft")
-        self.setFixedSize(850, 620)
+        self.setFixedSize(900, 620)
         self.setModal(True)
         
         # Убираем рамку окна для современного вида
