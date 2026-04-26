@@ -291,6 +291,35 @@ class MainWindow(QMainWindow):
         export_project_action.setShortcut(QKeySequence("Ctrl+E"))
         export_project_action.triggered.connect(self._on_export_project_clicked)
         tools_menu.addAction(export_project_action)
+
+        # Export Image
+        export_image_action = QAction("🖼️ Export Image (PNG/SVG)...", self)
+        export_image_action.setShortcut(QKeySequence("Ctrl+Shift+E"))
+        export_image_action.triggered.connect(self._on_export_image)
+        tools_menu.addAction(export_image_action)
+
+        tools_menu.addSeparator()
+
+        # Copy / Paste / Duplicate / Select All
+        copy_action = QAction("📋 Копировать", self)
+        copy_action.setShortcut(QKeySequence("Ctrl+C"))
+        copy_action.triggered.connect(self._on_copy)
+        edit_menu.addAction(copy_action)
+
+        paste_action = QAction("📌 Вставить", self)
+        paste_action.setShortcut(QKeySequence("Ctrl+V"))
+        paste_action.triggered.connect(self._on_paste)
+        edit_menu.addAction(paste_action)
+
+        duplicate_action = QAction("⧉ Дублировать", self)
+        duplicate_action.setShortcut(QKeySequence("Ctrl+D"))
+        duplicate_action.triggered.connect(self._on_duplicate)
+        edit_menu.addAction(duplicate_action)
+
+        select_all_action = QAction("⬜ Выделить всё", self)
+        select_all_action.setShortcut(QKeySequence("Ctrl+A"))
+        select_all_action.triggered.connect(self._on_select_all)
+        edit_menu.addAction(select_all_action)
         
         # Подключаем сигналы undo/redo от контроллера
         self.controller.history.history_changed.connect(self._on_history_changed)
@@ -578,6 +607,19 @@ class MainWindow(QMainWindow):
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_F:
             self.view.fit_in_view_all()
             return True
+        # Копирование / вставка / дублирование / выделить всё
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_C:
+            self._on_copy()
+            return True
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_V:
+            self._on_paste()
+            return True
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_D:
+            self._on_duplicate()
+            return True
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_A:
+            self._on_select_all()
+            return True
         return False
     
     def keyPressEvent(self, event):
@@ -589,6 +631,94 @@ class MainWindow(QMainWindow):
         """Обработка добавления карточки — обычный класс"""
         center = self.view.mapToScene(self.view.viewport().rect().center())
         self.add_card_requested.emit(center.x(), center.y(), "class")
+
+    def _on_copy(self):
+        """Копировать выбранные карточки"""
+        selected_ids = [item.id for item in self.scene.selectedItems()
+                        if isinstance(item, UMLCard)]
+        if selected_ids:
+            self.controller.copy_selected(selected_ids)
+            self.update_status(f"Скопировано: {len(selected_ids)} элементов")
+
+    def _on_paste(self):
+        """Вставить из буфера"""
+        self.controller.paste_clipboard()
+
+    def _on_duplicate(self):
+        """Дублировать выбранные карточки"""
+        selected = [item for item in self.scene.selectedItems() if isinstance(item, UMLCard)]
+        for card in selected:
+            self.controller.duplicate_card(card.id)
+
+    def _on_select_all(self):
+        """Выделить все элементы"""
+        for item in self.scene.items():
+            item.setSelected(True)
+
+    def _on_export_image(self):
+        """Экспорт диаграммы в PNG или SVG"""
+        filepath, selected_filter = QFileDialog.getSaveFileName(
+            self, "Экспорт диаграммы", "",
+            "PNG Image (*.png);;SVG Vector (*.svg)"
+        )
+        if not filepath:
+            return
+
+        if filepath.endswith(".svg"):
+            self._export_svg(filepath)
+        else:
+            if not filepath.endswith(".png"):
+                filepath += ".png"
+            self._export_png(filepath)
+
+    def _export_png(self, filepath: str):
+        """Экспорт в PNG"""
+        from PyQt6.QtGui import QImage, QPainter as QPainterImg
+        from PyQt6.QtCore import QRectF
+
+        rect = self.scene.itemsBoundingRect().adjusted(-20, -20, 20, 20)
+        if rect.isEmpty():
+            self.show_info("Диаграмма пуста.")
+            return
+
+        scale = 2  # Высокое разрешение
+        img = QImage(int(rect.width() * scale), int(rect.height() * scale),
+                     QImage.Format.Format_ARGB32)
+        img.fill(0xFFF0EFFE)  # Фон
+
+        painter = QPainterImg(img)
+        painter.setRenderHint(QPainterImg.RenderHint.Antialiasing)
+        self.scene.render(painter, source=rect)
+        painter.end()
+
+        if img.save(filepath):
+            self.update_status(f"Экспортировано: {filepath}")
+        else:
+            self.show_error(f"Не удалось сохранить: {filepath}")
+
+    def _export_svg(self, filepath: str):
+        """Экспорт в SVG"""
+        from PyQt6.QtSvg import QSvgGenerator
+        from PyQt6.QtGui import QPainter as QPainterSvg
+        from PyQt6.QtCore import QRectF, QSize
+
+        rect = self.scene.itemsBoundingRect().adjusted(-20, -20, 20, 20)
+        if rect.isEmpty():
+            self.show_info("Диаграмма пуста.")
+            return
+
+        generator = QSvgGenerator()
+        generator.setFileName(filepath)
+        generator.setSize(QSize(int(rect.width()), int(rect.height())))
+        generator.setViewBox(rect)
+        generator.setTitle("LogicCraft UML Diagram")
+
+        painter = QPainterSvg(generator)
+        painter.setRenderHint(QPainterSvg.RenderHint.Antialiasing)
+        self.scene.render(painter, source=rect)
+        painter.end()
+
+        self.update_status(f"Экспортировано: {filepath}")
 
     def _on_save_clicked(self):
         """Обработка сохранения"""

@@ -244,3 +244,75 @@ class DiagramController(QObject):
         self.connection_map.clear()
         self.diagram_cleared.emit()
         self._save_state()
+
+    def duplicate_card(self, card_id: str, offset_x: float = 30, offset_y: float = 30) -> Optional[UMLNode]:
+        """Дублировать карточку со смещением"""
+        try:
+            source = self.manager.get_node_by_id(card_id)
+            if not source:
+                return None
+            node = self.manager.add_node(
+                source.x + offset_x,
+                source.y + offset_y,
+                name=source.name + "_copy",
+                node_type=source.node_type
+            )
+            # Копируем атрибуты и методы
+            from ..models.diagram import UMLProperty, UMLMethod
+            node.properties = [p.model_copy() for p in source.properties]
+            node.methods = [m.model_copy() for m in source.methods]
+            node.enum_literals = [l.model_copy() for l in source.enum_literals]
+            node.is_abstract = source.is_abstract
+            self.card_added.emit(node)
+            self._save_state()
+            self.status_changed.emit(f"Класс {node.name} дублирован")
+            return node
+        except Exception as e:
+            self.error_occurred.emit(f"Ошибка дублирования: {e}")
+            return None
+
+    def copy_selected(self, card_ids: list) -> None:
+        """Сохранить выбранные карточки в буфер копирования"""
+        self._clipboard = []
+        for card_id in card_ids:
+            node = self.manager.get_node_by_id(card_id)
+            if node:
+                self._clipboard.append(node.model_copy(deep=True))
+
+    def paste_clipboard(self) -> list:
+        """Вставить карточки из буфера"""
+        if not hasattr(self, '_clipboard') or not self._clipboard:
+            return []
+        new_nodes = []
+        for source in self._clipboard:
+            node = self.manager.add_node(
+                source.x + 40,
+                source.y + 40,
+                name=source.name + "_copy",
+                node_type=source.node_type
+            )
+            node.properties = [p.model_copy() for p in source.properties]
+            node.methods = [m.model_copy() for m in source.methods]
+            node.enum_literals = [l.model_copy() for l in source.enum_literals]
+            node.is_abstract = source.is_abstract
+            self.card_added.emit(node)
+            new_nodes.append(node)
+        if new_nodes:
+            self._save_state()
+            self.status_changed.emit(f"Вставлено {len(new_nodes)} элементов")
+        return new_nodes
+
+    def select_all(self) -> list:
+        """Вернуть все ID карточек для выделения"""
+        return [node.id for node in self.manager.diagram.nodes]
+
+    def save_diagram(self, filepath: str) -> bool:
+        """Сохранить диаграмму в файл"""
+        return self.manager.save_to_file(filepath)
+
+    def load_diagram(self, filepath: str) -> bool:
+        """Загрузить диаграмму из файла"""
+        result = self.manager.load_from_file(filepath)
+        if result:
+            self.diagram_loaded.emit()
+        return result
