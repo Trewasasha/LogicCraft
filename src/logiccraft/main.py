@@ -12,6 +12,7 @@ from logiccraft.view.main_window import MainWindow
 from logiccraft.view.widgets.uml_card import UMLCard
 from logiccraft.view.widgets.connection_line import ConnectionLine
 from logiccraft.view.theme import apply_stylesheet
+from logiccraft.view.dialogs.welcome_dialog import WelcomeDialog
 
 
 class Application:
@@ -25,6 +26,9 @@ class Application:
         self.controller = DiagramController()
         self.window = MainWindow(self.controller)
         self._connect_signals()
+        
+        # Показываем стартовое окно
+        self._show_welcome_dialog()
 
     def _connect_signals(self):
         self.window.add_card_requested.connect(self._on_add_card)
@@ -176,6 +180,27 @@ class Application:
     def run(self):
         self.window.show()
         sys.exit(self.app.exec())
+    
+    def _show_welcome_dialog(self):
+        """Показать стартовое окно"""
+        dialog = WelcomeDialog(self.window)
+        dialog.new_project_requested.connect(self._on_welcome_new_project)
+        dialog.open_project_requested.connect(self._on_welcome_open_project)
+        dialog.exec()
+    
+    def _on_welcome_new_project(self):
+        """Создать новый проект из стартового окна"""
+        # Просто показываем главное окно с пустой диаграммой
+        pass
+    
+    def _on_welcome_open_project(self):
+        """Открыть проект из стартового окна"""
+        from PyQt6.QtWidgets import QFileDialog
+        filepath, _ = QFileDialog.getOpenFileName(
+            self.window, "Открыть проект", "", "JSON Files (*.json)"
+        )
+        if filepath:
+            self.controller.load_diagram(filepath)
 
 
 def main():
