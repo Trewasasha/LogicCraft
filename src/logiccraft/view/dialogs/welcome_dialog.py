@@ -56,9 +56,17 @@ class WelcomeDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("LogicCraft — Добро пожаловать")
-        self.setFixedSize(700, 560)
+        self.resize(700, 560)
+        self.setMinimumSize(600, 480)
         self.setModal(True)
         self.setObjectName("WelcomeDialog")
+        # Включаем все системные кнопки: свернуть, развернуть, закрыть
+        self.setWindowFlags(
+            Qt.WindowType.Window |
+            Qt.WindowType.WindowMinimizeButtonHint |
+            Qt.WindowType.WindowMaximizeButtonHint |
+            Qt.WindowType.WindowCloseButtonHint
+        )
         self._setup_ui()
 
     def _setup_ui(self):
