@@ -77,10 +77,13 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         central.setLayout(layout)
 
         self.scene = DiagramScene()
-        self.view = DiagramView(self.scene, self)  # Передаем self как parent
+        self.view = DiagramView(self.scene, self)
+        self.view.setStyleSheet("background-color: #F0EFFE; border: none;")
         layout.addWidget(self.view)
 
         # Панель статуса
@@ -163,49 +166,107 @@ class MainWindow(QMainWindow):
         """Настройка тулбара"""
         toolbar = self.addToolBar("Main")
         toolbar.setMovable(False)
+        toolbar.setStyleSheet("""
+            QToolBar {
+                background-color: #FFFFFF;
+                border-bottom: 1px solid #E5E0F8;
+                spacing: 4px;
+                padding: 4px 12px;
+            }
+            QToolButton {
+                background-color: transparent;
+                color: #1F1F1F;
+                border: none;
+                border-radius: 6px;
+                padding: 5px 10px;
+                font-size: 13px;
+            }
+            QToolButton:hover {
+                background-color: #F3EEFF;
+                color: #7C3AED;
+            }
+        """)
 
-        # Кнопки
-        add_action = QAction("➕ Add Class", self)
+        # Левая часть — инструменты работы с диаграммой
+        add_action = QAction("➕ Добавить класс", self)
         add_action.triggered.connect(self._on_add_clicked)
         toolbar.addAction(add_action)
 
-        save_action = QAction("💾 Save", self)
-        save_action.triggered.connect(self._on_save_clicked)
-        toolbar.addAction(save_action)
-
-        load_action = QAction("📂 Load", self)
-        load_action.triggered.connect(self._on_load_clicked)
-        toolbar.addAction(load_action)
-
-        clear_action = QAction("🗑️ Clear All", self)
-        clear_action.triggered.connect(self._on_clear_clicked)
-        toolbar.addAction(clear_action)
-
         toolbar.addSeparator()
 
-        edit_action = QAction("✏️ Edit Selected", self)
+        edit_action = QAction("✏️ Редактировать", self)
         edit_action.triggered.connect(self._on_edit_selected)
         toolbar.addAction(edit_action)
 
-        delete_action = QAction("❌ Delete Selected", self)
+        delete_action = QAction("🗑️ Удалить", self)
         delete_action.triggered.connect(self._on_delete_selected)
         toolbar.addAction(delete_action)
 
-        edit_conn_action = QAction("🔗 Edit Connection", self)
+        edit_conn_action = QAction("🔗 Связи", self)
         edit_conn_action.triggered.connect(self._on_edit_connection)
         toolbar.addAction(edit_conn_action)
 
         toolbar.addSeparator()
 
-        # Code Generation
-        generate_code_action = QAction("🚀 Generate Code", self)
-        generate_code_action.triggered.connect(self._on_generate_code_clicked)
-        toolbar.addAction(generate_code_action)
+        clear_action = QAction("💥 Очистить", self)
+        clear_action.triggered.connect(self._on_clear_clicked)
+        toolbar.addAction(clear_action)
 
-        # Export Project
-        export_project_action = QAction("📦 Export Project", self)
-        export_project_action.triggered.connect(self._on_export_project_clicked)
-        toolbar.addAction(export_project_action)
+        # Растягивающийся разделитель — пушит правые кнопки вправо
+        from PyQt6.QtWidgets import QSizePolicy, QPushButton
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        spacer.setStyleSheet("background: transparent;")
+        toolbar.addWidget(spacer)
+
+        # Правые кнопки — в стиле дизайна
+        save_btn = QPushButton("💾  Сохранить диаграмму")
+        save_btn.setStyleSheet(self._primary_btn_style())
+        save_btn.setFixedHeight(34)
+        save_btn.clicked.connect(self._on_save_clicked)
+        toolbar.addWidget(save_btn)
+
+        load_btn = QPushButton("📂  Загрузить диаграмму")
+        load_btn.setStyleSheet(self._outline_btn_style())
+        load_btn.setFixedHeight(34)
+        load_btn.clicked.connect(self._on_load_clicked)
+        toolbar.addWidget(load_btn)
+
+        gen_btn = QPushButton("⚡  Сгенерировать код")
+        gen_btn.setStyleSheet(self._primary_btn_style())
+        gen_btn.setFixedHeight(34)
+        gen_btn.clicked.connect(self._on_generate_code_clicked)
+        toolbar.addWidget(gen_btn)
+
+    def _primary_btn_style(self) -> str:
+        return """
+            QPushButton {
+                background-color: #7C3AED;
+                color: white;
+                border: none;
+                border-radius: 20px;
+                padding: 7px 18px;
+                font-weight: 600;
+                font-size: 13px;
+            }
+            QPushButton:hover { background-color: #6D28D9; }
+            QPushButton:pressed { background-color: #5B21B6; }
+        """
+
+    def _outline_btn_style(self) -> str:
+        return """
+            QPushButton {
+                background-color: transparent;
+                color: #7C3AED;
+                border: 1.5px solid #7C3AED;
+                border-radius: 20px;
+                padding: 7px 18px;
+                font-weight: 600;
+                font-size: 13px;
+            }
+            QPushButton:hover { background-color: #F3EEFF; }
+            QPushButton:pressed { background-color: #EDE9FE; }
+        """
 
     def _connect_signals(self):
         """Подключение сигналов сцены"""

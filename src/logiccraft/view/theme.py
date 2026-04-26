@@ -7,20 +7,22 @@ import os
 
 @dataclass(frozen=True)
 class _CardStyle:
-    BACKGROUND: str = "#f5f5dc"
-    BORDER: str = "#4169E1"
-    SELECTED_BORDER: str = "#DC143C"
-    HEADER_BG: str = "#4169E1"
-    HEADER_TEXT: str = "white"
-    ATTRS_TEXT: str = "#2c3e50"
-    METHODS_TEXT: str = "#27ae60"
-    DIVIDER: str = "#4169E1"
-    BORDER_WIDTH: int = 2
-    SELECTED_BORDER_WIDTH: int = 3
+    BACKGROUND: str = "#FFFFFF"
+    BORDER: str = "#E5E0F8"
+    SELECTED_BORDER: str = "#7C3AED"
+    HEADER_BG: str = "#7C3AED"
+    HEADER_TEXT: str = "#FFFFFF"
+    ATTRS_TEXT: str = "#1F1F1F"
+    METHODS_TEXT: str = "#1F1F1F"
+    DIVIDER: str = "#E5E0F8"
+    BORDER_WIDTH: int = 1
+    SELECTED_BORDER_WIDTH: int = 2
+    BORDER_RADIUS: int = 12
 
     @property
     def HEADER_FONT(self) -> QFont:
-        return QFont("Arial", 10, QFont.Weight.Bold)
+        f = QFont("Inter", 11, QFont.Weight.Bold)
+        return f
 
     @property
     def ATTRS_FONT(self) -> QFont:
@@ -33,25 +35,25 @@ class _CardStyle:
 
 @dataclass(frozen=True)
 class _ConnectionStyle:
-    LINE_COLOR: str = "#666666"
+    LINE_COLOR: str = "#9B72F5"
     LINE_WIDTH: int = 2
-    SELECTED_COLOR: str = "#DC143C"
+    SELECTED_COLOR: str = "#7C3AED"
     SELECTED_WIDTH: int = 3
 
 
 @dataclass(frozen=True)
 class _SceneStyle:
-    BACKGROUND: str = "#fafafa"
-    GRID_COLOR: str = "#e0e0e0"
+    BACKGROUND: str = "#F0EFFE"
+    GRID_COLOR: str = "#E0D9FC"
     GRID_WIDTH: float = 0.5
     GRID_STEP: int = 50
-    TEMP_LINE_COLOR: str = "#4169E1"
+    TEMP_LINE_COLOR: str = "#7C3AED"
 
 
 @dataclass(frozen=True)
 class _AnchorStyle:
-    NORMAL_COLOR: str = "#FF6B6B"
-    HOVER_COLOR: str = "#FF4444"
+    NORMAL_COLOR: str = "#9B72F5"
+    HOVER_COLOR: str = "#7C3AED"
     BORDER_COLOR: str = "#FFFFFF"
     BORDER_WIDTH: float = 1.5
     HOVER_SCALE: float = 1.2
@@ -59,7 +61,7 @@ class _AnchorStyle:
 
 @dataclass(frozen=True)
 class _ArrowStyle:
-    COLOR: str = "#666666"
+    COLOR: str = "#9B72F5"
     WIDTH_NORMAL: float = 2.0
     WIDTH_THIN: float = 1.5
     SIZE: int = 12
@@ -67,28 +69,29 @@ class _ArrowStyle:
 
 @dataclass(frozen=True)
 class _DialogStyle:
-    BACKGROUND: str = "#ffffff"
-    BORDER: str = "#cccccc"
-    TEXT_COLOR: str = "#333333"
-    INPUT_BACKGROUND: str = "#ffffff"
-    INPUT_BORDER: str = "#cccccc"
-    INPUT_FOCUS_BORDER: str = "#4169E1"
-    BUTTON_PRIMARY: str = "#4169E1"
-    BUTTON_PRIMARY_HOVER: str = "#3558c0"
-    BUTTON_SECONDARY: str = "#f5f5f5"
-    BUTTON_SECONDARY_HOVER: str = "#e8e8e8"
-    SELECTION_COLOR: str = "#4169E1"
+    BACKGROUND: str = "#FFFFFF"
+    BORDER: str = "#E5E0F8"
+    TEXT_COLOR: str = "#1F1F1F"
+    INPUT_BACKGROUND: str = "#F8F6FF"
+    INPUT_BORDER: str = "#D4C9F8"
+    INPUT_FOCUS_BORDER: str = "#7C3AED"
+    BUTTON_PRIMARY: str = "#7C3AED"
+    BUTTON_PRIMARY_HOVER: str = "#6D28D9"
+    BUTTON_SECONDARY: str = "#F8F6FF"
+    BUTTON_SECONDARY_HOVER: str = "#EDE9FE"
+    SELECTION_COLOR: str = "#7C3AED"
 
 
 @dataclass(frozen=True)
 class _MenuStyle:
-    BACKGROUND: str = "#ffffff"
-    BORDER: str = "#cccccc"
-    TEXT_COLOR: str = "#333333"
-    HOVER_BACKGROUND: str = "#4169E1"
-    HOVER_TEXT: str = "white"
-    DISABLED_TEXT: str = "#999999"
-    SEPARATOR: str = "#e0e0e0"
+    BACKGROUND: str = "#FFFFFF"
+    BORDER: str = "#E5E0F8"
+    TEXT_COLOR: str = "#1F1F1F"
+    HOVER_BACKGROUND: str = "#F3EEFF"
+    HOVER_TEXT: str = "#7C3AED"
+    DISABLED_TEXT: str = "#AAAAAA"
+    SEPARATOR: str = "#E5E0F8"
+    DELETE_COLOR: str = "#EF4444"
 
 
 CardStyle = _CardStyle()

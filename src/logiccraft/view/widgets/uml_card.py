@@ -1,7 +1,7 @@
 """Карточка UML класса"""
-from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
-from PyQt6.QtCore import Qt, QPointF, pyqtSignal, QObject
-from PyQt6.QtGui import QBrush, QColor, QPen, QFont
+from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem, QGraphicsItem
+from PyQt6.QtCore import Qt, QPointF, pyqtSignal, QObject, QRectF
+from PyQt6.QtGui import QBrush, QColor, QPen, QFont, QPainter, QPainterPath
 import uuid
 from typing import List, Optional
 
@@ -27,8 +27,11 @@ class UMLCard(QGraphicsRectItem):
     ANCHOR_LEFT = "left"
     ANCHOR_RIGHT = "right"
 
+    HEADER_HEIGHT = 36
+    RADIUS = 12
+
     def __init__(self, name: str, x: float = 0, y: float = 0,
-                 width: float = 160, height: float = 100,
+                 width: float = 180, height: float = 100,
                  attributes: List[str] = None, methods: List[str] = None,
                  card_id: str = None):
         super().__init__(0, 0, width, height)
@@ -43,12 +46,11 @@ class UMLCard(QGraphicsRectItem):
         self._anchor_size = 8
         self._is_selected = False
 
-        # Добавляем сигналы
         self.signals = CardSignals()
 
-        # Настройка внешнего вида
-        self.setBrush(QBrush(QColor(CardStyle.BACKGROUND)))
-        self.setPen(QPen(QColor(CardStyle.BORDER), CardStyle.BORDER_WIDTH))
+        # Прозрачный фон базового rect — рисуем сами в paint()
+        self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+        self.setPen(QPen(Qt.PenStyle.NoPen))
         self.setFlags(
             QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
             QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable |
@@ -59,15 +61,45 @@ class UMLCard(QGraphicsRectItem):
         self._create_anchors()
         self.update_content()
 
+    def paint(self, painter: QPainter, option, widget=None):
+        """Кастомная отрисовка с скруглёнными углами"""
+        r = self.rect()
+        radius = self.RADIUS
+        h = self.HEADER_HEIGHT
+
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Тень
+        shadow_color = QColor(124, 58, 237, 25)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(shadow_color))
+        painter.drawRoundedRect(r.adjusted(2, 3, 2, 3), radius, radius)
+
+        # Основной фон карточки (белый)
+        border_color = QColor(CardStyle.SELECTED_BORDER) if self._is_selected else QColor(CardStyle.BORDER)
+        border_width = CardStyle.SELECTED_BORDER_WIDTH if self._is_selected else CardStyle.BORDER_WIDTH
+        painter.setPen(QPen(border_color, border_width))
+        painter.setBrush(QBrush(QColor(CardStyle.BACKGROUND)))
+        painter.drawRoundedRect(r, radius, radius)
+
+        # Заголовок — фиолетовый прямоугольник с скруглением только сверху
+        header_path = QPainterPath()
+        header_path.moveTo(r.left() + radius, r.top())
+        header_path.lineTo(r.right() - radius, r.top())
+        header_path.arcTo(r.right() - radius * 2, r.top(), radius * 2, radius * 2, 90, -90)
+        header_path.lineTo(r.right(), r.top() + h)
+        header_path.lineTo(r.left(), r.top() + h)
+        header_path.arcTo(r.left(), r.top(), radius * 2, radius * 2, 180, -90)
+        header_path.closeSubpath()
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(QColor(CardStyle.HEADER_BG)))
+        painter.drawPath(header_path)
+
     def _create_elements(self):
         """Создает визуальные элементы карточки"""
-        # Фон заголовка
-        self.header_bg = QGraphicsRectItem(0, 0, self.rect().width(), 30, self)
-        self.header_bg.setBrush(QBrush(QColor(CardStyle.HEADER_BG)))
-        self.header_bg.setPen(QPen(Qt.PenStyle.NoPen))
-
-        # Текст заголовка
-        self.header_text = QGraphicsTextItem(self.name, self)
+        # Иконка + текст заголовка
+        self.header_text = QGraphicsTextItem(self)
         self.header_text.setDefaultTextColor(QColor(CardStyle.HEADER_TEXT))
         self.header_text.setFont(CardStyle.HEADER_FONT)
 
@@ -81,11 +113,7 @@ class UMLCard(QGraphicsRectItem):
         self.methods_text.setFont(CardStyle.METHODS_FONT)
         self.methods_text.setDefaultTextColor(QColor(CardStyle.METHODS_TEXT))
 
-        # Разделители
-        self.divider1 = QGraphicsRectItem(0, 32, self.rect().width(), 1, self)
-        self.divider1.setBrush(QBrush(QColor(CardStyle.DIVIDER)))
-        self.divider1.setPen(QPen(Qt.PenStyle.NoPen))
-
+        # Разделитель между атрибутами и методами
         self.divider2 = QGraphicsRectItem(0, 0, self.rect().width(), 1, self)
         self.divider2.setBrush(QBrush(QColor(CardStyle.DIVIDER)))
         self.divider2.setPen(QPen(Qt.PenStyle.NoPen))
@@ -102,10 +130,8 @@ class UMLCard(QGraphicsRectItem):
         """Обновляет позиции точек привязки"""
         if not self.anchors:
             return
-
         r = self.rect()
         w, h = r.width(), r.height()
-
         self.anchors[self.ANCHOR_TOP].setPos(w / 2, 0)
         self.anchors[self.ANCHOR_BOTTOM].setPos(w / 2, h)
         self.anchors[self.ANCHOR_LEFT].setPos(0, h / 2)
@@ -113,41 +139,42 @@ class UMLCard(QGraphicsRectItem):
 
     def update_content(self):
         """Обновляет содержимое карточки"""
-        # Вычисляем новую высоту
         n_attrs = len(self.attributes) if self.attributes else 1
         n_methods = len(self.methods) if self.methods else 1
 
-        new_height = 35 + (n_attrs * 18) + 10 + (n_methods * 18)
-        new_height = max(100, new_height)
+        new_height = self.HEADER_HEIGHT + 8 + (n_attrs * 20) + 10 + (n_methods * 20) + 8
+        new_height = max(110, new_height)
         width = self.rect().width()
 
         self.setRect(0, 0, width, new_height)
-        self.header_bg.setRect(0, 0, width, 30)
 
-        # Обновляем текст заголовка
-        self.header_text.setPlainText(self.name)
+        # Заголовок с иконкой
+        self.header_text.setHtml(f'<span style="font-size:13px;">⬡ <b>{self.name}</b></span>')
         tw = self.header_text.boundingRect().width()
-        self.header_text.setPos((width - tw) / 2, 5)
+        self.header_text.setPos((width - tw) / 2, (self.HEADER_HEIGHT - self.header_text.boundingRect().height()) / 2)
 
-        # Обновляем атрибуты
+        # Атрибуты
         attr_text = "\n".join(self.attributes) if self.attributes else ""
         self.attrs_text.setPlainText(attr_text)
-        self.attrs_text.setPos(5, 35)
+        self.attrs_text.setPos(12, self.HEADER_HEIGHT + 8)
 
-        # Обновляем методы
-        attr_h = self.attrs_text.boundingRect().height()
-        method_text = "\n".join(self.methods) if self.methods else ""
-        self.methods_text.setPlainText(method_text)
-        self.methods_text.setPos(5, 35 + attr_h + 5)
+        # Разделитель
+        attr_h = self.attrs_text.boundingRect().height() if self.attributes else 0
+        divider_y = self.HEADER_HEIGHT + 8 + attr_h + 4
 
-        # Обновляем разделители
         if self.methods:
-            self.divider2.setRect(0, 35 + attr_h + 2, width, 1)
+            self.divider2.setRect(12, divider_y, width - 24, 1)
             self.divider2.show()
         else:
             self.divider2.hide()
 
+        # Методы
+        method_text = "\n".join(self.methods) if self.methods else ""
+        self.methods_text.setPlainText(method_text)
+        self.methods_text.setPos(12, divider_y + 6)
+
         self._update_anchor_positions()
+        self.update()
 
     def get_anchor_point(self, anchor_name: str) -> QPointF:
         """Возвращает позицию точки привязки в координатах сцены"""
@@ -170,34 +197,59 @@ class UMLCard(QGraphicsRectItem):
         """Устанавливает состояние выделения"""
         super().setSelected(selected)
         self._is_selected = selected
-
-        # Меняем цвет рамки
-        pen_color = QColor(CardStyle.SELECTED_BORDER) if selected else QColor(CardStyle.BORDER)
-        self.setPen(QPen(pen_color, CardStyle.SELECTED_BORDER_WIDTH if selected else CardStyle.BORDER_WIDTH))
-
-        # Показываем/скрываем точки привязки
         for anchor in self.anchors.values():
             anchor.setVisible(selected)
+        self.update()
 
     def isSelected(self) -> bool:
-        """Возвращает состояние выделения"""
         return self._is_selected
 
     def mouseReleaseEvent(self, event):
-        """Сохраняем позицию после завершения перетаскивания"""
         super().mouseReleaseEvent(event)
         self.signals.move_finished.emit(self.id, self.pos().x(), self.pos().y())
 
     def contextMenuEvent(self, event):
-        """Обработка правого клика - показываем контекстное меню"""
+        """Контекстное меню по правому клику"""
         from PyQt6.QtWidgets import QMenu
-        
+
         menu = QMenu()
-        edit_action = menu.addAction("Edit")
-        delete_action = menu.addAction("Delete")
-        
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #FFFFFF;
+                border: 1px solid #E5E0F8;
+                border-radius: 12px;
+                padding: 6px 0px;
+                min-width: 200px;
+            }
+            QMenu::item {
+                padding: 12px 20px;
+                font-size: 14px;
+                font-weight: 500;
+                color: #1F1F1F;
+                border-radius: 6px;
+                margin: 1px 6px;
+            }
+            QMenu::item:selected {
+                background-color: #F3EEFF;
+                color: #7C3AED;
+            }
+            QMenu::separator {
+                height: 1px;
+                background-color: #E5E0F8;
+                margin: 4px 12px;
+            }
+        """)
+
+        edit_action = menu.addAction("✏  Редактировать класс")
+        menu.addSeparator()
+        conn_action = menu.addAction("🔗  Изменить связи")
+        menu.addSeparator()
+        delete_action = menu.addAction("🗑  Удалить класс")
+        # Красный цвет для удаления
+        delete_action.setData("delete")
+
         action = menu.exec(event.screenPos())
-        
+
         if action == edit_action:
             self.signals.edit_requested.emit(self.id)
         elif action == delete_action:
