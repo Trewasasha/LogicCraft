@@ -10,8 +10,9 @@ class WelcomeCard(QPushButton):
 
     def __init__(self, icon: str, title: str, subtitle: str, is_primary: bool = False):
         super().__init__()
-        self.setMinimumSize(280, 220)
-        self.setMaximumSize(400, 280)
+        # Размер кнопок: первое число — ширина, второе — высота
+        self.setFixedWidth(280)
+        self.setMinimumHeight(220)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         if is_primary:
