@@ -59,6 +59,11 @@ poetry run python -m logiccraft
 | Zoom Out | `Ctrl+-` |
 | Сброс масштаба | `Ctrl+0` |
 | Вписать в экран | `Ctrl+F` |
+| Копировать | `Ctrl+C` |
+| Вставить | `Ctrl+V` |
+| Дублировать | `Ctrl+D` |
+| Выделить всё | `Ctrl+A` |
+| Экспорт PNG/SVG | `Ctrl+Shift+E` |
 
 ## 👥 Команда
 
