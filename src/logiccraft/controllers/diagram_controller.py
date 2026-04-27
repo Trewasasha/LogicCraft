@@ -306,7 +306,61 @@ class DiagramController(QObject):
         """Вернуть все ID карточек для выделения"""
         return [node.id for node in self.manager.diagram.nodes]
 
-    def save_diagram(self, filepath: str) -> bool:
+    def validate_diagram(self) -> list:
+        """Валидация диаграммы — возвращает список предупреждений"""
+        warnings = []
+        diagram = self.manager.diagram
+
+        # Дублирующиеся имена классов
+        names = [n.name for n in diagram.nodes]
+        duplicates = {n for n in names if names.count(n) > 1}
+        for name in duplicates:
+            warnings.append(f"⚠️ Дублирующееся имя класса: «{name}»")
+
+        # Классы без атрибутов и методов
+        for node in diagram.nodes:
+            if not node.properties and not node.methods and node.node_type.value == 'class':
+                warnings.append(f"ℹ️ Класс «{node.name}» не имеет атрибутов и методов")
+
+        # Интерфейс без методов
+        for node in diagram.nodes:
+            if node.node_type.value == 'interface' and not node.methods:
+                warnings.append(f"⚠️ Интерфейс «{node.name}» не имеет методов")
+
+        # Циклические зависимости наследования
+        inheritance = {}
+        for node in diagram.nodes:
+            inheritance[node.id] = []
+        for conn in diagram.connections:
+            if conn.type.value == 'inheritance':
+                inheritance[conn.source_id].append(conn.target_id)
+
+        def has_cycle(node_id, visited, path):
+            if node_id in path:
+                return True
+            if node_id in visited:
+                return False
+            visited.add(node_id)
+            path.add(node_id)
+            for child in inheritance.get(node_id, []):
+                if has_cycle(child, visited, path):
+                    return True
+            path.discard(node_id)
+            return False
+
+        visited = set()
+        for node in diagram.nodes:
+            if has_cycle(node.id, visited, set()):
+                warnings.append(f"❌ Циклическое наследование обнаружено в «{node.name}»")
+                break
+
+        # Связи к несуществующим узлам
+        node_ids = {n.id for n in diagram.nodes}
+        for conn in diagram.connections:
+            if conn.source_id not in node_ids or conn.target_id not in node_ids:
+                warnings.append(f"❌ Связь ссылается на несуществующий класс")
+
+        return warnings
         """Сохранить диаграмму в файл"""
         return self.manager.save_to_file(filepath)
 

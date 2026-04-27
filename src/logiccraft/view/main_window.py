@@ -300,7 +300,29 @@ class MainWindow(QMainWindow):
 
         tools_menu.addSeparator()
 
-        # Copy / Paste / Duplicate / Select All
+        # Validate
+        validate_action = QAction("✅ Валидация диаграммы", self)
+        validate_action.setShortcut(QKeySequence("Ctrl+Shift+V"))
+        validate_action.triggered.connect(self._on_validate)
+        tools_menu.addAction(validate_action)
+
+        tools_menu.addSeparator()
+
+        # Align submenu
+        align_menu = tools_menu.addMenu("⬛ Выравнивание")
+        for label, key, slot in [
+            ("По левому краю",  "Ctrl+Shift+Left",  self._align_left),
+            ("По правому краю", "Ctrl+Shift+Right", self._align_right),
+            ("По верхнему краю","Ctrl+Shift+Up",    self._align_top),
+            ("По нижнему краю", "Ctrl+Shift+Down",  self._align_bottom),
+            ("По центру (гор.)", None,              self._align_center_h),
+            ("По центру (верт.)", None,             self._align_center_v),
+        ]:
+            a = QAction(label, self)
+            if key:
+                a.setShortcut(QKeySequence(key))
+            a.triggered.connect(slot)
+            align_menu.addAction(a)
         copy_action = QAction("📋 Копировать", self)
         copy_action.setShortcut(QKeySequence("Ctrl+C"))
         copy_action.triggered.connect(self._on_copy)
@@ -720,6 +742,68 @@ class MainWindow(QMainWindow):
 
         self.update_status(f"Экспортировано: {filepath}")
 
+    def _on_validate(self):
+        """Валидация диаграммы"""
+        warnings = self.controller.validate_diagram()
+        if not warnings:
+            QMessageBox.information(self, "Валидация", "✅ Диаграмма корректна!")
+        else:
+            msg = "\n".join(warnings)
+            QMessageBox.warning(self, f"Валидация — {len(warnings)} замечаний", msg)
+
+    def _get_selected_cards(self):
+        return [i for i in self.scene.selectedItems() if isinstance(i, UMLCard)]
+
+    def _align_left(self):
+        cards = self._get_selected_cards()
+        if len(cards) < 2: return
+        min_x = min(c.pos().x() for c in cards)
+        for c in cards:
+            c.setPos(min_x, c.pos().y())
+            self.controller.update_card(c.id, x=min_x, y=c.pos().y())
+
+    def _align_right(self):
+        cards = self._get_selected_cards()
+        if len(cards) < 2: return
+        max_x = max(c.pos().x() + c.rect().width() for c in cards)
+        for c in cards:
+            c.setPos(max_x - c.rect().width(), c.pos().y())
+            self.controller.update_card(c.id, x=c.pos().x(), y=c.pos().y())
+
+    def _align_top(self):
+        cards = self._get_selected_cards()
+        if len(cards) < 2: return
+        min_y = min(c.pos().y() for c in cards)
+        for c in cards:
+            c.setPos(c.pos().x(), min_y)
+            self.controller.update_card(c.id, x=c.pos().x(), y=min_y)
+
+    def _align_bottom(self):
+        cards = self._get_selected_cards()
+        if len(cards) < 2: return
+        max_y = max(c.pos().y() + c.rect().height() for c in cards)
+        for c in cards:
+            c.setPos(c.pos().x(), max_y - c.rect().height())
+            self.controller.update_card(c.id, x=c.pos().x(), y=c.pos().y())
+
+    def _align_center_h(self):
+        cards = self._get_selected_cards()
+        if len(cards) < 2: return
+        avg_x = sum(c.pos().x() + c.rect().width() / 2 for c in cards) / len(cards)
+        for c in cards:
+            nx = avg_x - c.rect().width() / 2
+            c.setPos(nx, c.pos().y())
+            self.controller.update_card(c.id, x=nx, y=c.pos().y())
+
+    def _align_center_v(self):
+        cards = self._get_selected_cards()
+        if len(cards) < 2: return
+        avg_y = sum(c.pos().y() + c.rect().height() / 2 for c in cards) / len(cards)
+        for c in cards:
+            ny = avg_y - c.rect().height() / 2
+            c.setPos(c.pos().x(), ny)
+            self.controller.update_card(c.id, x=c.pos().x(), y=ny)
+
     def _on_save_clicked(self):
         """Обработка сохранения"""
         filepath, _ = QFileDialog.getSaveFileName(
@@ -759,23 +843,28 @@ class MainWindow(QMainWindow):
             self.show_info("Выберите карточку класса для редактирования.")
 
     def _on_delete_selected(self):
-        """Удаление выбранных элементов"""
+        """Удаление всех выбранных элементов (групповое)"""
         selected_items = self.scene.selectedItems()
         if not selected_items:
-            self.show_info("Please select items to delete.")
+            self.show_info("Выберите элементы для удаления.")
             return
 
+        cards = [i for i in selected_items if isinstance(i, UMLCard)]
+        conns = [i for i in selected_items if isinstance(i, ConnectionLine)]
+
+        count = len(cards) + len(conns)
         reply = QMessageBox.question(
-            self, "Confirm Delete",
-            f"Delete {len(selected_items)} selected item(s)?",
+            self, "Подтвердить удаление",
+            f"Удалить {count} элемент(ов)?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
-        if reply == QMessageBox.StandardButton.Yes:
-            for item in selected_items:
-                if isinstance(item, UMLCard):
-                    self.controller.remove_card(item.id)
-                elif isinstance(item, ConnectionLine):
-                    self.controller.remove_connection(item.id)
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        for conn in conns:
+            self.controller.remove_connection(conn.id)
+        for card in cards:
+            self.controller.remove_card(card.id)
 
     def _on_edit_connection(self):
         """Редактирование выбранной связи"""

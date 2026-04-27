@@ -89,10 +89,17 @@ class DiagramScene(QGraphicsScene):
         self.connection_active = False
 
     def on_card_moved(self, card):
-        # Snap to grid
+        """Snap to grid + групповое перемещение"""
+        from ..widgets.uml_card import UMLCard
         grid = SceneStyle.GRID_STEP
-        x = round(card.pos().x() / grid) * grid
-        y = round(card.pos().y() / grid) * grid
-        if card.pos().x() != x or card.pos().y() != y:
-            card.setPos(x, y)
-        self.card_moved.emit(card.id, card.pos().x(), card.pos().y())
+
+        # Если выделено несколько — двигаем все вместе
+        selected_cards = [item for item in self.selectedItems() if isinstance(item, UMLCard)]
+        targets = selected_cards if len(selected_cards) > 1 else [card]
+
+        for c in targets:
+            x = round(c.pos().x() / grid) * grid
+            y = round(c.pos().y() / grid) * grid
+            if c.pos().x() != x or c.pos().y() != y:
+                c.setPos(x, y)
+            self.card_moved.emit(c.id, c.pos().x(), c.pos().y())
