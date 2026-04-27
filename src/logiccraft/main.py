@@ -51,7 +51,9 @@ class Application:
             nt = NodeType(node_type)
         except ValueError:
             nt = NodeType.CLASS
+        self._creating_card = True  # флаг: карточка создаётся через UI
         node = self.controller.add_card(x, y, node_type=nt)
+        self._creating_card = False
         if node:
             card = UMLCard(node.name, node.x, node.y,
                            attributes=[p.name for p in node.properties],
@@ -66,8 +68,8 @@ class Application:
 
     def _on_card_added(self, node):
         """Создать карточку на сцене при добавлении через контроллер (дублирование, вставка)"""
-        # Если карточка уже есть на сцене — пропускаем (обработано в _on_add_card)
-        if node.id in self.controller.card_map:
+        # Пропускаем если карточка создаётся через _on_add_card
+        if getattr(self, '_creating_card', False):
             return
         card = UMLCard(node.name, node.x, node.y,
                        attributes=[p.name for p in node.properties],
