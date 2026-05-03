@@ -149,6 +149,9 @@ class MainWindow(QMainWindow):
         self.controller = controller
         self.card_map = {}
         self.connection_map = {}
+        self.uc_actor_map = {}      # actor_id -> ActorWidget
+        self.uc_scenario_map = {}   # scenario_id -> ScenarioWidget
+        self.uc_connection_map = {} # conn_id -> ConnectionLine
         self.setWindowTitle("LogicCraft UML Architect")
         self.setGeometry(100, 100, 1400, 860)
 
@@ -505,7 +508,15 @@ class MainWindow(QMainWindow):
         import random
         offset_x = random.randint(-60, 60)
         offset_y = random.randint(-60, 60)
-        self.add_card_requested.emit(center.x() + offset_x, center.y() + offset_y, node_type)
+        x = center.x() + offset_x
+        y = center.y() + offset_y
+
+        if node_type == "uc_actor":
+            self.controller.add_uc_actor(x, y)
+        elif node_type == "uc_scenario":
+            self.controller.add_uc_scenario(x, y)
+        else:
+            self.add_card_requested.emit(x, y, node_type)
 
     def _on_toolbox_set_connection_type(self, connection_type: str):
         """Применить тип связи к выбранной связи или запомнить для следующей"""
@@ -594,6 +605,13 @@ class MainWindow(QMainWindow):
         self.controller.diagram_cleared.connect(self._on_diagram_cleared)
         self.controller.status_changed.connect(self.update_status)
         self.controller.error_occurred.connect(self.show_error)
+        # Use Case сигналы
+        self.controller.uc_actor_added.connect(self._on_uc_actor_added)
+        self.controller.uc_actor_removed.connect(self._on_uc_actor_removed)
+        self.controller.uc_scenario_added.connect(self._on_uc_scenario_added)
+        self.controller.uc_scenario_removed.connect(self._on_uc_scenario_removed)
+        self.controller.uc_connection_added.connect(self._on_uc_connection_added)
+        self.controller.uc_connection_removed.connect(self._on_uc_connection_removed)
 
     def _on_zoom_changed(self, percent: int):
         """Обновить индикатор масштаба"""
@@ -888,7 +906,14 @@ class MainWindow(QMainWindow):
 
     def _on_connection_ready(self, source_id, target_id, source_anchor, target_anchor):
         conn_type = getattr(self, '_default_connection_type', 'association')
-        self.controller.add_connection(source_id, target_id, conn_type, source_anchor, target_anchor)
+        # Определяем, UC-связь или обычная
+        uc_types = {"uc_association", "uc_include", "uc_extend"}
+        all_uc_ids = set(self.uc_actor_map) | set(self.uc_scenario_map)
+        if source_id in all_uc_ids or target_id in all_uc_ids or conn_type in uc_types:
+            uc_type = conn_type if conn_type in uc_types else "uc_association"
+            self.controller.add_uc_connection(source_id, target_id, uc_type)
+        else:
+            self.controller.add_connection(source_id, target_id, conn_type, source_anchor, target_anchor)
 
     def _on_card_moved(self, card_id, x, y):
         """Перемещение карточки - вызывается когда пользователь переместил карточку на сцене"""
@@ -912,6 +937,101 @@ class MainWindow(QMainWindow):
 
     def _on_diagram_cleared(self):
         self.clear_scene()
+
+    # ── Use Case обработчики ───────────────────────────────────────────────────
+
+    def _on_uc_actor_added(self, actor_model):
+        """Добавить виджет актёра на сцену"""
+        from .widgets.actor_widget import ActorWidget
+        widget = ActorWidget(
+            name=actor_model.name,
+            x=actor_model.x,
+            y=actor_model.y,
+            actor_id=actor_model.id
+        )
+        widget.signals.move_finished.connect(
+            lambda aid, x, y: self.controller.update_uc_actor(aid, x=x, y=y)
+        )
+        widget.signals.delete_requested.connect(self.controller.remove_uc_actor)
+        self.scene.actor_renamed.connect(
+            lambda aid, name: self.controller.update_uc_actor(aid, name=name)
+        )
+        self.scene.addItem(widget)
+        self.uc_actor_map[actor_model.id] = widget
+        # Показываем якоря только при выделении
+        for anchor in widget.anchors.values():
+            anchor.setVisible(False)
+
+    def _on_uc_actor_removed(self, actor_id: str):
+        widget = self.uc_actor_map.pop(actor_id, None)
+        if widget and widget.scene():
+            self.scene.removeItem(widget)
+
+    def _on_uc_scenario_added(self, scenario_model):
+        """Добавить виджет сценария на сцену"""
+        from .widgets.scenario_widget import ScenarioWidget
+        widget = ScenarioWidget(
+            name=scenario_model.name,
+            x=scenario_model.x,
+            y=scenario_model.y,
+            scenario_id=scenario_model.id
+        )
+        widget.signals.move_finished.connect(
+            lambda sid, x, y: self.controller.update_uc_scenario(sid, x=x, y=y)
+        )
+        widget.signals.delete_requested.connect(self.controller.remove_uc_scenario)
+        self.scene.scenario_renamed.connect(
+            lambda sid, name: self.controller.update_uc_scenario(sid, name=name)
+        )
+        self.scene.addItem(widget)
+        self.uc_scenario_map[scenario_model.id] = widget
+        for anchor in widget.anchors.values():
+            anchor.setVisible(False)
+
+    def _on_uc_scenario_removed(self, scenario_id: str):
+        widget = self.uc_scenario_map.pop(scenario_id, None)
+        if widget and widget.scene():
+            self.scene.removeItem(widget)
+
+    def _on_uc_connection_added(self, conn_model):
+        """Добавить линию UC-связи на сцену"""
+        from .widgets.connection_line import ConnectionLine
+        from .widgets.arrow_head import ConnectionType as ArrowConnType
+
+        # Ищем виджеты источника и цели среди всех UC-элементов
+        all_uc = {**self.uc_actor_map, **self.uc_scenario_map}
+        source_widget = all_uc.get(conn_model.source_id)
+        target_widget = all_uc.get(conn_model.target_id)
+
+        if not source_widget or not target_widget:
+            return
+
+        try:
+            arrow_type = ArrowConnType(conn_model.type.value)
+        except ValueError:
+            arrow_type = ArrowConnType.UC_ASSOCIATION
+
+        line = ConnectionLine(
+            source=source_widget,
+            target=target_widget,
+            source_anchor="right",
+            target_anchor="left",
+            connection_type=arrow_type,
+            connection_id=conn_model.id
+        )
+        self.scene.addItem(line)
+        self.uc_connection_map[conn_model.id] = line
+        line.signals.about_to_delete.connect(
+            lambda c: self.controller.remove_uc_connection(c.id)
+        )
+
+    def _on_uc_connection_removed(self, conn_id: str):
+        line = self.uc_connection_map.pop(conn_id, None)
+        if line:
+            if hasattr(line, 'arrow_head') and line.arrow_head and line.arrow_head.scene():
+                self.scene.removeItem(line.arrow_head)
+            if line.scene():
+                self.scene.removeItem(line)
 
     def add_card_to_scene(self, card: UMLCard):
         """Добавить карточку на сцену"""
@@ -951,7 +1071,10 @@ class MainWindow(QMainWindow):
         """Очистить сцену"""
         self.scene.clear()
         self.card_map.clear()
-        self.connection_map.clear()  # ← добавить
+        self.connection_map.clear()
+        self.uc_actor_map.clear()
+        self.uc_scenario_map.clear()
+        self.uc_connection_map.clear()
 
     def update_status(self, text: str):
         """Обновить статус"""

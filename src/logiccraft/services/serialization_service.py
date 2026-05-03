@@ -2,7 +2,10 @@
 import json
 from pathlib import Path
 from typing import Dict, Any, Tuple, List
-from ..models.diagram import UMLDiagram, UMLNode, UMLConnection
+from ..models.diagram import (
+    UMLDiagram, UMLNode, UMLConnection,
+    UseCaseActor, UseCaseScenario, UseCaseConnection
+)
 
 
 class SerializationService:
@@ -14,8 +17,12 @@ class SerializationService:
         return {
             "name": diagram.name,
             "id": diagram.id,
+            "diagram_type": diagram.diagram_type.value,
             "nodes": [SerializationService._serialize_node(node) for node in diagram.nodes],
-            "connections": [SerializationService._serialize_connection(conn) for conn in diagram.connections]
+            "connections": [SerializationService._serialize_connection(conn) for conn in diagram.connections],
+            "uc_actors": [a.model_dump() for a in diagram.uc_actors],
+            "uc_scenarios": [s.model_dump() for s in diagram.uc_scenarios],
+            "uc_connections": [c.model_dump() for c in diagram.uc_connections],
         }
 
     @staticmethod
@@ -49,12 +56,22 @@ class SerializationService:
         """Десериализовать диаграмму из словаря"""
         nodes = [UMLNode(**node_data) for node_data in data.get("nodes", [])]
         connections = [UMLConnection(**conn_data) for conn_data in data.get("connections", [])]
+        uc_actors = [UseCaseActor(**a) for a in data.get("uc_actors", [])]
+        uc_scenarios = [UseCaseScenario(**s) for s in data.get("uc_scenarios", [])]
+        uc_connections = [UseCaseConnection(**c) for c in data.get("uc_connections", [])]
+
+        from ..models.diagram import DiagramType
+        diagram_type = DiagramType(data.get("diagram_type", "class"))
 
         return UMLDiagram(
             id=data.get("id"),
             name=data.get("name", "Untitled"),
+            diagram_type=diagram_type,
             nodes=nodes,
-            connections=connections
+            connections=connections,
+            uc_actors=uc_actors,
+            uc_scenarios=uc_scenarios,
+            uc_connections=uc_connections,
         )
 
     @staticmethod

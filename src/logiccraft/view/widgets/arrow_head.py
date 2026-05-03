@@ -17,6 +17,10 @@ class ConnectionType(Enum):
     DEPENDENCY = "dependency"
     REALIZATION = "realization"
     INTERACTION = "interaction"
+    # Use Case
+    UC_ASSOCIATION = "uc_association"
+    UC_INCLUDE = "uc_include"
+    UC_EXTEND = "uc_extend"
 
 
 class ArrowHead(QGraphicsPolygonItem):
@@ -68,6 +72,20 @@ class ArrowHead(QGraphicsPolygonItem):
             self.setPolygon(QPolygonF(points))
             self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
             self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
+
+        elif type_value in ("uc_include", "uc_extend"):
+            # Открытая стрелка, пунктирная линия (задаётся в connection_line)
+            points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(size * 0.4, 0), QPointF(0, size * 0.6)]
+            self.setPolygon(QPolygonF(points))
+            self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
+
+        elif type_value == "uc_association":
+            # Простая линия без наконечника — рисуем невидимый полигон
+            points = [QPointF(0, 0)]
+            self.setPolygon(QPolygonF(points))
+            self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+            self.setPen(QPen(Qt.PenStyle.NoPen))
 
         else:  # association, interaction
             # Закрашенная стрелка

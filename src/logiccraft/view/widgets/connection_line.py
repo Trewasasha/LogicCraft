@@ -41,7 +41,7 @@ class ConnectionLine(QGraphicsLineItem):
         # Настройка пера
         pen = QPen(QColor(ConnectionStyle.LINE_COLOR), ConnectionStyle.LINE_WIDTH)
         type_value = connection_type.value if hasattr(connection_type, 'value') else str(connection_type)
-        if type_value in ("dependency", "realization"):
+        if type_value in ("dependency", "realization", "uc_include", "uc_extend"):
             pen.setStyle(Qt.PenStyle.DashLine)
         self.setPen(pen)
         self.setFlags(QGraphicsLineItem.GraphicsItemFlag.ItemIsSelectable)
@@ -65,6 +65,12 @@ class ConnectionLine(QGraphicsLineItem):
         self._name_label.setFont(QFont("Inter", 9))
         self._name_label.setDefaultTextColor(QColor("#6B7280"))
 
+        # Стереотип-метка для Include/Extend
+        self._stereotype_label = QGraphicsTextItem("", self)
+        self._stereotype_label.setFont(QFont("Inter", 8, QFont.Weight.Medium))
+        self._stereotype_label.setDefaultTextColor(QColor("#7C3AED"))
+        self._update_stereotype_label()
+
         self._update_labels()
         self.update_position()
 
@@ -87,6 +93,19 @@ class ConnectionLine(QGraphicsLineItem):
         self._source_mult_label.setVisible(bool(src_m))
         self._target_mult_label.setVisible(bool(tgt_m))
         self._name_label.setVisible(bool(self.name))
+
+    def _update_stereotype_label(self):
+        """Обновляет стереотип-метку для Include/Extend"""
+        type_value = self.connection_type.value if hasattr(self.connection_type, 'value') else str(self.connection_type)
+        if type_value == "uc_include":
+            self._stereotype_label.setPlainText("«include»")
+            self._stereotype_label.setVisible(True)
+        elif type_value == "uc_extend":
+            self._stereotype_label.setPlainText("«extend»")
+            self._stereotype_label.setVisible(True)
+        else:
+            self._stereotype_label.setPlainText("")
+            self._stereotype_label.setVisible(False)
 
     def update_position(self):
         """Обновление координат без пересоздания наконечника"""
@@ -128,6 +147,10 @@ class ConnectionLine(QGraphicsLineItem):
         self._target_mult_label.setPos(lp2.x() - 20, lp2.y() - 18)
         # Имя по центру линии
         self._name_label.setPos(mid.x() - self._name_label.boundingRect().width() / 2, mid.y() - 18)
+        # Стереотип по центру линии (чуть выше имени)
+        sl_w = self._stereotype_label.boundingRect().width()
+        offset = -32 if self._name_label.isVisible() else -18
+        self._stereotype_label.setPos(mid.x() - sl_w / 2, mid.y() + offset)
 
     def is_selected(self):
         return self._is_selected
@@ -156,11 +179,12 @@ class ConnectionLine(QGraphicsLineItem):
             self.arrow_head.set_connection_type(connection_type)
         type_value = connection_type.value if hasattr(connection_type, 'value') else str(connection_type)
         pen = self.pen()
-        if type_value in ("dependency", "realization"):
+        if type_value in ("dependency", "realization", "uc_include", "uc_extend"):
             pen.setStyle(Qt.PenStyle.DashLine)
         else:
             pen.setStyle(Qt.PenStyle.SolidLine)
         self.setPen(pen)
+        self._update_stereotype_label()
         self.update_position()
 
     def set_multiplicity(self, multiplicity: str):
