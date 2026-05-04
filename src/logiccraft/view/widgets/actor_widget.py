@@ -191,24 +191,6 @@ class ActorWidget(QGraphicsItem):
     def contextMenuEvent(self, event):
         from PyQt6.QtWidgets import QMenu
         menu = QMenu()
-        menu.setStyleSheet("""
-            QMenu {
-                background-color: #FFFFFF;
-                border: 1px solid #E5E0F8;
-                border-radius: 12px;
-                padding: 6px 0px;
-                min-width: 180px;
-            }
-            QMenu::item {
-                padding: 10px 18px;
-                font-size: 13px;
-                color: #1F1F1F;
-                border-radius: 6px;
-                margin: 1px 6px;
-            }
-            QMenu::item:selected { background-color: #F3EEFF; color: #7C3AED; }
-            QMenu::separator { height: 1px; background-color: #E5E0F8; margin: 4px 12px; }
-        """)
         rename_action = menu.addAction("✏  Переименовать")
         menu.addSeparator()
         delete_action = menu.addAction("🗑  Удалить актёра")
