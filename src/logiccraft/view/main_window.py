@@ -660,6 +660,10 @@ class MainWindow(QMainWindow):
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_A:
             self._on_select_all()
             return True
+        # Переименование выбранного элемента (Ctrl+M)
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_M:
+            self._on_rename_selected()
+            return True
         return False
     
     def keyPressEvent(self, event):
@@ -673,12 +677,19 @@ class MainWindow(QMainWindow):
         self.add_card_requested.emit(center.x(), center.y(), "class")
 
     def _on_copy(self):
-        """Копировать выбранные карточки"""
-        selected_ids = [item.id for item in self.scene.selectedItems()
-                        if isinstance(item, UMLCard)]
-        if selected_ids:
-            self.controller.copy_selected(selected_ids)
-            self.update_status(f"Скопировано: {len(selected_ids)} элементов")
+        """Копировать выбранные элементы (классы + UC)"""
+        from .widgets.actor_widget import ActorWidget
+        from .widgets.scenario_widget import ScenarioWidget
+
+        selected = self.scene.selectedItems()
+        card_ids = [i.id for i in selected if isinstance(i, UMLCard)]
+        actor_ids = [i.id for i in selected if isinstance(i, ActorWidget)]
+        scenario_ids = [i.id for i in selected if isinstance(i, ScenarioWidget)]
+
+        self.controller.copy_selected(card_ids, actor_ids, scenario_ids)
+        total = len(card_ids) + len(actor_ids) + len(scenario_ids)
+        if total:
+            self.update_status(f"Скопировано: {total} элементов")
 
     def _on_paste(self):
         """Вставить из буфера"""
@@ -867,10 +878,22 @@ class MainWindow(QMainWindow):
             self.show_info("Выберите элементы для удаления.")
             return
 
+        from .widgets.actor_widget import ActorWidget
+        from .widgets.scenario_widget import ScenarioWidget
+
         cards = [i for i in selected_items if isinstance(i, UMLCard)]
         conns = [i for i in selected_items if isinstance(i, ConnectionLine)]
+        actors = [i for i in selected_items if isinstance(i, ActorWidget)]
+        scenarios = [i for i in selected_items if isinstance(i, ScenarioWidget)]
+        # UC-связи не выделяются напрямую, но удаляем их если выделены
+        uc_conns = [i for i in selected_items if isinstance(i, ConnectionLine)
+                    and i.id in self.uc_connection_map]
 
-        count = len(cards) + len(conns)
+        count = len(cards) + len(conns) + len(actors) + len(scenarios)
+        if count == 0:
+            self.show_info("Выберите элементы для удаления.")
+            return
+
         reply = QMessageBox.question(
             self, "Подтвердить удаление",
             f"Удалить {count} элемент(ов)?",
@@ -880,9 +903,44 @@ class MainWindow(QMainWindow):
             return
 
         for conn in conns:
-            self.controller.remove_connection(conn.id)
+            if conn.id in self.uc_connection_map:
+                self.controller.remove_uc_connection(conn.id)
+            else:
+                self.controller.remove_connection(conn.id)
         for card in cards:
             self.controller.remove_card(card.id)
+        for actor in actors:
+            self.controller.remove_uc_actor(actor.id)
+        for scenario in scenarios:
+            self.controller.remove_uc_scenario(scenario.id)
+
+    def _on_rename_selected(self):
+        """Переименование выбранного элемента (Ctrl+M)"""
+        from PyQt6.QtWidgets import QInputDialog
+        from .widgets.actor_widget import ActorWidget
+        from .widgets.scenario_widget import ScenarioWidget
+
+        selected = self.scene.selectedItems()
+        if not selected:
+            return
+
+        item = selected[0]
+
+        if isinstance(item, UMLCard):
+            new_name, ok = QInputDialog.getText(self, "Переименовать", "Имя:", text=item.name)
+            if ok and new_name.strip():
+                self.controller.edit_card(item.id, new_name.strip(),
+                                          item.attributes, item.methods)
+        elif isinstance(item, ActorWidget):
+            new_name, ok = QInputDialog.getText(self, "Переименовать актёра", "Имя:", text=item.name)
+            if ok and new_name.strip():
+                item.update_name(new_name.strip())
+                self.controller.update_uc_actor(item.id, name=new_name.strip())
+        elif isinstance(item, ScenarioWidget):
+            new_name, ok = QInputDialog.getText(self, "Переименовать сценарий", "Имя:", text=item.name)
+            if ok and new_name.strip():
+                item.update_name(new_name.strip())
+                self.controller.update_uc_scenario(item.id, name=new_name.strip())
 
     def _on_edit_connection(self):
         """Редактирование выбранной связи"""

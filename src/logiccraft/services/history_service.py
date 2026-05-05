@@ -167,9 +167,12 @@ class HistoryService(QObject):
 
         current = self._stack[self._current_index]
 
-        # Базовая проверка количества
+        # Базовая проверка количества (включая UC-элементы)
         if len(state.nodes) != len(current.nodes) or \
-                len(state.connections) != len(current.connections):
+                len(state.connections) != len(current.connections) or \
+                len(state.uc_actors) != len(current.uc_actors) or \
+                len(state.uc_scenarios) != len(current.uc_scenarios) or \
+                len(state.uc_connections) != len(current.uc_connections):
             return False, "Structure changed"
 
         # Проверка узлов (позиции и контент)
@@ -192,6 +195,33 @@ class HistoryService(QObject):
             if not cc or conn.type != cc.type or \
                     conn.source_anchor != cc.source_anchor:
                 return False, "Connection attributes changed"
+
+        # Проверка UC-актёров
+        curr_actors = {a.id: a for a in current.uc_actors}
+        for actor in state.uc_actors:
+            ca = curr_actors.get(actor.id)
+            if not ca: return False, "UC Actor ID changed"
+            if abs(actor.x - ca.x) > 0.5 or abs(actor.y - ca.y) > 0.5:
+                return False, f"UC Actor moved: {actor.name}"
+            if actor.name != ca.name:
+                return False, "UC Actor name changed"
+
+        # Проверка UC-сценариев
+        curr_scenarios = {s.id: s for s in current.uc_scenarios}
+        for scenario in state.uc_scenarios:
+            cs = curr_scenarios.get(scenario.id)
+            if not cs: return False, "UC Scenario ID changed"
+            if abs(scenario.x - cs.x) > 0.5 or abs(scenario.y - cs.y) > 0.5:
+                return False, f"UC Scenario moved: {scenario.name}"
+            if scenario.name != cs.name:
+                return False, "UC Scenario name changed"
+
+        # Проверка UC-связей
+        curr_uc_conns = {c.id: c for c in current.uc_connections}
+        for uc_conn in state.uc_connections:
+            cc = curr_uc_conns.get(uc_conn.id)
+            if not cc or uc_conn.type != cc.type:
+                return False, "UC Connection changed"
 
         return True, "No significant changes detected"
 

@@ -280,20 +280,35 @@ class DiagramController(QObject):
             self.error_occurred.emit(f"Ошибка дублирования: {e}")
             return None
 
-    def copy_selected(self, card_ids: list) -> None:
-        """Сохранить выбранные карточки в буфер копирования"""
+    def copy_selected(self, card_ids: list,
+                      actor_ids: list = None,
+                      scenario_ids: list = None) -> None:
+        """Сохранить выбранные элементы в буфер копирования"""
         self._clipboard = []
+        self._clipboard_uc_actors = []
+        self._clipboard_uc_scenarios = []
+
         for card_id in card_ids:
             node = self.manager.get_node_by_id(card_id)
             if node:
                 self._clipboard.append(node.model_copy(deep=True))
 
+        for actor_id in (actor_ids or []):
+            actor = next((a for a in self.manager.diagram.uc_actors if a.id == actor_id), None)
+            if actor:
+                self._clipboard_uc_actors.append(actor.model_copy(deep=True))
+
+        for scenario_id in (scenario_ids or []):
+            scenario = next((s for s in self.manager.diagram.uc_scenarios if s.id == scenario_id), None)
+            if scenario:
+                self._clipboard_uc_scenarios.append(scenario.model_copy(deep=True))
+
     def paste_clipboard(self) -> list:
-        """Вставить карточки из буфера"""
-        if not hasattr(self, '_clipboard') or not self._clipboard:
-            return []
+        """Вставить элементы из буфера"""
         new_nodes = []
-        for source in self._clipboard:
+
+        # Вставка обычных классов
+        for source in getattr(self, '_clipboard', []):
             node = self.manager.add_node(
                 source.x + 40,
                 source.y + 40,
@@ -306,6 +321,21 @@ class DiagramController(QObject):
             node.is_abstract = source.is_abstract
             self.card_added.emit(node)
             new_nodes.append(node)
+
+        # Вставка UC-актёров
+        for source in getattr(self, '_clipboard_uc_actors', []):
+            actor = self.add_uc_actor(source.x + 40, source.y + 40,
+                                      name=source.name + "_copy")
+            if actor:
+                new_nodes.append(actor)
+
+        # Вставка UC-сценариев
+        for source in getattr(self, '_clipboard_uc_scenarios', []):
+            scenario = self.add_uc_scenario(source.x + 40, source.y + 40,
+                                            name=source.name + "_copy")
+            if scenario:
+                new_nodes.append(scenario)
+
         if new_nodes:
             self._save_state()
             self.status_changed.emit(f"Вставлено {len(new_nodes)} элементов")
