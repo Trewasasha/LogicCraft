@@ -161,8 +161,6 @@ class ActorWidget(QGraphicsItem):
     def setSelected(self, selected: bool):
         super().setSelected(selected)
         self._is_selected = selected
-        for anchor in self.anchors.values():
-            anchor.setVisible(selected)
         self.update()
 
     def isSelected(self) -> bool:

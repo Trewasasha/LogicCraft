@@ -200,6 +200,8 @@ class UseCaseConnection(BaseModel):
     source_id: str
     target_id: str
     type: ConnectionType = ConnectionType.uc_association
+    source_anchor: str = "right"
+    target_anchor: str = "left"
 
 
 # Обновляем forward references

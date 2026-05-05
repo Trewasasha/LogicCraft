@@ -911,7 +911,8 @@ class MainWindow(QMainWindow):
         all_uc_ids = set(self.uc_actor_map) | set(self.uc_scenario_map)
         if source_id in all_uc_ids or target_id in all_uc_ids or conn_type in uc_types:
             uc_type = conn_type if conn_type in uc_types else "uc_association"
-            self.controller.add_uc_connection(source_id, target_id, uc_type)
+            self.controller.add_uc_connection(source_id, target_id, uc_type,
+                                              source_anchor, target_anchor)
         else:
             self.controller.add_connection(source_id, target_id, conn_type, source_anchor, target_anchor)
 
@@ -958,9 +959,6 @@ class MainWindow(QMainWindow):
         )
         self.scene.addItem(widget)
         self.uc_actor_map[actor_model.id] = widget
-        # Показываем якоря только при выделении
-        for anchor in widget.anchors.values():
-            anchor.setVisible(False)
 
     def _on_uc_actor_removed(self, actor_id: str):
         widget = self.uc_actor_map.pop(actor_id, None)
@@ -985,8 +983,6 @@ class MainWindow(QMainWindow):
         )
         self.scene.addItem(widget)
         self.uc_scenario_map[scenario_model.id] = widget
-        for anchor in widget.anchors.values():
-            anchor.setVisible(False)
 
     def _on_uc_scenario_removed(self, scenario_id: str):
         widget = self.uc_scenario_map.pop(scenario_id, None)
@@ -1014,8 +1010,8 @@ class MainWindow(QMainWindow):
         line = ConnectionLine(
             source=source_widget,
             target=target_widget,
-            source_anchor="right",
-            target_anchor="left",
+            source_anchor=conn_model.source_anchor,
+            target_anchor=conn_model.target_anchor,
             connection_type=arrow_type,
             connection_id=conn_model.id
         )

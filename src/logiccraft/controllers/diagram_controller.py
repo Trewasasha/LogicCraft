@@ -417,13 +417,17 @@ class DiagramController(QObject):
         return False
 
     def add_uc_connection(self, source_id: str, target_id: str,
-                          conn_type: str = "uc_association") -> Optional[UseCaseConnection]:
+                          conn_type: str = "uc_association",
+                          source_anchor: str = "right",
+                          target_anchor: str = "left") -> Optional[UseCaseConnection]:
         """Добавить связь Use Case"""
         try:
             conn = UseCaseConnection(
                 source_id=source_id,
                 target_id=target_id,
-                type=ConnectionType(conn_type)
+                type=ConnectionType(conn_type),
+                source_anchor=source_anchor,
+                target_anchor=target_anchor
             )
             self.manager.diagram.uc_connections.append(conn)
             self.uc_connection_added.emit(conn)
