@@ -10,6 +10,8 @@ class DiagramScene(QGraphicsScene):
 
     connection_ready = pyqtSignal(str, str, str, str)
     card_moved = pyqtSignal(str, float, float)
+    actor_renamed = pyqtSignal(str, str)      # actor_id, new_name
+    scenario_renamed = pyqtSignal(str, str)   # scenario_id, new_name
 
     def __init__(self, parent=None):
         super().__init__(parent)

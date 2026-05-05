@@ -7,6 +7,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from typing import List, Dict, Optional, Any
 
 from ..models.diagram import UMLDiagram, UMLNode, UMLConnection, NodeType
+from ..models.diagram import UseCaseActor, UseCaseScenario, UseCaseConnection, ConnectionType
 from ..models.diagram_manager import DiagramManager
 from ..models.engine import DiagramEngine
 from ..services.code_generator import CodeGenerator
@@ -32,6 +33,14 @@ class DiagramController(QObject):
     status_changed = pyqtSignal(str)
     error_occurred = pyqtSignal(str)
     undo_redo_changed = pyqtSignal()
+
+    # Use Case сигналы
+    uc_actor_added = pyqtSignal(object)       # UseCaseActor
+    uc_actor_removed = pyqtSignal(str)
+    uc_scenario_added = pyqtSignal(object)    # UseCaseScenario
+    uc_scenario_removed = pyqtSignal(str)
+    uc_connection_added = pyqtSignal(object)  # UseCaseConnection
+    uc_connection_removed = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -305,6 +314,135 @@ class DiagramController(QObject):
     def select_all(self) -> list:
         """Вернуть все ID карточек для выделения"""
         return [node.id for node in self.manager.diagram.nodes]
+
+    # --- USE CASE ОПЕРАЦИИ ---
+
+    def add_uc_actor(self, x: float, y: float, name: str = None) -> Optional[UseCaseActor]:
+        """Добавить актёра Use Case"""
+        try:
+            if name is None:
+                n = len(self.manager.diagram.uc_actors) + 1
+                name = f"Актёр{n}"
+            actor = UseCaseActor(name=name, x=x, y=y)
+            self.manager.diagram.uc_actors.append(actor)
+            self.uc_actor_added.emit(actor)
+            self._save_state()
+            self.status_changed.emit(f"Актёр «{name}» добавлен")
+            return actor
+        except Exception as e:
+            self.error_occurred.emit(f"Ошибка добавления актёра: {e}")
+            return None
+
+    def remove_uc_actor(self, actor_id: str) -> bool:
+        """Удалить актёра и его связи"""
+        try:
+            diagram = self.manager.diagram
+            # Удаляем связи актёра
+            diagram.uc_connections = [
+                c for c in diagram.uc_connections
+                if c.source_id != actor_id and c.target_id != actor_id
+            ]
+            before = len(diagram.uc_actors)
+            diagram.uc_actors = [a for a in diagram.uc_actors if a.id != actor_id]
+            if len(diagram.uc_actors) < before:
+                self.uc_actor_removed.emit(actor_id)
+                self._save_state()
+                return True
+            return False
+        except Exception as e:
+            self.error_occurred.emit(f"Ошибка удаления актёра: {e}")
+            return False
+
+    def update_uc_actor(self, actor_id: str, name: str = None,
+                        x: float = None, y: float = None) -> bool:
+        """Обновить актёра"""
+        for actor in self.manager.diagram.uc_actors:
+            if actor.id == actor_id:
+                if name is not None:
+                    actor.name = name
+                if x is not None:
+                    actor.x = x
+                if y is not None:
+                    actor.y = y
+                return True
+        return False
+
+    def add_uc_scenario(self, x: float, y: float, name: str = None) -> Optional[UseCaseScenario]:
+        """Добавить сценарий Use Case"""
+        try:
+            if name is None:
+                n = len(self.manager.diagram.uc_scenarios) + 1
+                name = f"Сценарий{n}"
+            scenario = UseCaseScenario(name=name, x=x, y=y)
+            self.manager.diagram.uc_scenarios.append(scenario)
+            self.uc_scenario_added.emit(scenario)
+            self._save_state()
+            self.status_changed.emit(f"Сценарий «{name}» добавлен")
+            return scenario
+        except Exception as e:
+            self.error_occurred.emit(f"Ошибка добавления сценария: {e}")
+            return None
+
+    def remove_uc_scenario(self, scenario_id: str) -> bool:
+        """Удалить сценарий и его связи"""
+        try:
+            diagram = self.manager.diagram
+            diagram.uc_connections = [
+                c for c in diagram.uc_connections
+                if c.source_id != scenario_id and c.target_id != scenario_id
+            ]
+            before = len(diagram.uc_scenarios)
+            diagram.uc_scenarios = [s for s in diagram.uc_scenarios if s.id != scenario_id]
+            if len(diagram.uc_scenarios) < before:
+                self.uc_scenario_removed.emit(scenario_id)
+                self._save_state()
+                return True
+            return False
+        except Exception as e:
+            self.error_occurred.emit(f"Ошибка удаления сценария: {e}")
+            return False
+
+    def update_uc_scenario(self, scenario_id: str, name: str = None,
+                           x: float = None, y: float = None) -> bool:
+        """Обновить сценарий"""
+        for scenario in self.manager.diagram.uc_scenarios:
+            if scenario.id == scenario_id:
+                if name is not None:
+                    scenario.name = name
+                if x is not None:
+                    scenario.x = x
+                if y is not None:
+                    scenario.y = y
+                return True
+        return False
+
+    def add_uc_connection(self, source_id: str, target_id: str,
+                          conn_type: str = "uc_association") -> Optional[UseCaseConnection]:
+        """Добавить связь Use Case"""
+        try:
+            conn = UseCaseConnection(
+                source_id=source_id,
+                target_id=target_id,
+                type=ConnectionType(conn_type)
+            )
+            self.manager.diagram.uc_connections.append(conn)
+            self.uc_connection_added.emit(conn)
+            self._save_state()
+            return conn
+        except Exception as e:
+            self.error_occurred.emit(f"Ошибка создания UC-связи: {e}")
+            return None
+
+    def remove_uc_connection(self, conn_id: str) -> bool:
+        """Удалить связь Use Case"""
+        diagram = self.manager.diagram
+        before = len(diagram.uc_connections)
+        diagram.uc_connections = [c for c in diagram.uc_connections if c.id != conn_id]
+        if len(diagram.uc_connections) < before:
+            self.uc_connection_removed.emit(conn_id)
+            self._save_state()
+            return True
+        return False
 
     def validate_diagram(self) -> list:
         """Валидация диаграммы — возвращает список предупреждений"""

@@ -1,6 +1,6 @@
 """Левая панель инструментов — типы элементов и связей"""
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QFrame, QSizePolicy
+    QWidget, QVBoxLayout, QLabel, QPushButton, QFrame, QSizePolicy, QScrollArea
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -43,7 +43,7 @@ class ToolboxPanel(QWidget):
     """Левая панель с типами UML элементов и связей"""
 
     # Сигналы
-    add_element_requested = pyqtSignal(str)   # node_type
+    add_element_requested = pyqtSignal(str)   # node_type или uc_actor / uc_scenario
     set_connection_mode = pyqtSignal(str)      # connection_type
 
     def __init__(self, parent=None):
@@ -53,7 +53,21 @@ class ToolboxPanel(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        # Прокручиваемая область — чтобы все секции влезали
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        outer.addWidget(scroll)
+
+        container = QWidget()
+        scroll.setWidget(container)
+
+        layout = QVBoxLayout(container)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(16)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -63,7 +77,7 @@ class ToolboxPanel(QWidget):
         title.setObjectName("ToolboxTitle")
         layout.addWidget(title)
 
-        # Секция: Типы классов
+        # ── Секция: Диаграмма классов ──────────────────────────────────────────
         elements_section = ToolboxSection("Классы")
 
         btn_class = ToolboxButton("⬡", "Класс", "class")
@@ -83,12 +97,10 @@ class ToolboxPanel(QWidget):
         elements_section.add_button(btn_enum)
 
         layout.addWidget(elements_section)
-
-        # Разделитель
         layout.addWidget(self._make_divider())
 
-        # Секция: Типы связей
-        connections_section = ToolboxSection("Связи")
+        # ── Секция: Связи классов ──────────────────────────────────────────────
+        connections_section = ToolboxSection("Связи классов")
 
         conn_types = [
             ("→", "Ассоциация", "association"),
@@ -104,6 +116,36 @@ class ToolboxPanel(QWidget):
             connections_section.add_button(btn)
 
         layout.addWidget(connections_section)
+        layout.addWidget(self._make_divider())
+
+        # ── Секция: Use Case элементы ──────────────────────────────────────────
+        uc_elements_section = ToolboxSection("Use Case")
+
+        btn_actor = ToolboxButton("🧍", "Актёр", "uc_actor")
+        btn_actor.clicked.connect(lambda: self.add_element_requested.emit("uc_actor"))
+        uc_elements_section.add_button(btn_actor)
+
+        btn_scenario = ToolboxButton("○", "Сценарий", "uc_scenario")
+        btn_scenario.clicked.connect(lambda: self.add_element_requested.emit("uc_scenario"))
+        uc_elements_section.add_button(btn_scenario)
+
+        layout.addWidget(uc_elements_section)
+        layout.addWidget(self._make_divider())
+
+        # ── Секция: Связи Use Case ─────────────────────────────────────────────
+        uc_conn_section = ToolboxSection("Связи Use Case")
+
+        uc_conn_types = [
+            ("—", "Ассоциация", "uc_association"),
+            ("⇢", "Include", "uc_include"),
+            ("⇠", "Extend", "uc_extend"),
+        ]
+        for icon, label, ctype in uc_conn_types:
+            btn = ToolboxButton(icon, label, ctype)
+            btn.clicked.connect(lambda checked, t=ctype: self.set_connection_mode.emit(t))
+            uc_conn_section.add_button(btn)
+
+        layout.addWidget(uc_conn_section)
         layout.addStretch()
 
     def _make_divider(self) -> QFrame:

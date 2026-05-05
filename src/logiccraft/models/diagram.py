@@ -12,6 +12,12 @@ class NodeType(str, Enum):
     ABSTRACT_CLASS = "abstract_class"
 
 
+class DiagramType(str, Enum):
+    """Тип диаграммы"""
+    CLASS = "class"
+    USE_CASE = "use_case"
+
+
 class UMLEnumLiteral(BaseModel):
     """Значение перечисления (Enum literal)"""
     name: str
@@ -113,6 +119,10 @@ class ConnectionType(str, Enum):
     dependency = "dependency"        # зависимость
     interaction = "interaction"      # взаимодействие
     realization = "realization"      # реализация интерфейса
+    # Use Case связи
+    uc_association = "uc_association"  # актёр — сценарий
+    uc_include = "uc_include"          # <<include>>
+    uc_extend = "uc_extend"            # <<extend>>
 
 
 class UMLConnection(BaseModel):
@@ -131,8 +141,13 @@ class UMLDiagram(BaseModel):
     """Модель диаграммы"""
     id: str = Field(default_factory=lambda: str(uuid4()))
     name: str
+    diagram_type: DiagramType = DiagramType.CLASS
     nodes: list[UMLNode] = Field(default_factory=list)
     connections: list[UMLConnection] = Field(default_factory=list)
+    # Use Case элементы
+    uc_actors: List["UseCaseActor"] = Field(default_factory=list)
+    uc_scenarios: List["UseCaseScenario"] = Field(default_factory=list)
+    uc_connections: List["UseCaseConnection"] = Field(default_factory=list)
 
     def get_node(self, node_id: str) -> Optional[UMLNode]:
         """Получить узел по ID"""
@@ -158,6 +173,37 @@ class UMLDiagram(BaseModel):
                 errors.append(f"Connection {conn.id}: target {conn.target_id} not found")
 
         return errors
+
+
+# ─── Use Case модели ──────────────────────────────────────────────────────────
+
+class UseCaseActor(BaseModel):
+    """Актёр Use Case диаграммы"""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    name: str
+    x: float
+    y: float
+
+
+class UseCaseScenario(BaseModel):
+    """Сценарий (Use Case) — овал"""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    name: str
+    x: float
+    y: float
+    description: Optional[str] = None
+
+
+class UseCaseConnection(BaseModel):
+    """Связь между элементами Use Case диаграммы"""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    source_id: str
+    target_id: str
+    type: ConnectionType = ConnectionType.uc_association
+
+
+# Обновляем forward references
+UMLDiagram.model_rebuild()
 
 
 # Backward compatibility aliases
