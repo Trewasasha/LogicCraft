@@ -91,17 +91,25 @@ class DiagramScene(QGraphicsScene):
         self.connection_active = False
 
     def on_card_moved(self, card):
-        """Snap to grid + групповое перемещение"""
+        """Snap to grid + групповое перемещение (UMLCard, ActorWidget, ScenarioWidget)"""
         from ..widgets.uml_card import UMLCard
+        from ..widgets.actor_widget import ActorWidget
+        from ..widgets.scenario_widget import ScenarioWidget
         grid = SceneStyle.GRID_STEP
 
         # Если выделено несколько — двигаем все вместе
-        selected_cards = [item for item in self.selectedItems() if isinstance(item, UMLCard)]
-        targets = selected_cards if len(selected_cards) > 1 else [card]
+        selected_items = [
+            item for item in self.selectedItems()
+            if isinstance(item, (UMLCard, ActorWidget, ScenarioWidget))
+        ]
+        targets = selected_items if len(selected_items) > 1 else [card]
 
         for c in targets:
             x = round(c.pos().x() / grid) * grid
             y = round(c.pos().y() / grid) * grid
             if c.pos().x() != x or c.pos().y() != y:
                 c.setPos(x, y)
-            self.card_moved.emit(c.id, c.pos().x(), c.pos().y())
+            # card_moved используется только для UMLCard (контроллер обновляет модель)
+            # UC-элементы обновляют модель через move_finished → update_uc_actor/scenario
+            if isinstance(c, UMLCard):
+                self.card_moved.emit(c.id, c.pos().x(), c.pos().y())

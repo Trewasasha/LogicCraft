@@ -596,6 +596,13 @@ class MainWindow(QMainWindow):
         """Подключение сигналов сцены"""
         self.scene.connection_ready.connect(self._on_connection_ready)
         self.scene.card_moved.connect(self._on_card_moved)
+        # UC-переименования подключаем один раз здесь
+        self.scene.actor_renamed.connect(
+            lambda aid, name: self.controller.update_uc_actor(aid, name=name)
+        )
+        self.scene.scenario_renamed.connect(
+            lambda sid, name: self.controller.update_uc_scenario(sid, name=name)
+        )
 
     def _connect_controller_signals(self):
         """Подключение сигналов контроллера"""
@@ -1009,12 +1016,9 @@ class MainWindow(QMainWindow):
             actor_id=actor_model.id
         )
         widget.signals.move_finished.connect(
-            lambda aid, x, y: self.controller.update_uc_actor(aid, x=x, y=y)
+            lambda aid, x, y: self.controller.on_uc_actor_move_finished(aid, x, y)
         )
         widget.signals.delete_requested.connect(self.controller.remove_uc_actor)
-        self.scene.actor_renamed.connect(
-            lambda aid, name: self.controller.update_uc_actor(aid, name=name)
-        )
         self.scene.addItem(widget)
         self.uc_actor_map[actor_model.id] = widget
 
@@ -1033,12 +1037,9 @@ class MainWindow(QMainWindow):
             scenario_id=scenario_model.id
         )
         widget.signals.move_finished.connect(
-            lambda sid, x, y: self.controller.update_uc_scenario(sid, x=x, y=y)
+            lambda sid, x, y: self.controller.on_uc_scenario_move_finished(sid, x, y)
         )
         widget.signals.delete_requested.connect(self.controller.remove_uc_scenario)
-        self.scene.scenario_renamed.connect(
-            lambda sid, name: self.controller.update_uc_scenario(sid, name=name)
-        )
         self.scene.addItem(widget)
         self.uc_scenario_map[scenario_model.id] = widget
 

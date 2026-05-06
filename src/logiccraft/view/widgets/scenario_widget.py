@@ -90,6 +90,7 @@ class ScenarioWidget(QGraphicsItem):
         for name in ("top", "bottom", "left", "right"):
             anchor = AnchorPoint(self, name, self.ANCHOR_SIZE)
             anchor.setParentItem(self)
+            anchor.setVisible(False)
             self.anchors[name] = anchor
         self._update_anchor_positions()
 
@@ -123,6 +124,8 @@ class ScenarioWidget(QGraphicsItem):
     def setSelected(self, selected: bool):
         super().setSelected(selected)
         self._is_selected = selected
+        for anchor in self.anchors.values():
+            anchor.setVisible(selected)
         self.update()
 
     def isSelected(self) -> bool:

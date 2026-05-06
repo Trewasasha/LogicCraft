@@ -385,7 +385,7 @@ class DiagramController(QObject):
 
     def update_uc_actor(self, actor_id: str, name: str = None,
                         x: float = None, y: float = None) -> bool:
-        """Обновить актёра"""
+        """Обновить актёра и сохранить состояние в историю"""
         for actor in self.manager.diagram.uc_actors:
             if actor.id == actor_id:
                 if name is not None:
@@ -394,6 +394,17 @@ class DiagramController(QObject):
                     actor.x = x
                 if y is not None:
                     actor.y = y
+                self._save_state()
+                return True
+        return False
+
+    def on_uc_actor_move_finished(self, actor_id: str, x: float, y: float):
+        """Вызывается по завершению перетаскивания актёра (mouseRelease)"""
+        for actor in self.manager.diagram.uc_actors:
+            if actor.id == actor_id:
+                actor.x = x
+                actor.y = y
+                self._save_state()
                 return True
         return False
 
@@ -434,7 +445,7 @@ class DiagramController(QObject):
 
     def update_uc_scenario(self, scenario_id: str, name: str = None,
                            x: float = None, y: float = None) -> bool:
-        """Обновить сценарий"""
+        """Обновить сценарий и сохранить состояние в историю"""
         for scenario in self.manager.diagram.uc_scenarios:
             if scenario.id == scenario_id:
                 if name is not None:
@@ -443,6 +454,17 @@ class DiagramController(QObject):
                     scenario.x = x
                 if y is not None:
                     scenario.y = y
+                self._save_state()
+                return True
+        return False
+
+    def on_uc_scenario_move_finished(self, scenario_id: str, x: float, y: float):
+        """Вызывается по завершению перетаскивания сценария (mouseRelease)"""
+        for scenario in self.manager.diagram.uc_scenarios:
+            if scenario.id == scenario_id:
+                scenario.x = x
+                scenario.y = y
+                self._save_state()
                 return True
         return False
 
