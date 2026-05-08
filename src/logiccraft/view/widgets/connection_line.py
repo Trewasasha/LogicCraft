@@ -155,13 +155,16 @@ class ConnectionLine(QGraphicsLineItem):
     def is_selected(self):
         return self._is_selected
 
-    def set_selected(self, selected):
+    def set_selected(self, selected: bool):
         self._is_selected = selected
+        # Синхронизируем с Qt чтобы scene.selectedItems() работал
+        if self.isSelected() != selected:
+            self.setSelected(selected)
         color = QColor(ConnectionStyle.SELECTED_COLOR) if selected else QColor(ConnectionStyle.LINE_COLOR)
         width = ConnectionStyle.SELECTED_WIDTH if selected else ConnectionStyle.LINE_WIDTH
         pen = QPen(color, width)
         type_value = self.connection_type.value if hasattr(self.connection_type, 'value') else str(self.connection_type)
-        if type_value in ("dependency", "realization"):
+        if type_value in ("dependency", "realization", "uc_include", "uc_extend"):
             pen.setStyle(Qt.PenStyle.DashLine)
         self.setPen(pen)
         if self.arrow_head:

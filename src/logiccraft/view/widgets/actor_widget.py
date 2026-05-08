@@ -123,6 +123,7 @@ class ActorWidget(QGraphicsItem):
         for name in ("top", "bottom", "left", "right"):
             anchor = AnchorPoint(self, name, self.ANCHOR_SIZE)
             anchor.setParentItem(self)
+            anchor.setVisible(False)
             self.anchors[name] = anchor
         self._update_anchor_positions()
 

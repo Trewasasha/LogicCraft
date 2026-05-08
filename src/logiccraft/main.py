@@ -162,12 +162,19 @@ class Application:
         self.window.clear_scene()
         self.controller.card_map.clear()
         self.controller.connection_map.clear()
+        self.window.uc_actor_map.clear()
+        self.window.uc_scenario_map.clear()
+        self.window.uc_connection_map.clear()
 
     def _on_diagram_loaded(self):
         self.window.clear_scene()
         self.controller.card_map.clear()
         self.controller.connection_map.clear()
+        self.window.uc_actor_map.clear()
+        self.window.uc_scenario_map.clear()
+        self.window.uc_connection_map.clear()
 
+        # Восстанавливаем обычные классы
         for node in self.controller.manager.diagram.nodes:
             card = UMLCard(node.name, node.x, node.y,
                            attributes=[p.name for p in node.properties],
@@ -195,6 +202,16 @@ class Application:
                 )
                 self.controller.register_connection_view(conn.id, conn_line)
                 self.window.add_connection_to_scene(conn_line)
+
+        # Восстанавливаем UC-элементы
+        for actor in self.controller.manager.diagram.uc_actors:
+            self.controller.uc_actor_added.emit(actor)
+
+        for scenario in self.controller.manager.diagram.uc_scenarios:
+            self.controller.uc_scenario_added.emit(scenario)
+
+        for uc_conn in self.controller.manager.diagram.uc_connections:
+            self.controller.uc_connection_added.emit(uc_conn)
 
     def run(self):
         self._show_welcome_dialog()
