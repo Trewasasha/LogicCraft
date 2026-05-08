@@ -190,7 +190,7 @@ class ActorWidget(QGraphicsItem):
         event.accept()
 
     def contextMenuEvent(self, event):
-        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtWidgets import QMenu, QInputDialog
         menu = QMenu()
         rename_action = menu.addAction("✏  Переименовать")
         menu.addSeparator()
@@ -198,6 +198,15 @@ class ActorWidget(QGraphicsItem):
 
         action = menu.exec(event.screenPos())
         if action == rename_action:
-            self.mouseDoubleClickEvent(event)
+            scene = self.scene()
+            view = scene.views()[0] if scene and scene.views() else None
+            parent = view.window() if view else None
+            new_name, ok = QInputDialog.getText(
+                parent, "Переименовать актёра", "Имя:", text=self.name
+            )
+            if ok and new_name.strip():
+                self.update_name(new_name.strip())
+                if scene and hasattr(scene, 'actor_renamed'):
+                    scene.actor_renamed.emit(self.id, new_name.strip())
         elif action == delete_action:
             self.signals.delete_requested.emit(self.id)

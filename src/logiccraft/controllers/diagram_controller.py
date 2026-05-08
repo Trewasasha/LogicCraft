@@ -385,16 +385,16 @@ class DiagramController(QObject):
 
     def update_uc_actor(self, actor_id: str, name: str = None,
                         x: float = None, y: float = None) -> bool:
-        """Обновить актёра и сохранить состояние в историю"""
+        """Обновить актёра. Позицию обновляет без сохранения в историю — используй on_uc_actor_move_finished"""
         for actor in self.manager.diagram.uc_actors:
             if actor.id == actor_id:
                 if name is not None:
                     actor.name = name
+                    self._save_state()  # сохраняем только при изменении имени
                 if x is not None:
                     actor.x = x
                 if y is not None:
                     actor.y = y
-                self._save_state()
                 return True
         return False
 
@@ -445,16 +445,16 @@ class DiagramController(QObject):
 
     def update_uc_scenario(self, scenario_id: str, name: str = None,
                            x: float = None, y: float = None) -> bool:
-        """Обновить сценарий и сохранить состояние в историю"""
+        """Обновить сценарий. Позицию обновляет без сохранения в историю — используй on_uc_scenario_move_finished"""
         for scenario in self.manager.diagram.uc_scenarios:
             if scenario.id == scenario_id:
                 if name is not None:
                     scenario.name = name
+                    self._save_state()  # сохраняем только при изменении имени
                 if x is not None:
                     scenario.x = x
                 if y is not None:
                     scenario.y = y
-                self._save_state()
                 return True
         return False
 
@@ -555,6 +555,8 @@ class DiagramController(QObject):
                 warnings.append(f"❌ Связь ссылается на несуществующий класс")
 
         return warnings
+
+    def save_diagram(self, filepath: str) -> bool:
         """Сохранить диаграмму в файл"""
         return self.manager.save_to_file(filepath)
 
