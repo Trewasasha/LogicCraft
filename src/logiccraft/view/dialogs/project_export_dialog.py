@@ -14,6 +14,7 @@ from typing import Optional
 from ...models.diagram import UMLDiagram
 from ...models.project_settings import ProjectSettings, CodeStyleSettings
 from ...services.project_exporter import ProjectExporter
+from logiccraft.utils.icon_manager import icon_manager
 
 
 class ExportWorker(QThread):
@@ -80,10 +81,10 @@ class ProjectExportDialog(QDialog):
         root = QVBoxLayout(self)
 
         tabs = QTabWidget()
-        tabs.addTab(self._tab_basic(), "⚙️ Основные")
-        tabs.addTab(self._tab_codestyle(), "🎨 Стиль кода")
-        tabs.addTab(self._tab_extras(), "📁 Доп. файлы")
-        tabs.addTab(self._tab_preview(), "👁 Предпросмотр")
+        tabs.addTab(self._tab_basic(), "Основные")
+        tabs.addTab(self._tab_codestyle(), "Стиль кода")
+        tabs.addTab(self._tab_extras(), "Доп. файлы")
+        tabs.addTab(self._tab_preview(), "Предпросмотр")
         root.addWidget(tabs)
 
         # Progress bar (hidden by default)
@@ -95,7 +96,7 @@ class ProjectExportDialog(QDialog):
 
         # Buttons
         btn_row = QHBoxLayout()
-        self.btn_export = QPushButton("🚀 Экспортировать")
+        self.btn_export = QPushButton("Экспортировать")
         self.btn_export.setDefault(True)
         btn_cancel = QPushButton("Отмена")
         btn_row.addStretch()
@@ -224,7 +225,10 @@ class ProjectExportDialog(QDialog):
         self.preview_tree.setFont(QFont("Monospace", 9))
 
         self.preview_stats = QLabel()
-        btn_refresh = QPushButton("🔄 Обновить")
+        refresh_icon = icon_manager.get_icon("appdate")
+        btn_refresh = QPushButton()
+        btn_refresh.setIcon(refresh_icon)
+        btn_refresh.setToolTip("Обновить")
         btn_refresh.clicked.connect(self._refresh_preview)
 
         layout.addWidget(self.preview_tree)
