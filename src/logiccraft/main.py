@@ -20,6 +20,14 @@ class Application:
 
     def __init__(self):
         self.app = QApplication(sys.argv)
+
+        # Устанавливаем иконку приложения
+        from PyQt6.QtGui import QIcon
+        from pathlib import Path
+        icon_path = Path(__file__).parent.parent.parent / "resources" / "icons" / "icon2.png"
+        if icon_path.exists():
+            self.app.setWindowIcon(QIcon(str(icon_path)))
+
         self.app.setStyle("Fusion")
         apply_stylesheet(self.app)
 

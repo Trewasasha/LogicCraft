@@ -4,15 +4,17 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
+from pathlib import Path
+from logiccraft.utils.icon_manager import icon_manager
+
 
 class WelcomeCard(QPushButton):
     """Карточка действия на стартовом экране"""
 
-    def __init__(self, icon: str, title: str, subtitle: str, is_primary: bool = False):
+    def __init__(self, icon, title: str, subtitle: str, is_primary: bool = False):
         super().__init__()
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        # Растягиваемся вместе с окном
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setMinimumSize(200, 180)
 
@@ -32,9 +34,10 @@ class WelcomeCard(QPushButton):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_label = QLabel(icon)
+        icon_label = QLabel()
         icon_label.setObjectName(icon_obj_name)
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_label.setPixmap(icon.pixmap(48, 48))
         layout.addWidget(icon_label)
 
         title_label = QLabel(title)
@@ -76,24 +79,37 @@ class WelcomeDialog(QDialog):
         layout.setContentsMargins(50, 50, 50, 50)
         layout.setSpacing(40)
 
-        # Заголовок
+        top_layout = QHBoxLayout()
+        top_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        top_layout.setSpacing(15)
+
+        maus_icon = icon_manager.get_icon("maus")
+        if not maus_icon.isNull():
+            maus_label = QLabel()
+            maus_label.setPixmap(maus_icon.pixmap(56, 56))
+            top_layout.addWidget(maus_label)
+
         title = QLabel("СХЕМАТУС")
         title.setObjectName("WelcomeTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
 
-        # Подзаголовок
+
+
+        top_layout.addWidget(title)
+
+        layout.addLayout(top_layout)
+
         subtitle = QLabel("Начните работу с вашими схемами и классами")
         subtitle.setObjectName("WelcomeSubtitle")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(subtitle)
 
-        # Карточки — растягиваются вместе с окном
         cards_layout = QHBoxLayout()
         cards_layout.setSpacing(30)
 
+        folder_icon = icon_manager.get_icon("folder")
         open_card = WelcomeCard(
-            icon="📂",
+            icon=folder_icon,
             title="Открыть проект",
             subtitle="Выберите существующий проект",
             is_primary=False
@@ -101,8 +117,9 @@ class WelcomeDialog(QDialog):
         open_card.clicked.connect(self._on_open_project)
         cards_layout.addWidget(open_card)
 
+        add_icon = icon_manager.get_icon("add")
         new_card = WelcomeCard(
-            icon="✨",
+            icon=add_icon,
             title="Создать новый проект",
             subtitle="Начните с чистого листа",
             is_primary=True
