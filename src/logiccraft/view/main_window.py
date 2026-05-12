@@ -554,27 +554,7 @@ class MainWindow(QMainWindow):
 
     def _outline_btn_style(self) -> str:
         return ""
-                font-size: 13px;
-            }
-            QPushButton:hover { background-color: #6D28D9; }
-            QPushButton:pressed { background-color: #5B21B6; }
-        """
-
-    def _outline_btn_style(self) -> str:
-        return """
-            QPushButton {
-                background-color: transparent;
-                color: #7C3AED;
-                border: 1.5px solid #7C3AED;
-                border-radius: 20px;
-                padding: 7px 18px;
-                font-weight: 600;
-                font-size: 13px;
-            }
-            QPushButton:hover { background-color: #F3EEFF; }
-            QPushButton:pressed { background-color: #EDE9FE; }
-        """
-
+    
     def _setup_panels(self):
         """Настройка боковых панелей через QDockWidget"""
         # Левая панель — Toolbox
