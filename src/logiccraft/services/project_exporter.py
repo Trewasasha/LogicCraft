@@ -166,7 +166,7 @@ class ProjectExporter:
                 "type": "directory", 
                 "children": {
                     "index.md": {"type": "file", "content": self._generate_docs_index(settings)},
-                    "api.md": {"type": "file", "content": "# API Documentation\n\nTODO: Add API documentation"}
+                    "api.md": {"type": "file", "content": self._generate_api_docs(settings)}
                 }
             }
             
@@ -452,13 +452,44 @@ class ProjectExporter:
     # ─── Content generators ─────────────────────────────────────────────────────
 
     def _generate_readme(self, settings: ProjectSettings) -> str:
+        """Генерация README.md с полными инструкциями"""
         author_line = f"\nAuthor: {settings.author}" if settings.author else ""
         desc_line = f"\n{settings.description}" if settings.description else ""
+        
+        # Генерируем инструкции по установке в зависимости от языка
+        setup_instructions = self._get_setup_instructions(settings)
+        
+        # Генерируем примеры использования
+        usage_example = self._get_usage_example(settings)
+        
         return (
             f"# {settings.name}\n"
             f"{desc_line}\n"
             f"Version: {settings.version}{author_line}\n\n"
-            f"## Getting Started\n\nTODO: add setup instructions.\n"
+            f"## Features\n\n"
+            f"- Modern {settings.language} application\n"
+            f"- Clean architecture with {settings.architecture} pattern\n"
+            f"- Comprehensive test coverage\n"
+            f"- Well-documented codebase\n\n"
+            f"## Getting Started\n\n"
+            f"### Prerequisites\n\n"
+            f"{self._get_prerequisites(settings)}\n\n"
+            f"### Installation\n\n"
+            f"{setup_instructions}\n\n"
+            f"### Usage\n\n"
+            f"{usage_example}\n\n"
+            f"## Project Structure\n\n"
+            f"```\n"
+            f"{self._generate_tree_preview(settings)}\n"
+            f"```\n\n"
+            f"## Development\n\n"
+            f"{self._get_development_instructions(settings)}\n\n"
+            f"## Testing\n\n"
+            f"{self._get_testing_instructions(settings)}\n\n"
+            f"## Contributing\n\n"
+            f"Contributions are welcome! Please feel free to submit a Pull Request.\n\n"
+            f"## License\n\n"
+            f"This project is licensed under the {settings.license} License.\n"
         )
 
     def _generate_python_requirements(self, settings: ProjectSettings) -> str:
@@ -650,7 +681,300 @@ class ProjectExporter:
         return "bin/\nobj/\n*.user\n.vs/\n*.suo\n.DS_Store\n"
 
     def _generate_docs_index(self, settings: ProjectSettings) -> str:
-        return f'# {settings.name} Documentation\n\n{settings.description}\n\n## Overview\n\nTODO: add documentation.\n'
+        """Генерация index.md для документации"""
+        return (
+            f'# {settings.name} Documentation\n\n'
+            f'{settings.description}\n\n'
+            f'## Overview\n\n'
+            f'This documentation provides comprehensive information about the {settings.name} project.\n\n'
+            f'## Table of Contents\n\n'
+            f'- [Getting Started](../README.md)\n'
+            f'- [API Documentation](api.md)\n'
+            f'- [Architecture](architecture.md)\n'
+            f'- [Contributing](../CONTRIBUTING.md)\n\n'
+            f'## Quick Links\n\n'
+            f'- **Version**: {settings.version}\n'
+            f'- **Language**: {settings.language}\n'
+            f'- **Architecture**: {settings.architecture}\n'
+            f'- **License**: {settings.license}\n\n'
+            f'## Support\n\n'
+            f'For questions and support, please open an issue on the project repository.\n'
+        )
+    
+    def _get_prerequisites(self, settings: ProjectSettings) -> str:
+        """Получить список необходимых инструментов"""
+        prereqs = {
+            "python": "- Python 3.9 or higher\n- pip or poetry for package management",
+            "java": "- Java 17 or higher\n- Maven 3.8+ or Gradle 7.0+",
+            "javascript": "- Node.js 16 or higher\n- npm or yarn",
+            "typescript": "- Node.js 16 or higher\n- npm or yarn\n- TypeScript 4.5+",
+            "csharp": "- .NET 8.0 SDK or higher\n- Visual Studio 2022 or VS Code with C# extension"
+        }
+        return prereqs.get(settings.language.lower(), "- Check project requirements")
+    
+    def _get_setup_instructions(self, settings: ProjectSettings) -> str:
+        """Генерация инструкций по установке"""
+        instructions = {
+            "python": (
+                "1. Clone the repository:\n"
+                "```bash\n"
+                f"git clone <repository-url>\n"
+                f"cd {settings.name}\n"
+                "```\n\n"
+                "2. Install dependencies:\n"
+                "```bash\n"
+                "pip install -r requirements.txt\n"
+                "# or using poetry:\n"
+                "poetry install\n"
+                "```"
+            ),
+            "java": (
+                "1. Clone the repository:\n"
+                "```bash\n"
+                f"git clone <repository-url>\n"
+                f"cd {settings.name}\n"
+                "```\n\n"
+                "2. Build the project:\n"
+                "```bash\n"
+                "mvn clean install\n"
+                "# or using Gradle:\n"
+                "./gradlew build\n"
+                "```"
+            ),
+            "javascript": (
+                "1. Clone the repository:\n"
+                "```bash\n"
+                f"git clone <repository-url>\n"
+                f"cd {settings.name}\n"
+                "```\n\n"
+                "2. Install dependencies:\n"
+                "```bash\n"
+                "npm install\n"
+                "# or using yarn:\n"
+                "yarn install\n"
+                "```"
+            ),
+            "typescript": (
+                "1. Clone the repository:\n"
+                "```bash\n"
+                f"git clone <repository-url>\n"
+                f"cd {settings.name}\n"
+                "```\n\n"
+                "2. Install dependencies:\n"
+                "```bash\n"
+                "npm install\n"
+                "# or using yarn:\n"
+                "yarn install\n"
+                "```"
+            ),
+            "csharp": (
+                "1. Clone the repository:\n"
+                "```bash\n"
+                f"git clone <repository-url>\n"
+                f"cd {settings.name}\n"
+                "```\n\n"
+                "2. Restore dependencies:\n"
+                "```bash\n"
+                "dotnet restore\n"
+                "```\n\n"
+                "3. Build the project:\n"
+                "```bash\n"
+                "dotnet build\n"
+                "```"
+            )
+        }
+        return instructions.get(settings.language.lower(), "See project documentation for setup instructions.")
+    
+    def _get_usage_example(self, settings: ProjectSettings) -> str:
+        """Генерация примера использования"""
+        examples = {
+            "python": (
+                "```python\n"
+                f"from {settings.name} import main\n\n"
+                "# Run the application\n"
+                "if __name__ == '__main__':\n"
+                "    main()\n"
+                "```"
+            ),
+            "java": (
+                "```java\n"
+                f"// Run the application\n"
+                f"java -jar target/{settings.name}-{settings.version}.jar\n"
+                "```"
+            ),
+            "javascript": (
+                "```javascript\n"
+                f"const app = require('./{settings.name}');\n\n"
+                "// Start the application\n"
+                "app.start();\n"
+                "```"
+            ),
+            "typescript": (
+                "```typescript\n"
+                f"import {{ App }} from './{settings.name}';\n\n"
+                "// Start the application\n"
+                "const app = new App();\n"
+                "app.start();\n"
+                "```"
+            ),
+            "csharp": (
+                "```csharp\n"
+                "// Run the application\n"
+                "dotnet run\n"
+                "```"
+            )
+        }
+        return examples.get(settings.language.lower(), "See documentation for usage examples.")
+    
+    def _get_development_instructions(self, settings: ProjectSettings) -> str:
+        """Инструкции для разработки"""
+        dev_instructions = {
+            "python": (
+                "```bash\n"
+                "# Run in development mode\n"
+                "python -m src.main\n\n"
+                "# Format code\n"
+                "black .\n\n"
+                "# Lint code\n"
+                "flake8 .\n"
+                "```"
+            ),
+            "java": (
+                "```bash\n"
+                "# Run in development mode\n"
+                "mvn spring-boot:run\n\n"
+                "# Format code\n"
+                "mvn spotless:apply\n"
+                "```"
+            ),
+            "javascript": (
+                "```bash\n"
+                "# Run in development mode\n"
+                "npm run dev\n\n"
+                "# Lint code\n"
+                "npm run lint\n"
+                "```"
+            ),
+            "typescript": (
+                "```bash\n"
+                "# Run in development mode\n"
+                "npm run dev\n\n"
+                "# Build\n"
+                "npm run build\n\n"
+                "# Lint code\n"
+                "npm run lint\n"
+                "```"
+            ),
+            "csharp": (
+                "```bash\n"
+                "# Run in development mode\n"
+                "dotnet run --project src\n\n"
+                "# Watch for changes\n"
+                "dotnet watch run\n"
+                "```"
+            )
+        }
+        return dev_instructions.get(settings.language.lower(), "See documentation for development instructions.")
+    
+    def _get_testing_instructions(self, settings: ProjectSettings) -> str:
+        """Инструкции для тестирования"""
+        test_instructions = {
+            "python": (
+                "```bash\n"
+                "# Run tests\n"
+                "pytest\n\n"
+                "# Run tests with coverage\n"
+                "pytest --cov=src tests/\n"
+                "```"
+            ),
+            "java": (
+                "```bash\n"
+                "# Run tests\n"
+                "mvn test\n\n"
+                "# Run tests with coverage\n"
+                "mvn test jacoco:report\n"
+                "```"
+            ),
+            "javascript": (
+                "```bash\n"
+                "# Run tests\n"
+                "npm test\n\n"
+                "# Run tests with coverage\n"
+                "npm run test:coverage\n"
+                "```"
+            ),
+            "typescript": (
+                "```bash\n"
+                "# Run tests\n"
+                "npm test\n\n"
+                "# Run tests with coverage\n"
+                "npm run test:coverage\n"
+                "```"
+            ),
+            "csharp": (
+                "```bash\n"
+                "# Run tests\n"
+                "dotnet test\n\n"
+                "# Run tests with coverage\n"
+                "dotnet test /p:CollectCoverage=true\n"
+                "```"
+            )
+        }
+        return test_instructions.get(settings.language.lower(), "See documentation for testing instructions.")
+    
+    def _generate_tree_preview(self, settings: ProjectSettings) -> str:
+        """Генерация предпросмотра структуры проекта"""
+        trees = {
+            "python": (
+                f"{settings.name}/\n"
+                "├── src/\n"
+                "│   ├── __init__.py\n"
+                "│   └── main.py\n"
+                "├── tests/\n"
+                "│   └── test_main.py\n"
+                "├── requirements.txt\n"
+                "├── README.md\n"
+                "└── .gitignore"
+            ),
+            "java": (
+                f"{settings.name}/\n"
+                "├── src/\n"
+                "│   ├── main/java/\n"
+                "│   └── test/java/\n"
+                "├── pom.xml\n"
+                "├── README.md\n"
+                "└── .gitignore"
+            ),
+            "javascript": (
+                f"{settings.name}/\n"
+                "├── src/\n"
+                "│   └── index.js\n"
+                "├── tests/\n"
+                "├── package.json\n"
+                "├── README.md\n"
+                "└── .gitignore"
+            ),
+            "typescript": (
+                f"{settings.name}/\n"
+                "├── src/\n"
+                "│   └── index.ts\n"
+                "├── tests/\n"
+                "├── package.json\n"
+                "├── tsconfig.json\n"
+                "├── README.md\n"
+                "└── .gitignore"
+            ),
+            "csharp": (
+                f"{settings.name}/\n"
+                "├── src/\n"
+                "│   └── Program.cs\n"
+                "├── tests/\n"
+                "├── {settings.name}.csproj\n"
+                "├── README.md\n"
+                "└── .gitignore"
+            )
+        }
+        return trees.get(settings.language.lower(), f"{settings.name}/\n├── src/\n├── tests/\n└── README.md")
 
     def _generate_license(self, settings: ProjectSettings) -> str:
         year = __import__("datetime").date.today().year
@@ -711,3 +1035,121 @@ class ProjectExporter:
             else:
                 result.append(path)
         return result
+
+    def _generate_api_docs(self, settings: ProjectSettings) -> str:
+        """Генерация API документации"""
+        return (
+            f'# API Documentation\n\n'
+            f'## Overview\n\n'
+            f'This document describes the API endpoints and interfaces for {settings.name}.\n\n'
+            f'## Base Information\n\n'
+            f'- **Version**: {settings.version}\n'
+            f'- **Language**: {settings.language}\n'
+            f'- **Architecture**: {settings.architecture}\n\n'
+            f'## API Endpoints\n\n'
+            f'### Health Check\n\n'
+            f'**Endpoint**: `GET /health`\n\n'
+            f'**Description**: Check if the service is running.\n\n'
+            f'**Response**:\n'
+            f'```json\n'
+            f'{{\n'
+            f'  "status": "ok",\n'
+            f'  "version": "{settings.version}",\n'
+            f'  "timestamp": "2024-01-01T00:00:00Z"\n'
+            f'}}\n'
+            f'```\n\n'
+            f'### Main Endpoints\n\n'
+            f'#### GET /api/items\n\n'
+            f'Get all items.\n\n'
+            f'**Response**:\n'
+            f'```json\n'
+            f'[\n'
+            f'  {{"id": 1, "name": "Item 1"}},\n'
+            f'  {{"id": 2, "name": "Item 2"}}\n'
+            f']\n'
+            f'```\n\n'
+            f'#### GET /api/items/:id\n\n'
+            f'Get a specific item by ID.\n\n'
+            f'**Parameters**:\n'
+            f'- `id` (required): Item identifier\n\n'
+            f'**Response**:\n'
+            f'```json\n'
+            f'{{\n'
+            f'  "id": 1,\n'
+            f'  "name": "Item 1",\n'
+            f'  "description": "Description of item 1"\n'
+            f'}}\n'
+            f'```\n\n'
+            f'#### POST /api/items\n\n'
+            f'Create a new item.\n\n'
+            f'**Request Body**:\n'
+            f'```json\n'
+            f'{{\n'
+            f'  "name": "New Item",\n'
+            f'  "description": "Item description"\n'
+            f'}}\n'
+            f'```\n\n'
+            f'**Response**:\n'
+            f'```json\n'
+            f'{{\n'
+            f'  "id": 3,\n'
+            f'  "name": "New Item",\n'
+            f'  "description": "Item description"\n'
+            f'}}\n'
+            f'```\n\n'
+            f'#### PUT /api/items/:id\n\n'
+            f'Update an existing item.\n\n'
+            f'**Parameters**:\n'
+            f'- `id` (required): Item identifier\n\n'
+            f'**Request Body**:\n'
+            f'```json\n'
+            f'{{\n'
+            f'  "name": "Updated Item",\n'
+            f'  "description": "Updated description"\n'
+            f'}}\n'
+            f'```\n\n'
+            f'#### DELETE /api/items/:id\n\n'
+            f'Delete an item.\n\n'
+            f'**Parameters**:\n'
+            f'- `id` (required): Item identifier\n\n'
+            f'**Response**:\n'
+            f'```json\n'
+            f'{{\n'
+            f'  "message": "Item deleted successfully"\n'
+            f'}}\n'
+            f'```\n\n'
+            f'## Error Handling\n\n'
+            f'All API errors follow this format:\n\n'
+            f'```json\n'
+            f'{{\n'
+            f'  "error": {{\n'
+            f'    "code": "ERROR_CODE",\n'
+            f'    "message": "Human-readable error message",\n'
+            f'    "details": {{}}\n'
+            f'  }}\n'
+            f'}}\n'
+            f'```\n\n'
+            f'### Common Error Codes\n\n'
+            f'- `400` - Bad Request: Invalid input data\n'
+            f'- `401` - Unauthorized: Authentication required\n'
+            f'- `403` - Forbidden: Insufficient permissions\n'
+            f'- `404` - Not Found: Resource not found\n'
+            f'- `500` - Internal Server Error: Server error\n\n'
+            f'## Authentication\n\n'
+            f'API authentication can be implemented using:\n'
+            f'- Bearer tokens\n'
+            f'- API keys\n'
+            f'- OAuth 2.0\n\n'
+            f'Example:\n'
+            f'```\n'
+            f'Authorization: Bearer <your-token>\n'
+            f'```\n\n'
+            f'## Rate Limiting\n\n'
+            f'API requests are rate-limited to:\n'
+            f'- 100 requests per minute per IP\n'
+            f'- 1000 requests per hour per user\n\n'
+            f'## Versioning\n\n'
+            f'The API uses semantic versioning. Current version: {settings.version}\n\n'
+            f'## Support\n\n'
+            f'For API support, please contact the development team or open an issue.\n'
+        )
