@@ -2,10 +2,10 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QToolBar, QLabel, QFileDialog, QMessageBox, QGraphicsView,
-    QMenu, QMenuBar, QDockWidget, QSizePolicy
+    QMenu, QMenuBar, QDockWidget, QSizePolicy, QToolButton  # ← добавили QToolButton
 )
 from PyQt6.QtGui import QAction, QPainter, QKeySequence
-from PyQt6.QtCore import pyqtSignal, Qt, QTimer
+from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QSize  # добавь QSize
 
 from .scenes.diagram_scene import DiagramScene
 from .widgets.uml_card import UMLCard
@@ -16,6 +16,7 @@ from .dialogs.code_generation_dialog import CodeGenerationDialog
 from .dialogs.project_export_dialog import ProjectExportDialog
 from .panels.toolbox_panel import ToolboxPanel
 from .panels.properties_panel import PropertiesPanel
+from logiccraft.utils.icon_manager import icon_manager
 
 
 class DiagramView(QGraphicsView):
@@ -149,11 +150,13 @@ class MainWindow(QMainWindow):
         self.controller = controller
         self.card_map = {}
         self.connection_map = {}
-        self.uc_actor_map = {}      # actor_id -> ActorWidget
-        self.uc_scenario_map = {}   # scenario_id -> ScenarioWidget
-        self.uc_connection_map = {} # conn_id -> ConnectionLine
         self.setWindowTitle("LogicCraft UML Architect")
         self.setGeometry(100, 100, 1400, 860)
+
+        # Устанавливаем иконку окна
+        window_icon = icon_manager.get_icon("icon2")
+        if not window_icon.isNull():
+            self.setWindowIcon(window_icon)
 
         self._setup_ui()
         self._setup_menubar()
@@ -226,77 +229,103 @@ class MainWindow(QMainWindow):
 
         self.status_bar.addPermanentWidget(self.stats_label)
         self.status_bar.addPermanentWidget(zoom_widget)
-    
+
     def _setup_menubar(self):
-        """Настройка меню"""
+        """Настройка меню с иконками"""
         menubar = self.menuBar()
-        
+
         # Меню File
         file_menu = menubar.addMenu("&File")
-        
+
         # Save
-        save_action = QAction("💾 Save", self)
+        save_action = QAction(icon_manager.get_icon("save"), " Save", self)
         save_action.setShortcut(QKeySequence.StandardKey.Save)
         save_action.triggered.connect(self._on_save_clicked)
         file_menu.addAction(save_action)
-        
+
         # Load
-        load_action = QAction("📂 Load", self)
+        load_action = QAction(icon_manager.get_icon("folder"), " Load", self)
         load_action.setShortcut(QKeySequence.StandardKey.Open)
         load_action.triggered.connect(self._on_load_clicked)
         file_menu.addAction(load_action)
-        
+
         file_menu.addSeparator()
-        
+
         # Меню Edit с Undo/Redo
         edit_menu = menubar.addMenu("&Edit")
-        
+
         # Undo
-        self.undo_action = QAction("↩️ Undo", self)
+        self.undo_action = QAction(icon_manager.get_icon("undo"), " Undo", self)
         self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
         self.undo_action.triggered.connect(self._on_undo)
         self.undo_action.setEnabled(False)
         edit_menu.addAction(self.undo_action)
-        
+
         # Redo
-        self.redo_action = QAction("↪️ Redo", self)
+        self.redo_action = QAction(icon_manager.get_icon("redo"), " Redo", self)
         self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
         self.redo_action.triggered.connect(self._on_redo)
         self.redo_action.setEnabled(False)
         edit_menu.addAction(self.redo_action)
-        
+
         edit_menu.addSeparator()
-        
+
+        # Copy
+        copy_action = QAction(icon_manager.get_icon("copy"), " Копировать", self)
+        copy_action.setShortcut(QKeySequence("Ctrl+C"))
+        copy_action.triggered.connect(self._on_copy)
+        edit_menu.addAction(copy_action)
+
+        # Paste
+        paste_action = QAction(icon_manager.get_icon("duplicate"), " Вставить", self)
+        paste_action.setShortcut(QKeySequence("Ctrl+V"))
+        paste_action.triggered.connect(self._on_paste)
+        edit_menu.addAction(paste_action)
+
+        # Duplicate
+        duplicate_action = QAction(icon_manager.get_icon("duplicate"), " Дублировать", self)
+        duplicate_action.setShortcut(QKeySequence("Ctrl+D"))
+        duplicate_action.triggered.connect(self._on_duplicate)
+        edit_menu.addAction(duplicate_action)
+
+        # Select All
+        select_all_action = QAction(icon_manager.get_icon("copy"),"Выделить всё", self)
+        select_all_action.setShortcut(QKeySequence("Ctrl+A"))
+        select_all_action.triggered.connect(self._on_select_all)
+        edit_menu.addAction(select_all_action)
+
+        edit_menu.addSeparator()
+
         # Delete
-        delete_action = QAction("🗑️ Delete Selected", self)
+        delete_action = QAction(icon_manager.get_icon("garbage"), " Delete Selected", self)
         delete_action.setShortcut(QKeySequence("Del"))
         delete_action.triggered.connect(self._on_delete_selected)
         edit_menu.addAction(delete_action)
-        
+
         edit_menu.addSeparator()
-        
+
         # Clear All
-        clear_action = QAction("💥 Clear All", self)
+        clear_action = QAction(icon_manager.get_icon("clear"), " Clear All", self)
         clear_action.triggered.connect(self._on_clear_clicked)
         edit_menu.addAction(clear_action)
-        
+
         # Меню Tools
         tools_menu = menubar.addMenu("&Tools")
-        
+
         # Code Generation
-        generate_code_action = QAction("🚀 Generate Code", self)
+        generate_code_action = QAction(icon_manager.get_icon("generate"), " Generate Code", self)
         generate_code_action.setShortcut(QKeySequence("Ctrl+G"))
         generate_code_action.triggered.connect(self._on_generate_code_clicked)
         tools_menu.addAction(generate_code_action)
 
         # Export Project
-        export_project_action = QAction("📦 Export Project...", self)
+        export_project_action = QAction(icon_manager.get_icon("folder"), " Export Project...", self)
         export_project_action.setShortcut(QKeySequence("Ctrl+E"))
         export_project_action.triggered.connect(self._on_export_project_clicked)
         tools_menu.addAction(export_project_action)
 
         # Export Image
-        export_image_action = QAction("🖼️ Export Image (PNG/SVG)...", self)
+        export_image_action = QAction("Export Image (PNG/SVG)...", self)
         export_image_action.setShortcut(QKeySequence("Ctrl+Shift+E"))
         export_image_action.triggered.connect(self._on_export_image)
         tools_menu.addAction(export_image_action)
@@ -304,7 +333,7 @@ class MainWindow(QMainWindow):
         tools_menu.addSeparator()
 
         # Validate
-        validate_action = QAction("✅ Валидация диаграммы", self)
+        validate_action = QAction("Валидация диаграммы", self)
         validate_action.setShortcut(QKeySequence("Ctrl+Shift+V"))
         validate_action.triggered.connect(self._on_validate)
         tools_menu.addAction(validate_action)
@@ -312,7 +341,7 @@ class MainWindow(QMainWindow):
         tools_menu.addSeparator()
 
         # Align submenu
-        align_menu = tools_menu.addMenu("⬛ Выравнивание")
+        align_menu = tools_menu.addMenu("Выравнивание")
         for label, key, slot in [
             ("По левому краю",  "Ctrl+Shift+Left",  self._align_left),
             ("По правому краю", "Ctrl+Shift+Right", self._align_right),
@@ -326,31 +355,12 @@ class MainWindow(QMainWindow):
                 a.setShortcut(QKeySequence(key))
             a.triggered.connect(slot)
             align_menu.addAction(a)
-        copy_action = QAction("📋 Копировать", self)
-        copy_action.setShortcut(QKeySequence("Ctrl+C"))
-        copy_action.triggered.connect(self._on_copy)
-        edit_menu.addAction(copy_action)
 
-        paste_action = QAction("📌 Вставить", self)
-        paste_action.setShortcut(QKeySequence("Ctrl+V"))
-        paste_action.triggered.connect(self._on_paste)
-        edit_menu.addAction(paste_action)
-
-        duplicate_action = QAction("⧉ Дублировать", self)
-        duplicate_action.setShortcut(QKeySequence("Ctrl+D"))
-        duplicate_action.triggered.connect(self._on_duplicate)
-        edit_menu.addAction(duplicate_action)
-
-        select_all_action = QAction("⬜ Выделить всё", self)
-        select_all_action.setShortcut(QKeySequence("Ctrl+A"))
-        select_all_action.triggered.connect(self._on_select_all)
-        edit_menu.addAction(select_all_action)
-        
         # Подключаем сигналы undo/redo от контроллера
         self.controller.history.history_changed.connect(self._on_history_changed)
 
     def _setup_toolbar(self):
-        """Настройка тулбара"""
+        """Настройка тулбара с иконками"""
         toolbar = self.addToolBar("Main")
         toolbar.setMovable(False)
         toolbar.setStyleSheet("""
@@ -374,87 +384,179 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        # Левая часть — инструменты работы с диаграммой
-        add_action = QAction("➕ Добавить класс", self)
-        add_action.triggered.connect(self._on_add_clicked)
-        toolbar.addAction(add_action)
+        # ДОБАВЛЯЕМ 3 ПУСТЫХ РАЗДЕЛИТЕЛЯ (ячейки)
+        spacer1 = QWidget()
+        spacer1.setFixedWidth(30)  # ширина 1 ячейки
+        spacer1.setStyleSheet("background: transparent;")
+        toolbar.addWidget(spacer1)
 
+        spacer2 = QWidget()
+        spacer2.setFixedWidth(30)
+        spacer2.setStyleSheet("background: transparent;")
+        toolbar.addWidget(spacer2)
+
+        spacer3 = QWidget()
+        spacer3.setFixedWidth(30)
+        spacer3.setStyleSheet("background: transparent;")
+        toolbar.addWidget(spacer3)
+
+        # Левая часть — инструменты работы с диаграммой (теперь со сдвигом)
         toolbar.addSeparator()
 
-        edit_action = QAction("✏️ Редактировать", self)
+        edit_action = QAction(icon_manager.get_icon("pencil"), " Редактировать", self)
         edit_action.triggered.connect(self._on_edit_selected)
         toolbar.addAction(edit_action)
 
-        delete_action = QAction("🗑️ Удалить", self)
+        delete_action = QAction(icon_manager.get_icon("garbage"), " Удалить", self)
         delete_action.triggered.connect(self._on_delete_selected)
         toolbar.addAction(delete_action)
 
-        edit_conn_action = QAction("🔗 Связи", self)
+        edit_conn_action = QAction(icon_manager.get_icon("generate"), " Связи", self)
         edit_conn_action.triggered.connect(self._on_edit_connection)
         toolbar.addAction(edit_conn_action)
 
         toolbar.addSeparator()
 
-        clear_action = QAction("💥 Очистить", self)
-        clear_action.triggered.connect(self._on_clear_clicked)
-        toolbar.addAction(clear_action)
-
-        # Растягивающийся разделитель — пушит правые кнопки вправо
-        from PyQt6.QtWidgets import QSizePolicy, QPushButton
-        spacer = QWidget()
-        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        spacer.setStyleSheet("background: transparent;")
-        toolbar.addWidget(spacer)
-
-        # Правые кнопки — в стиле дизайна
-        save_btn = QPushButton("💾  Сохранить диаграмму")
-        save_btn.setStyleSheet(self._primary_btn_style())
-        save_btn.setFixedHeight(34)
-        save_btn.clicked.connect(self._on_save_clicked)
-        toolbar.addWidget(save_btn)
-
-        load_btn = QPushButton("📂  Загрузить диаграмму")
-        load_btn.setStyleSheet(self._outline_btn_style())
-        load_btn.setFixedHeight(34)
-        load_btn.clicked.connect(self._on_load_clicked)
-        toolbar.addWidget(load_btn)
-
-        gen_btn = QPushButton("⚡  Сгенерировать код")
-        gen_btn.setStyleSheet(self._primary_btn_style())
-        gen_btn.setFixedHeight(34)
-        gen_btn.clicked.connect(self._on_generate_code_clicked)
-        toolbar.addWidget(gen_btn)
-
-    def _primary_btn_style(self) -> str:
-        return """
-            QPushButton {
-                background-color: #7C3AED;
-                color: white;
+        # ===== НОВЫЕ КНОПКИ UNDO/REDO =====
+        # Кнопка Отменить (Undo)
+        undo_btn = QToolButton()
+        undo_btn.setIcon(icon_manager.get_icon("undo"))
+        undo_btn.setText(" Отменить")
+        undo_btn.setToolTip("Отменить последнее действие (Ctrl+Z)")
+        undo_btn.setIconSize(QSize(20, 20))
+        undo_btn.setStyleSheet("""
+            QToolButton {
+                background-color: transparent;
+                color: #1F1F1F;
                 border: none;
                 border-radius: 20px;
-                padding: 7px 18px;
-                font-weight: 600;
+                padding: 5px 12px;
+                font-weight: 500;
                 font-size: 13px;
             }
-            QPushButton:hover { background-color: #6D28D9; }
-            QPushButton:pressed { background-color: #5B21B6; }
-        """
+            QToolButton:hover {
+                background-color: #F3EEFF;
+                color: #7C3AED;
+            }
+        """)
+        undo_btn.clicked.connect(self._on_undo)
+        toolbar.addWidget(undo_btn)
 
-    def _outline_btn_style(self) -> str:
-        return """
-            QPushButton {
+        # Кнопка Вернуть (Redo)
+        redo_btn = QToolButton()
+        redo_btn.setIcon(icon_manager.get_icon("redo"))
+        redo_btn.setText(" Вернуть")
+        redo_btn.setToolTip("Вернуть отменённое действие (Ctrl+Y)")
+        redo_btn.setIconSize(QSize(20, 20))
+        redo_btn.setStyleSheet("""
+            QToolButton {
+                background-color: transparent;
+                color: #1F1F1F;
+                border: none;
+                border-radius: 20px;
+                padding: 5px 12px;
+                font-weight: 500;
+                font-size: 13px;
+            }
+            QToolButton:hover {
+                background-color: #F3EEFF;
+                color: #7C3AED;
+            }
+        """)
+        redo_btn.clicked.connect(self._on_redo)
+        toolbar.addWidget(redo_btn)
+
+        toolbar.addSeparator()
+
+        # Растягивающийся разделитель
+        from PyQt6.QtWidgets import QSizePolicy
+        spacer_flex = QWidget()
+        spacer_flex.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        spacer_flex.setStyleSheet("background: transparent;")
+        toolbar.addWidget(spacer_flex)
+
+        # Растягивающийся разделитель — пушит правые кнопки вправо
+        from PyQt6.QtWidgets import QSizePolicy
+        spacer_flex = QWidget()
+        spacer_flex.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        spacer_flex.setStyleSheet("background: transparent;")
+        toolbar.addWidget(spacer_flex)
+
+        # Кнопка Сохранить
+        save_btn = QToolButton()
+        save_btn.setIcon(icon_manager.get_icon("save"))
+        save_btn.setText(" Сохранить")
+        save_btn.setToolTip("Сохранить диаграмму")
+        save_btn.setIconSize(QSize(20, 20))
+        save_btn.setStyleSheet("""
+            QToolButton {
                 background-color: transparent;
                 color: #7C3AED;
                 border: 1.5px solid #7C3AED;
                 border-radius: 20px;
-                padding: 7px 18px;
+                padding: 5px 15px;
                 font-weight: 600;
                 font-size: 13px;
             }
-            QPushButton:hover { background-color: #F3EEFF; }
-            QPushButton:pressed { background-color: #EDE9FE; }
-        """
+            QToolButton:hover {
+                background-color: #F3EEFF;
+            }
+        """)
+        save_btn.clicked.connect(self._on_save_clicked)
+        toolbar.addWidget(save_btn)
 
+        # Кнопка Загрузить диаграмму
+        load_btn = QToolButton()
+        load_btn.setIcon(icon_manager.get_icon("folder"))
+        load_btn.setText(" Загрузить диаграмму")
+        load_btn.setToolTip("Загрузить диаграмму")
+        load_btn.setIconSize(QSize(20, 20))
+        load_btn.setStyleSheet("""
+            QToolButton {
+                background-color: transparent;
+                color: #7C3AED;
+                border: 1.5px solid #7C3AED;
+                border-radius: 20px;
+                padding: 5px 15px;
+                font-weight: 600;
+                font-size: 13px;
+            }
+            QToolButton:hover {
+                background-color: #F3EEFF;
+            }
+        """)
+        load_btn.clicked.connect(self._on_load_clicked)
+        toolbar.addWidget(load_btn)
+
+        # Кнопка Сгенерировать код
+        gen_btn = QToolButton()
+        gen_btn.setIcon(icon_manager.get_icon("code"))
+        gen_btn.setText(" Сгенерировать код")
+        gen_btn.setToolTip("Сгенерировать код")
+        gen_btn.setIconSize(QSize(20, 20))
+        gen_btn.setStyleSheet("""
+            QToolButton {
+                background-color: #7C3AED;
+                color: white;
+                border: 2px solid #7C3AED;
+                border-radius: 20px;
+                padding: 5px 15px;
+                font-weight: 600;
+                font-size: 13px;
+            }
+            QToolButton:hover {
+                background-color: #6D28D9;
+                border-color: #6D28D9;
+            }
+        """)
+        gen_btn.clicked.connect(self._on_generate_code_clicked)
+        toolbar.addWidget(gen_btn)
+
+    def _primary_btn_style(self) -> str:
+        return
+
+    def _outline_btn_style(self) -> str:
+        return
     def _setup_panels(self):
         """Настройка боковых панелей через QDockWidget"""
         # Левая панель — Toolbox
@@ -508,15 +610,7 @@ class MainWindow(QMainWindow):
         import random
         offset_x = random.randint(-60, 60)
         offset_y = random.randint(-60, 60)
-        x = center.x() + offset_x
-        y = center.y() + offset_y
-
-        if node_type == "uc_actor":
-            self.controller.add_uc_actor(x, y)
-        elif node_type == "uc_scenario":
-            self.controller.add_uc_scenario(x, y)
-        else:
-            self.add_card_requested.emit(x, y, node_type)
+        self.add_card_requested.emit(center.x() + offset_x, center.y() + offset_y, node_type)
 
     def _on_toolbox_set_connection_type(self, connection_type: str):
         """Применить тип связи к выбранной связи или запомнить для следующей"""
@@ -596,13 +690,6 @@ class MainWindow(QMainWindow):
         """Подключение сигналов сцены"""
         self.scene.connection_ready.connect(self._on_connection_ready)
         self.scene.card_moved.connect(self._on_card_moved)
-        # UC-переименования подключаем один раз здесь
-        self.scene.actor_renamed.connect(
-            lambda aid, name: self.controller.update_uc_actor(aid, name=name)
-        )
-        self.scene.scenario_renamed.connect(
-            lambda sid, name: self.controller.update_uc_scenario(sid, name=name)
-        )
 
     def _connect_controller_signals(self):
         """Подключение сигналов контроллера"""
@@ -612,13 +699,6 @@ class MainWindow(QMainWindow):
         self.controller.diagram_cleared.connect(self._on_diagram_cleared)
         self.controller.status_changed.connect(self.update_status)
         self.controller.error_occurred.connect(self.show_error)
-        # Use Case сигналы
-        self.controller.uc_actor_added.connect(self._on_uc_actor_added)
-        self.controller.uc_actor_removed.connect(self._on_uc_actor_removed)
-        self.controller.uc_scenario_added.connect(self._on_uc_scenario_added)
-        self.controller.uc_scenario_removed.connect(self._on_uc_scenario_removed)
-        self.controller.uc_connection_added.connect(self._on_uc_connection_added)
-        self.controller.uc_connection_removed.connect(self._on_uc_connection_removed)
 
     def _on_zoom_changed(self, percent: int):
         """Обновить индикатор масштаба"""
@@ -667,36 +747,25 @@ class MainWindow(QMainWindow):
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_A:
             self._on_select_all()
             return True
-        # Переименование выбранного элемента (Ctrl+M)
-        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_M:
-            self._on_rename_selected()
-            return True
         return False
-    
+
     def keyPressEvent(self, event):
         """Обработка нажатий клавиш (для MainWindow)"""
         if not self.handle_key_press(event):
             super().keyPressEvent(event)
-    
+
     def _on_add_clicked(self):
         """Обработка добавления карточки — обычный класс"""
         center = self.view.mapToScene(self.view.viewport().rect().center())
         self.add_card_requested.emit(center.x(), center.y(), "class")
 
     def _on_copy(self):
-        """Копировать выбранные элементы (классы + UC)"""
-        from .widgets.actor_widget import ActorWidget
-        from .widgets.scenario_widget import ScenarioWidget
-
-        selected = self.scene.selectedItems()
-        card_ids = [i.id for i in selected if isinstance(i, UMLCard)]
-        actor_ids = [i.id for i in selected if isinstance(i, ActorWidget)]
-        scenario_ids = [i.id for i in selected if isinstance(i, ScenarioWidget)]
-
-        self.controller.copy_selected(card_ids, actor_ids, scenario_ids)
-        total = len(card_ids) + len(actor_ids) + len(scenario_ids)
-        if total:
-            self.update_status(f"Скопировано: {total} элементов")
+        """Копировать выбранные карточки"""
+        selected_ids = [item.id for item in self.scene.selectedItems()
+                        if isinstance(item, UMLCard)]
+        if selected_ids:
+            self.controller.copy_selected(selected_ids)
+            self.update_status(f"Скопировано: {len(selected_ids)} элементов")
 
     def _on_paste(self):
         """Вставить из буфера"""
@@ -782,7 +851,7 @@ class MainWindow(QMainWindow):
         """Валидация диаграммы"""
         warnings = self.controller.validate_diagram()
         if not warnings:
-            QMessageBox.information(self, "Валидация", "✅ Диаграмма корректна!")
+            QMessageBox.information(self, "Валидация", "Диаграмма корректна!")
         else:
             msg = "\n".join(warnings)
             QMessageBox.warning(self, f"Валидация — {len(warnings)} замечаний", msg)
@@ -885,22 +954,10 @@ class MainWindow(QMainWindow):
             self.show_info("Выберите элементы для удаления.")
             return
 
-        from .widgets.actor_widget import ActorWidget
-        from .widgets.scenario_widget import ScenarioWidget
-
         cards = [i for i in selected_items if isinstance(i, UMLCard)]
         conns = [i for i in selected_items if isinstance(i, ConnectionLine)]
-        actors = [i for i in selected_items if isinstance(i, ActorWidget)]
-        scenarios = [i for i in selected_items if isinstance(i, ScenarioWidget)]
-        # UC-связи не выделяются напрямую, но удаляем их если выделены
-        uc_conns = [i for i in selected_items if isinstance(i, ConnectionLine)
-                    and i.id in self.uc_connection_map]
 
-        count = len(cards) + len(conns) + len(actors) + len(scenarios)
-        if count == 0:
-            self.show_info("Выберите элементы для удаления.")
-            return
-
+        count = len(cards) + len(conns)
         reply = QMessageBox.question(
             self, "Подтвердить удаление",
             f"Удалить {count} элемент(ов)?",
@@ -910,44 +967,9 @@ class MainWindow(QMainWindow):
             return
 
         for conn in conns:
-            if conn.id in self.uc_connection_map:
-                self.controller.remove_uc_connection(conn.id)
-            else:
-                self.controller.remove_connection(conn.id)
+            self.controller.remove_connection(conn.id)
         for card in cards:
             self.controller.remove_card(card.id)
-        for actor in actors:
-            self.controller.remove_uc_actor(actor.id)
-        for scenario in scenarios:
-            self.controller.remove_uc_scenario(scenario.id)
-
-    def _on_rename_selected(self):
-        """Переименование выбранного элемента (Ctrl+M)"""
-        from PyQt6.QtWidgets import QInputDialog
-        from .widgets.actor_widget import ActorWidget
-        from .widgets.scenario_widget import ScenarioWidget
-
-        selected = self.scene.selectedItems()
-        if not selected:
-            return
-
-        item = selected[0]
-
-        if isinstance(item, UMLCard):
-            new_name, ok = QInputDialog.getText(self, "Переименовать", "Имя:", text=item.name)
-            if ok and new_name.strip():
-                self.controller.edit_card(item.id, new_name.strip(),
-                                          item.attributes, item.methods)
-        elif isinstance(item, ActorWidget):
-            new_name, ok = QInputDialog.getText(self, "Переименовать актёра", "Имя:", text=item.name)
-            if ok and new_name.strip():
-                item.update_name(new_name.strip())
-                self.controller.update_uc_actor(item.id, name=new_name.strip())
-        elif isinstance(item, ScenarioWidget):
-            new_name, ok = QInputDialog.getText(self, "Переименовать сценарий", "Имя:", text=item.name)
-            if ok and new_name.strip():
-                item.update_name(new_name.strip())
-                self.controller.update_uc_scenario(item.id, name=new_name.strip())
 
     def _on_edit_connection(self):
         """Редактирование выбранной связи"""
@@ -971,15 +993,7 @@ class MainWindow(QMainWindow):
 
     def _on_connection_ready(self, source_id, target_id, source_anchor, target_anchor):
         conn_type = getattr(self, '_default_connection_type', 'association')
-        # Определяем, UC-связь или обычная
-        uc_types = {"uc_association", "uc_include", "uc_extend"}
-        all_uc_ids = set(self.uc_actor_map) | set(self.uc_scenario_map)
-        if source_id in all_uc_ids or target_id in all_uc_ids or conn_type in uc_types:
-            uc_type = conn_type if conn_type in uc_types else "uc_association"
-            self.controller.add_uc_connection(source_id, target_id, uc_type,
-                                              source_anchor, target_anchor)
-        else:
-            self.controller.add_connection(source_id, target_id, conn_type, source_anchor, target_anchor)
+        self.controller.add_connection(source_id, target_id, conn_type, source_anchor, target_anchor)
 
     def _on_card_moved(self, card_id, x, y):
         """Перемещение карточки - вызывается когда пользователь переместил карточку на сцене"""
@@ -1003,90 +1017,6 @@ class MainWindow(QMainWindow):
 
     def _on_diagram_cleared(self):
         self.clear_scene()
-
-    # ── Use Case обработчики ───────────────────────────────────────────────────
-
-    def _on_uc_actor_added(self, actor_model):
-        """Добавить виджет актёра на сцену"""
-        from .widgets.actor_widget import ActorWidget
-        widget = ActorWidget(
-            name=actor_model.name,
-            x=actor_model.x,
-            y=actor_model.y,
-            actor_id=actor_model.id
-        )
-        widget.signals.move_finished.connect(
-            lambda aid, x, y: self.controller.on_uc_actor_move_finished(aid, x, y)
-        )
-        widget.signals.delete_requested.connect(self.controller.remove_uc_actor)
-        self.scene.addItem(widget)
-        self.uc_actor_map[actor_model.id] = widget
-
-    def _on_uc_actor_removed(self, actor_id: str):
-        widget = self.uc_actor_map.pop(actor_id, None)
-        if widget and widget.scene():
-            self.scene.removeItem(widget)
-
-    def _on_uc_scenario_added(self, scenario_model):
-        """Добавить виджет сценария на сцену"""
-        from .widgets.scenario_widget import ScenarioWidget
-        widget = ScenarioWidget(
-            name=scenario_model.name,
-            x=scenario_model.x,
-            y=scenario_model.y,
-            scenario_id=scenario_model.id
-        )
-        widget.signals.move_finished.connect(
-            lambda sid, x, y: self.controller.on_uc_scenario_move_finished(sid, x, y)
-        )
-        widget.signals.delete_requested.connect(self.controller.remove_uc_scenario)
-        self.scene.addItem(widget)
-        self.uc_scenario_map[scenario_model.id] = widget
-
-    def _on_uc_scenario_removed(self, scenario_id: str):
-        widget = self.uc_scenario_map.pop(scenario_id, None)
-        if widget and widget.scene():
-            self.scene.removeItem(widget)
-
-    def _on_uc_connection_added(self, conn_model):
-        """Добавить линию UC-связи на сцену"""
-        from .widgets.connection_line import ConnectionLine
-        from .widgets.arrow_head import ConnectionType as ArrowConnType
-
-        # Ищем виджеты источника и цели среди всех UC-элементов
-        all_uc = {**self.uc_actor_map, **self.uc_scenario_map}
-        source_widget = all_uc.get(conn_model.source_id)
-        target_widget = all_uc.get(conn_model.target_id)
-
-        if not source_widget or not target_widget:
-            return
-
-        try:
-            arrow_type = ArrowConnType(conn_model.type.value)
-        except ValueError:
-            arrow_type = ArrowConnType.UC_ASSOCIATION
-
-        line = ConnectionLine(
-            source=source_widget,
-            target=target_widget,
-            source_anchor=conn_model.source_anchor,
-            target_anchor=conn_model.target_anchor,
-            connection_type=arrow_type,
-            connection_id=conn_model.id
-        )
-        self.scene.addItem(line)
-        self.uc_connection_map[conn_model.id] = line
-        line.signals.about_to_delete.connect(
-            lambda c: self.controller.remove_uc_connection(c.id)
-        )
-
-    def _on_uc_connection_removed(self, conn_id: str):
-        line = self.uc_connection_map.pop(conn_id, None)
-        if line:
-            if hasattr(line, 'arrow_head') and line.arrow_head and line.arrow_head.scene():
-                self.scene.removeItem(line.arrow_head)
-            if line.scene():
-                self.scene.removeItem(line)
 
     def add_card_to_scene(self, card: UMLCard):
         """Добавить карточку на сцену"""
@@ -1127,9 +1057,6 @@ class MainWindow(QMainWindow):
         self.scene.clear()
         self.card_map.clear()
         self.connection_map.clear()
-        self.uc_actor_map.clear()
-        self.uc_scenario_map.clear()
-        self.uc_connection_map.clear()
 
     def update_status(self, text: str):
         """Обновить статус"""
