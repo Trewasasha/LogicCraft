@@ -113,3 +113,9 @@ class DiagramScene(QGraphicsScene):
             # UC-элементы обновляют модель через move_finished → update_uc_actor/scenario
             if isinstance(c, UMLCard):
                 self.card_moved.emit(c.id, c.pos().x(), c.pos().y())
+
+    def on_card_name_changed(self, card_id: str, old_name: str, new_name: str):
+        """Обработка изменения имени карточки через inline редактирование"""
+        # Эмитим сигнал для контроллера
+        # Контроллер должен обновить модель
+        pass  # Пока просто заглушка, логика в контроллере

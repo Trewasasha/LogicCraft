@@ -767,7 +767,10 @@ class MainWindow(QMainWindow):
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_A:
             self._on_select_all()
             return True
-        # Переименование выбранного элемента (Ctrl+M)
+        # Переименование выбранного элемента (F2 или Ctrl+M)
+        if event.key() == Qt.Key.Key_F2:
+            self._on_inline_rename()
+            return True
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_M:
             self._on_rename_selected()
             return True
@@ -1022,7 +1025,7 @@ class MainWindow(QMainWindow):
             self.controller.remove_uc_scenario(scenario.id)
 
     def _on_rename_selected(self):
-        """Переименование выбранного элемента (Ctrl+M)"""
+        """Переименование выбранного элемента (Ctrl+M) - через диалог"""
         from PyQt6.QtWidgets import QInputDialog
         from .widgets.actor_widget import ActorWidget
         from .widgets.scenario_widget import ScenarioWidget
@@ -1048,6 +1051,18 @@ class MainWindow(QMainWindow):
             if ok and new_name.strip():
                 item.update_name(new_name.strip())
                 self.controller.update_uc_scenario(item.id, name=new_name.strip())
+    
+    def _on_inline_rename(self):
+        """Inline переименование выбранного элемента (F2)"""
+        selected = self.scene.selectedItems()
+        if not selected:
+            return
+        
+        item = selected[0]
+        
+        # Пока поддерживаем только UMLCard
+        if isinstance(item, UMLCard):
+            item.start_inline_editing()
 
     def _on_edit_connection(self):
         """Редактирование выбранной связи"""

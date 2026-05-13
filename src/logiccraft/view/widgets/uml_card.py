@@ -46,6 +46,7 @@ class UMLCard(QGraphicsRectItem):
         self.anchors = {}
         self._anchor_size = 8
         self._is_selected = False
+        self._inline_editor = None  # Для inline редактирования
 
         self.signals = CardSignals()
 
@@ -279,6 +280,61 @@ class UMLCard(QGraphicsRectItem):
     def hoverLeaveEvent(self, event):
         """При уходе курсора"""
         super().hoverLeaveEvent(event)
+    
+    def start_inline_editing(self):
+        """Начать inline редактирование имени класса"""
+        if self._inline_editor:
+            return  # Уже редактируем
+        
+        from .inline_editor import InlineEditor
+        
+        # Создаем inline редактор
+        self._inline_editor = InlineEditor(self.name, self)
+        
+        # Позиционируем редактор в центре заголовка
+        editor_rect = self._inline_editor.boundingRect()
+        x = (self.rect().width() - editor_rect.width()) / 2
+        y = (self.HEADER_HEIGHT - editor_rect.height()) / 2
+        self._inline_editor.setPos(x, y)
+        
+        # Скрываем обычный текст заголовка
+        self.header_text.setVisible(False)
+        
+        # Подключаем сигналы
+        self._inline_editor.signals.editing_finished.connect(self._on_inline_edit_finished)
+        self._inline_editor.signals.editing_cancelled.connect(self._on_inline_edit_cancelled)
+    
+    def _on_inline_edit_finished(self, new_name: str):
+        """Завершено inline редактирование"""
+        if new_name and new_name != self.name:
+            # Обновляем имя
+            old_name = self.name
+            self.name = new_name
+            self.update_content()
+            
+            # Уведомляем контроллер об изменении
+            # (контроллер должен обработать это через сигнал)
+            scene = self.scene()
+            if scene and hasattr(scene, 'on_card_name_changed'):
+                scene.on_card_name_changed(self.id, old_name, new_name)
+        
+        self._cleanup_inline_editor()
+    
+    def _on_inline_edit_cancelled(self):
+        """Отменено inline редактирование"""
+        self._cleanup_inline_editor()
+    
+    def _cleanup_inline_editor(self):
+        """Удалить inline редактор"""
+        if self._inline_editor:
+            self._inline_editor.signals.editing_finished.disconnect()
+            self._inline_editor.signals.editing_cancelled.disconnect()
+            self.scene().removeItem(self._inline_editor)
+            self._inline_editor = None
+        
+        # Показываем обычный текст заголовка
+        self.header_text.setVisible(True)
+        self.update()
 
     def contextMenuEvent(self, event):
         """Контекстное меню по правому клику"""
