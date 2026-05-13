@@ -16,6 +16,7 @@ from .dialogs.code_generation_dialog import CodeGenerationDialog
 from .dialogs.project_export_dialog import ProjectExportDialog
 from .panels.toolbox_panel import ToolboxPanel
 from .panels.properties_panel import PropertiesPanel
+from .widgets.minimap_widget import MiniMapWidget
 from logiccraft.utils.icon_manager import icon_manager
 
 
@@ -153,6 +154,9 @@ class MainWindow(QMainWindow):
         self.uc_actor_map = {}      # actor_id -> ActorWidget
         self.uc_scenario_map = {}   # scenario_id -> ScenarioWidget
         self.uc_connection_map = {} # conn_id -> ConnectionLine
+        self._search_widget = None  # Виджет поиска
+        self._minimap_widget = None # Виджет мини-карты
+        self._minimap_dock = None   # Dock для мини-карты
         self.setWindowTitle("LogicCraft UML Architect")
         self.setGeometry(100, 100, 1400, 860)
 
@@ -315,6 +319,14 @@ class MainWindow(QMainWindow):
         # Меню Tools
         tools_menu = menubar.addMenu("&Tools")
         
+        # Search Classes
+        search_action = QAction("🔍 Поиск классов...", self)
+        search_action.setShortcut(QKeySequence("Ctrl+F"))
+        search_action.triggered.connect(self._show_search)
+        tools_menu.addAction(search_action)
+        
+        tools_menu.addSeparator()
+        
         # Code Generation
         generate_code_action = QAction(icon_manager.get_icon("generate"), " Generate Code", self)
         generate_code_action.setShortcut(QKeySequence("Ctrl+G"))
@@ -340,6 +352,15 @@ class MainWindow(QMainWindow):
         validate_action.setShortcut(QKeySequence("Ctrl+Shift+V"))
         validate_action.triggered.connect(self._on_validate)
         tools_menu.addAction(validate_action)
+        
+        tools_menu.addSeparator()
+        
+        # Toggle Mini-map
+        self.minimap_toggle_action = QAction("🗺️ Показать мини-карту", self)
+        self.minimap_toggle_action.setCheckable(True)
+        self.minimap_toggle_action.setChecked(True)
+        self.minimap_toggle_action.triggered.connect(self._toggle_minimap)
+        tools_menu.addAction(self.minimap_toggle_action)
 
         tools_menu.addSeparator()
 
@@ -585,6 +606,21 @@ class MainWindow(QMainWindow):
         )
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, properties_dock)
 
+        # Мини-карта — правая нижняя панель
+        self._minimap_widget = MiniMapWidget(self.scene)
+        self._minimap_widget.set_main_view(self.view)
+        self._minimap_dock = QDockWidget("Мини-карта", self)
+        self._minimap_dock.setWidget(self._minimap_widget)
+        self._minimap_dock.setAllowedAreas(
+            Qt.DockWidgetArea.RightDockWidgetArea |
+            Qt.DockWidgetArea.LeftDockWidgetArea
+        )
+        self._minimap_dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetClosable
+        )
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._minimap_dock)
+
         # Подключаем сигналы Toolbox
         self.toolbox_panel.add_element_requested.connect(self._on_toolbox_add_element)
         self.toolbox_panel.set_connection_mode.connect(self._on_toolbox_set_connection_type)
@@ -596,11 +632,18 @@ class MainWindow(QMainWindow):
         self.properties_panel.methods_changed.connect(self._on_properties_methods_changed)
         self.properties_panel.delete_requested.connect(self._on_properties_delete)
 
+        # Подключаем сигналы мини-карты
+        self._minimap_widget.viewport_clicked.connect(self._on_minimap_clicked)
+
         # Слушаем изменение выделения на сцене
         self.scene.selectionChanged.connect(self._on_scene_selection_changed)
 
         # Подключаем zoom сигнал
         self.view.zoom_changed.connect(self._on_zoom_changed)
+        
+        # Обновляем мини-карту при прокрутке главного вида
+        self.view.horizontalScrollBar().valueChanged.connect(self._update_minimap)
+        self.view.verticalScrollBar().valueChanged.connect(self._update_minimap)
 
     def _on_toolbox_add_element(self, node_type: str):
         """Добавить элемент из тулбокса в центр холста"""
@@ -653,8 +696,12 @@ class MainWindow(QMainWindow):
                 attributes=card.attributes,
                 methods=card.methods
             )
+            # Подсвечиваем связанные классы
+            self.scene.highlight_related_cards(card.id, self.card_map, self.connection_map)
         else:
             self.properties_panel.show_empty()
+            # Снимаем подсветку если ничего не выбрано
+            self.scene.clear_highlights(self.card_map, self.connection_map)
 
     def _on_properties_name_changed(self, card_id: str, name: str):
         card = self.card_map.get(card_id)
@@ -723,6 +770,27 @@ class MainWindow(QMainWindow):
     def _on_zoom_changed(self, percent: int):
         """Обновить индикатор масштаба"""
         self.zoom_label.setText(f"{percent}%")
+        self._update_minimap()
+    
+    def _update_minimap(self):
+        """Обновить мини-карту"""
+        if self._minimap_widget:
+            self._minimap_widget.update_viewport()
+    
+    def _on_minimap_clicked(self, x: float, y: float):
+        """Обработка клика на мини-карте - центрируем главный вид"""
+        self.view.centerOn(x, y)
+    
+    def _toggle_minimap(self):
+        """Переключить видимость мини-карты"""
+        if self._minimap_dock:
+            if self._minimap_dock.isVisible():
+                self._minimap_dock.hide()
+                self.minimap_toggle_action.setText("🗺️ Показать мини-карту")
+            else:
+                self._minimap_dock.show()
+                self.minimap_toggle_action.setText("🗺️ Скрыть мини-карту")
+                self._update_minimap()
 
     def handle_key_press(self, event):
         """Обработка нажатий клавиш (вызывается из DiagramView)"""
@@ -751,7 +819,12 @@ class MainWindow(QMainWindow):
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_0:
             self.view.reset_zoom()
             return True
+        # Поиск классов
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_F:
+            self._show_search()
+            return True
+        # Вписать в экран
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_G:
             self.view.fit_in_view_all()
             return True
         # Копирование / вставка / дублирование / выделить всё
@@ -1063,6 +1136,62 @@ class MainWindow(QMainWindow):
         # Пока поддерживаем только UMLCard
         if isinstance(item, UMLCard):
             item.start_inline_editing()
+    
+    def _show_search(self):
+        """Показать виджет поиска классов (Ctrl+F)"""
+        from .widgets.search_widget import SearchWidget
+        
+        if self._search_widget is None:
+            self._search_widget = SearchWidget(self)
+            self._search_widget.class_selected.connect(self._on_search_class_selected)
+            self._search_widget.close_requested.connect(self._on_search_closed)
+        
+        # Обновляем список карточек
+        cards = [card for card in self.card_map.values()]
+        self._search_widget.set_cards(cards)
+        
+        # Позиционируем виджет в центре окна
+        widget_width = self._search_widget.width()
+        widget_height = self._search_widget.height()
+        x = (self.width() - widget_width) // 2
+        y = 100  # Отступ сверху
+        self._search_widget.move(self.mapToGlobal(self.rect().topLeft()) + self.rect().topLeft() + self.pos() + self.geometry().topLeft())
+        self._search_widget.move(x, y)
+        
+        self._search_widget.show()
+        self._search_widget.raise_()
+        self._search_widget.activateWindow()
+    
+    def _on_search_class_selected(self, card_id: str):
+        """Обработка выбора класса из поиска"""
+        if card_id in self.card_map:
+            card = self.card_map[card_id]
+            
+            # Снимаем выделение со всех элементов
+            self.scene.clearSelection()
+            
+            # Выделяем найденный класс
+            card.setSelected(True)
+            
+            # Центрируем вид на карточке
+            self.view.centerOn(card)
+            
+            # Подсвечиваем связанные классы
+            self.scene.highlight_related_cards(card_id, self.card_map, self.connection_map)
+            
+            # Анимация: временно подсвечиваем карточку
+            self._highlight_card_temporarily(card)
+    
+    def _on_search_closed(self):
+        """Обработка закрытия виджета поиска"""
+        if self._search_widget:
+            self._search_widget.hide()
+    
+    def _highlight_card_temporarily(self, card):
+        """Временная подсветка карточки"""
+        # Можно добавить анимацию мигания или изменения цвета
+        # Пока просто выделяем
+        pass
 
     def _on_edit_connection(self):
         """Редактирование выбранной связи"""
