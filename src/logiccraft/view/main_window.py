@@ -16,7 +16,6 @@ from .dialogs.code_generation_dialog import CodeGenerationDialog
 from .dialogs.project_export_dialog import ProjectExportDialog
 from .panels.toolbox_panel import ToolboxPanel
 from .panels.properties_panel import PropertiesPanel
-from .widgets.minimap_widget import MiniMapWidget
 from logiccraft.utils.icon_manager import icon_manager
 
 
@@ -155,8 +154,6 @@ class MainWindow(QMainWindow):
         self.uc_scenario_map = {}   # scenario_id -> ScenarioWidget
         self.uc_connection_map = {} # conn_id -> ConnectionLine
         self._search_widget = None  # Виджет поиска
-        self._minimap_widget = None # Виджет мини-карты
-        self._minimap_dock = None   # Dock для мини-карты
         self.setWindowTitle("LogicCraft UML Architect")
         self.setGeometry(100, 100, 1400, 860)
 
@@ -353,15 +350,6 @@ class MainWindow(QMainWindow):
         validate_action.triggered.connect(self._on_validate)
         tools_menu.addAction(validate_action)
         
-        tools_menu.addSeparator()
-        
-        # Toggle Mini-map
-        self.minimap_toggle_action = QAction("🗺️ Показать мини-карту", self)
-        self.minimap_toggle_action.setCheckable(True)
-        self.minimap_toggle_action.setChecked(True)
-        self.minimap_toggle_action.triggered.connect(self._toggle_minimap)
-        tools_menu.addAction(self.minimap_toggle_action)
-
         tools_menu.addSeparator()
 
         # Align submenu
@@ -628,21 +616,6 @@ class MainWindow(QMainWindow):
         )
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, properties_dock)
 
-        # Мини-карта — правая нижняя панель
-        self._minimap_widget = MiniMapWidget(self.scene)
-        self._minimap_widget.set_main_view(self.view)
-        self._minimap_dock = QDockWidget("Мини-карта", self)
-        self._minimap_dock.setWidget(self._minimap_widget)
-        self._minimap_dock.setAllowedAreas(
-            Qt.DockWidgetArea.RightDockWidgetArea |
-            Qt.DockWidgetArea.LeftDockWidgetArea
-        )
-        self._minimap_dock.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetMovable |
-            QDockWidget.DockWidgetFeature.DockWidgetClosable
-        )
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._minimap_dock)
-
         # Подключаем сигналы Toolbox
         self.toolbox_panel.add_element_requested.connect(self._on_toolbox_add_element)
         self.toolbox_panel.set_connection_mode.connect(self._on_toolbox_set_connection_type)
@@ -659,18 +632,11 @@ class MainWindow(QMainWindow):
         self.properties_panel.uc_scenario_desc_changed.connect(self._on_uc_scenario_desc_changed)
         self.properties_panel.uc_element_delete_requested.connect(self._on_uc_element_delete)
 
-        # Подключаем сигналы мини-карты
-        self._minimap_widget.viewport_clicked.connect(self._on_minimap_clicked)
-
         # Слушаем изменение выделения на сцене
         self.scene.selectionChanged.connect(self._on_scene_selection_changed)
 
         # Подключаем zoom сигнал
         self.view.zoom_changed.connect(self._on_zoom_changed)
-        
-        # Обновляем мини-карту при прокрутке главного вида
-        self.view.horizontalScrollBar().valueChanged.connect(self._update_minimap)
-        self.view.verticalScrollBar().valueChanged.connect(self._update_minimap)
 
     def _on_toolbox_add_element(self, node_type: str):
         """Добавить элемент из тулбокса в центр холста"""
@@ -847,27 +813,6 @@ class MainWindow(QMainWindow):
     def _on_zoom_changed(self, percent: int):
         """Обновить индикатор масштаба"""
         self.zoom_label.setText(f"{percent}%")
-        self._update_minimap()
-    
-    def _update_minimap(self):
-        """Обновить мини-карту"""
-        if self._minimap_widget:
-            self._minimap_widget.update_viewport()
-    
-    def _on_minimap_clicked(self, x: float, y: float):
-        """Обработка клика на мини-карте - центрируем главный вид"""
-        self.view.centerOn(x, y)
-    
-    def _toggle_minimap(self):
-        """Переключить видимость мини-карты"""
-        if self._minimap_dock:
-            if self._minimap_dock.isVisible():
-                self._minimap_dock.hide()
-                self.minimap_toggle_action.setText("🗺️ Показать мини-карту")
-            else:
-                self._minimap_dock.show()
-                self.minimap_toggle_action.setText("🗺️ Скрыть мини-карту")
-                self._update_minimap()
     
     def _on_diagram_type_changed(self, index: int):
         """Обработка переключения типа диаграммы"""
