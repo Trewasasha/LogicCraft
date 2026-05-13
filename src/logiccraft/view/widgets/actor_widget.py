@@ -168,6 +168,19 @@ class ActorWidget(QGraphicsItem):
 
     def isSelected(self) -> bool:
         return self._is_selected
+    
+    def hoverEnterEvent(self, event):
+        """Показать точки привязки при наведении"""
+        for anchor in self.anchors.values():
+            anchor.setVisible(True)
+        super().hoverEnterEvent(event)
+    
+    def hoverLeaveEvent(self, event):
+        """Скрыть точки привязки при уходе курсора (если не выделен)"""
+        if not self._is_selected:
+            for anchor in self.anchors.values():
+                anchor.setVisible(False)
+        super().hoverLeaveEvent(event)
 
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event)

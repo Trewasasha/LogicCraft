@@ -51,6 +51,9 @@ class DiagramScene(QGraphicsScene):
         self.temp_line.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
         self.temp_line.setZValue(1000)
         self.addItem(self.temp_line)
+        
+        # Показываем точки привязки у всех потенциальных целей
+        self._show_all_anchors(except_card=source_card)
 
     def mouseMoveEvent(self, event):
         """Тянем линию за мышкой"""
@@ -80,6 +83,9 @@ class DiagramScene(QGraphicsScene):
         self.connection_source = None
         self.source_anchor = None
         self.connection_active = False
+        
+        # Скрываем точки привязки у всех элементов
+        self._hide_all_anchors()
 
     def cancel_connection(self):
         """Отмена тяги"""
@@ -89,6 +95,9 @@ class DiagramScene(QGraphicsScene):
         self.connection_source = None
         self.source_anchor = None
         self.connection_active = False
+        
+        # Скрываем точки привязки у всех элементов
+        self._hide_all_anchors()
 
     def on_card_moved(self, card):
         """Snap to grid + групповое перемещение (UMLCard, ActorWidget, ScenarioWidget)"""
@@ -168,3 +177,27 @@ class DiagramScene(QGraphicsScene):
             pen = conn.pen()
             pen.setWidth(2)
             conn.setPen(pen)
+    
+    def _show_all_anchors(self, except_card=None):
+        """Показать точки привязки у всех элементов (кроме источника)"""
+        from ..widgets.uml_card import UMLCard
+        from ..widgets.actor_widget import ActorWidget
+        from ..widgets.scenario_widget import ScenarioWidget
+        
+        for item in self.items():
+            if isinstance(item, (UMLCard, ActorWidget, ScenarioWidget)):
+                if item != except_card and hasattr(item, 'anchors'):
+                    for anchor in item.anchors.values():
+                        anchor.setVisible(True)
+    
+    def _hide_all_anchors(self):
+        """Скрыть точки привязки у всех невыделенных элементов"""
+        from ..widgets.uml_card import UMLCard
+        from ..widgets.actor_widget import ActorWidget
+        from ..widgets.scenario_widget import ScenarioWidget
+        
+        for item in self.items():
+            if isinstance(item, (UMLCard, ActorWidget, ScenarioWidget)):
+                if hasattr(item, 'anchors') and not item.isSelected():
+                    for anchor in item.anchors.values():
+                        anchor.setVisible(False)
