@@ -57,6 +57,7 @@ class UMLCard(QGraphicsRectItem):
             QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable |
             QGraphicsRectItem.GraphicsItemFlag.ItemSendsGeometryChanges
         )
+        self.setAcceptHoverEvents(True)  # Включаем hover события
 
         self._create_elements()
         self._create_anchors()
@@ -261,6 +262,23 @@ class UMLCard(QGraphicsRectItem):
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event)
         self.signals.move_finished.emit(self.id, self.pos().x(), self.pos().y())
+
+    def mouseDoubleClickEvent(self, event):
+        """Обработка двойного клика - открывает диалог редактирования"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.signals.edit_requested.emit(self.id)
+            event.accept()
+        else:
+            super().mouseDoubleClickEvent(event)
+
+    def hoverEnterEvent(self, event):
+        """При наведении курсора показываем подсказку"""
+        self.setToolTip("Двойной клик для редактирования")
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event):
+        """При уходе курсора"""
+        super().hoverLeaveEvent(event)
 
     def contextMenuEvent(self, event):
         """Контекстное меню по правому клику"""
