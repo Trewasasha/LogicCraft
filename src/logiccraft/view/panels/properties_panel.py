@@ -25,12 +25,19 @@ class PropertiesPanel(QWidget):
     attributes_changed = pyqtSignal(str, list)    # card_id, attributes
     methods_changed = pyqtSignal(str, list)       # card_id, methods
     delete_requested = pyqtSignal(str)            # card_id
+    # Use Case сигналы
+    uc_actor_name_changed = pyqtSignal(str, str)      # actor_id, new_name
+    uc_scenario_name_changed = pyqtSignal(str, str)   # scenario_id, new_name
+    uc_scenario_desc_changed = pyqtSignal(str, str)   # scenario_id, new_description
+    uc_element_delete_requested = pyqtSignal(str, str) # element_id, element_type
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("PropertiesPanel")
         self.setFixedWidth(220)
         self._current_card_id = None
+        self._current_uc_id = None
+        self._current_uc_type = None
         self._updating = False  # флаг чтобы не зациклить сигналы
         self._setup_ui()
         self.show_empty()
@@ -130,10 +137,35 @@ class PropertiesPanel(QWidget):
         self._delete_btn.clicked.connect(self._on_delete)
         self._content_layout.addWidget(self._delete_btn)
 
+        # --- Use Case элементы (скрыты по умолчанию) ---
+        self._uc_name_section = self._make_section("Имя")
+        self._uc_name_edit = QLineEdit()
+        self._uc_name_edit.setObjectName("PropertiesInput")
+        self._uc_name_edit.setPlaceholderText("Название")
+        self._uc_name_edit.textChanged.connect(self._on_uc_name_changed)
+        self._uc_name_section.layout().addWidget(self._uc_name_edit)
+        self._content_layout.addWidget(self._uc_name_section)
+        
+        self._uc_desc_section = self._make_section("Описание")
+        from PyQt6.QtWidgets import QTextEdit
+        self._uc_desc_edit = QTextEdit()
+        self._uc_desc_edit.setObjectName("PropertiesTextEdit")
+        self._uc_desc_edit.setPlaceholderText("Описание сценария...")
+        self._uc_desc_edit.setMaximumHeight(100)
+        self._uc_desc_edit.textChanged.connect(self._on_uc_desc_changed)
+        self._uc_desc_section.layout().addWidget(self._uc_desc_edit)
+        self._content_layout.addWidget(self._uc_desc_section)
+        
+        self._uc_delete_btn = QPushButton("🗑  Удалить элемент")
+        self._uc_delete_btn.setObjectName("PropertiesDeleteButton")
+        self._uc_delete_btn.clicked.connect(self._on_uc_delete)
+        self._content_layout.addWidget(self._uc_delete_btn)
+
         self._content_layout.addStretch()
 
         # Скрываем всё кроме пустого состояния
         self._set_card_widgets_visible(False)
+        self._set_uc_widgets_visible(False)
 
     def _make_section(self, title: str) -> QWidget:
         widget = QWidget()
@@ -152,19 +184,30 @@ class PropertiesPanel(QWidget):
         self._attrs_section.setVisible(visible)
         self._methods_section.setVisible(visible)
         self._delete_btn.setVisible(visible)
+    
+    def _set_uc_widgets_visible(self, visible: bool, show_desc: bool = False):
+        """Показать/скрыть виджеты Use Case элементов"""
+        self._empty_label.setVisible(not visible)
+        self._uc_name_section.setVisible(visible)
+        self._uc_desc_section.setVisible(visible and show_desc)
+        self._uc_delete_btn.setVisible(visible)
 
     # --- Публичные методы ---
 
     def show_empty(self):
         """Показать пустое состояние"""
         self._current_card_id = None
+        self._current_uc_id = None
+        self._current_uc_type = None
         self._set_card_widgets_visible(False)
+        self._set_uc_widgets_visible(False)
 
     def show_card(self, card_id: str, name: str, node_type: str,
                   attributes: list, methods: list):
         """Показать свойства карточки"""
         self._updating = True
         self._current_card_id = card_id
+        self._current_uc_id = None
 
         self._name_edit.setText(name)
 
@@ -185,6 +228,34 @@ class PropertiesPanel(QWidget):
             self._methods_list.addItem(method)
 
         self._set_card_widgets_visible(True)
+        self._set_uc_widgets_visible(False)
+        self._updating = False
+    
+    def show_uc_actor(self, actor_id: str, name: str):
+        """Показать свойства актёра Use Case"""
+        self._updating = True
+        self._current_uc_id = actor_id
+        self._current_uc_type = "actor"
+        self._current_card_id = None
+        
+        self._uc_name_edit.setText(name)
+        
+        self._set_card_widgets_visible(False)
+        self._set_uc_widgets_visible(True, show_desc=False)
+        self._updating = False
+    
+    def show_uc_scenario(self, scenario_id: str, name: str, description: str = ""):
+        """Показать свойства сценария Use Case"""
+        self._updating = True
+        self._current_uc_id = scenario_id
+        self._current_uc_type = "scenario"
+        self._current_card_id = None
+        
+        self._uc_name_edit.setText(name)
+        self._uc_desc_edit.setPlainText(description or "")
+        
+        self._set_card_widgets_visible(False)
+        self._set_uc_widgets_visible(True, show_desc=True)
         self._updating = False
 
     # --- Обработчики изменений ---
@@ -254,4 +325,40 @@ class PropertiesPanel(QWidget):
     def _on_delete(self):
         if self._current_card_id:
             self.delete_requested.emit(self._current_card_id)
+            self.show_empty()
+    
+    # --- Use Case обработчики ---
+    
+    def _on_uc_name_changed(self, text: str):
+        if self._updating or not self._current_uc_id:
+            return
+        if not hasattr(self, '_uc_name_timer'):
+            self._uc_name_timer = QTimer()
+            self._uc_name_timer.setSingleShot(True)
+            self._uc_name_timer.timeout.connect(self._emit_uc_name_changed)
+        self._uc_name_timer.start(500)
+    
+    def _emit_uc_name_changed(self):
+        if self._current_uc_id and self._current_uc_type:
+            if self._current_uc_type == "actor":
+                self.uc_actor_name_changed.emit(self._current_uc_id, self._uc_name_edit.text())
+            elif self._current_uc_type == "scenario":
+                self.uc_scenario_name_changed.emit(self._current_uc_id, self._uc_name_edit.text())
+    
+    def _on_uc_desc_changed(self):
+        if self._updating or not self._current_uc_id or self._current_uc_type != "scenario":
+            return
+        if not hasattr(self, '_uc_desc_timer'):
+            self._uc_desc_timer = QTimer()
+            self._uc_desc_timer.setSingleShot(True)
+            self._uc_desc_timer.timeout.connect(self._emit_uc_desc_changed)
+        self._uc_desc_timer.start(500)
+    
+    def _emit_uc_desc_changed(self):
+        if self._current_uc_id and self._current_uc_type == "scenario":
+            self.uc_scenario_desc_changed.emit(self._current_uc_id, self._uc_desc_edit.toPlainText())
+    
+    def _on_uc_delete(self):
+        if self._current_uc_id and self._current_uc_type:
+            self.uc_element_delete_requested.emit(self._current_uc_id, self._current_uc_type)
             self.show_empty()

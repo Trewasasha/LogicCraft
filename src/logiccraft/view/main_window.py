@@ -409,23 +409,45 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        # ДОБАВЛЯЕМ 3 ПУСТЫХ РАЗДЕЛИТЕЛЯ (ячейки)
-        spacer1 = QWidget()
-        spacer1.setFixedWidth(30)  # ширина 1 ячейки
-        spacer1.setStyleSheet("background: transparent;")
-        toolbar.addWidget(spacer1)
+        # ===== ПЕРЕКЛЮЧАТЕЛЬ ТИПОВ ДИАГРАММ =====
+        from PyQt6.QtWidgets import QComboBox
+        
+        diagram_type_label = QLabel("Тип диаграммы:")
+        diagram_type_label.setStyleSheet("color: #666; font-size: 12px; padding: 0 8px;")
+        toolbar.addWidget(diagram_type_label)
+        
+        self.diagram_type_combo = QComboBox()
+        self.diagram_type_combo.addItem("📊 Диаграмма классов", "class")
+        self.diagram_type_combo.addItem("👤 Use Case диаграмма", "use_case")
+        self.diagram_type_combo.setCurrentIndex(0)
+        self.diagram_type_combo.setStyleSheet("""
+            QComboBox {
+                background-color: white;
+                border: 1.5px solid #7C3AED;
+                border-radius: 6px;
+                padding: 5px 10px;
+                font-size: 13px;
+                min-width: 180px;
+            }
+            QComboBox:hover {
+                background-color: #F3EEFF;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid #7C3AED;
+                margin-right: 5px;
+            }
+        """)
+        self.diagram_type_combo.currentIndexChanged.connect(self._on_diagram_type_changed)
+        toolbar.addWidget(self.diagram_type_combo)
 
-        spacer2 = QWidget()
-        spacer2.setFixedWidth(30)
-        spacer2.setStyleSheet("background: transparent;")
-        toolbar.addWidget(spacer2)
-
-        spacer3 = QWidget()
-        spacer3.setFixedWidth(30)
-        spacer3.setStyleSheet("background: transparent;")
-        toolbar.addWidget(spacer3)
-
-        # Левая часть — инструменты работы с диаграммой (теперь со сдвигом)
+        # Левая часть — инструменты работы с диаграммой
         toolbar.addSeparator()
 
         edit_action = QAction(icon_manager.get_icon("pencil"), " Редактировать", self)
@@ -631,6 +653,11 @@ class MainWindow(QMainWindow):
         self.properties_panel.attributes_changed.connect(self._on_properties_attrs_changed)
         self.properties_panel.methods_changed.connect(self._on_properties_methods_changed)
         self.properties_panel.delete_requested.connect(self._on_properties_delete)
+        # Use Case сигналы
+        self.properties_panel.uc_actor_name_changed.connect(self._on_uc_actor_name_changed)
+        self.properties_panel.uc_scenario_name_changed.connect(self._on_uc_scenario_name_changed)
+        self.properties_panel.uc_scenario_desc_changed.connect(self._on_uc_scenario_desc_changed)
+        self.properties_panel.uc_element_delete_requested.connect(self._on_uc_element_delete)
 
         # Подключаем сигналы мини-карты
         self._minimap_widget.viewport_clicked.connect(self._on_minimap_clicked)
@@ -682,10 +709,15 @@ class MainWindow(QMainWindow):
 
     def _on_scene_selection_changed(self):
         """Обновить панель свойств при изменении выделения"""
-        selected = [item for item in self.scene.selectedItems()
-                    if isinstance(item, UMLCard)]
-        if selected:
-            card = selected[0]
+        from .widgets.actor_widget import ActorWidget
+        from .widgets.scenario_widget import ScenarioWidget
+        
+        selected_items = self.scene.selectedItems()
+        
+        # Проверяем UML карточки
+        selected_cards = [item for item in selected_items if isinstance(item, UMLCard)]
+        if selected_cards:
+            card = selected_cards[0]
             node_type = card.node_type
             if hasattr(node_type, 'value'):
                 node_type = node_type.value
@@ -698,10 +730,30 @@ class MainWindow(QMainWindow):
             )
             # Подсвечиваем связанные классы
             self.scene.highlight_related_cards(card.id, self.card_map, self.connection_map)
-        else:
-            self.properties_panel.show_empty()
-            # Снимаем подсветку если ничего не выбрано
-            self.scene.clear_highlights(self.card_map, self.connection_map)
+            return
+        
+        # Проверяем Use Case актёров
+        selected_actors = [item for item in selected_items if isinstance(item, ActorWidget)]
+        if selected_actors:
+            actor = selected_actors[0]
+            self.properties_panel.show_uc_actor(actor.id, actor.name)
+            return
+        
+        # Проверяем Use Case сценарии
+        selected_scenarios = [item for item in selected_items if isinstance(item, ScenarioWidget)]
+        if selected_scenarios:
+            scenario = selected_scenarios[0]
+            # Получаем описание из модели
+            scenario_model = next((s for s in self.controller.manager.diagram.uc_scenarios 
+                                  if s.id == scenario.id), None)
+            description = scenario_model.description if scenario_model else ""
+            self.properties_panel.show_uc_scenario(scenario.id, scenario.name, description)
+            return
+        
+        # Ничего не выбрано
+        self.properties_panel.show_empty()
+        # Снимаем подсветку если ничего не выбрано
+        self.scene.clear_highlights(self.card_map, self.connection_map)
 
     def _on_properties_name_changed(self, card_id: str, name: str):
         card = self.card_map.get(card_id)
@@ -738,6 +790,31 @@ class MainWindow(QMainWindow):
 
     def _on_properties_delete(self, card_id: str):
         self.controller.remove_card(card_id)
+    
+    def _on_uc_actor_name_changed(self, actor_id: str, name: str):
+        """Обработка изменения имени актёра из Properties панели"""
+        widget = self.uc_actor_map.get(actor_id)
+        if widget and widget.name != name:
+            widget.update_name(name)
+            self.controller.update_uc_actor(actor_id, name=name)
+    
+    def _on_uc_scenario_name_changed(self, scenario_id: str, name: str):
+        """Обработка изменения имени сценария из Properties панели"""
+        widget = self.uc_scenario_map.get(scenario_id)
+        if widget and widget.name != name:
+            widget.update_name(name)
+            self.controller.update_uc_scenario(scenario_id, name=name)
+    
+    def _on_uc_scenario_desc_changed(self, scenario_id: str, description: str):
+        """Обработка изменения описания сценария из Properties панели"""
+        self.controller.update_uc_scenario(scenario_id, description=description)
+    
+    def _on_uc_element_delete(self, element_id: str, element_type: str):
+        """Обработка удаления Use Case элемента из Properties панели"""
+        if element_type == "actor":
+            self.controller.remove_uc_actor(element_id)
+        elif element_type == "scenario":
+            self.controller.remove_uc_scenario(element_id)
 
     def _connect_signals(self):
         """Подключение сигналов сцены"""
@@ -791,6 +868,41 @@ class MainWindow(QMainWindow):
                 self._minimap_dock.show()
                 self.minimap_toggle_action.setText("🗺️ Скрыть мини-карту")
                 self._update_minimap()
+    
+    def _on_diagram_type_changed(self, index: int):
+        """Обработка переключения типа диаграммы"""
+        diagram_type = self.diagram_type_combo.itemData(index)
+        
+        # Обновляем тип диаграммы в модели
+        self.controller.manager.diagram.diagram_type = diagram_type
+        
+        # Обновляем видимость элементов в зависимости от типа
+        if diagram_type == "class":
+            # Показываем классы, скрываем Use Case элементы
+            for card in self.card_map.values():
+                card.setVisible(True)
+            for conn in self.connection_map.values():
+                conn.setVisible(True)
+            for actor in self.uc_actor_map.values():
+                actor.setVisible(False)
+            for scenario in self.uc_scenario_map.values():
+                scenario.setVisible(False)
+            for uc_conn in self.uc_connection_map.values():
+                uc_conn.setVisible(False)
+            self.update_status("Переключено на диаграмму классов")
+        else:  # use_case
+            # Скрываем классы, показываем Use Case элементы
+            for card in self.card_map.values():
+                card.setVisible(False)
+            for conn in self.connection_map.values():
+                conn.setVisible(False)
+            for actor in self.uc_actor_map.values():
+                actor.setVisible(True)
+            for scenario in self.uc_scenario_map.values():
+                scenario.setVisible(True)
+            for uc_conn in self.uc_connection_map.values():
+                uc_conn.setVisible(True)
+            self.update_status("Переключено на Use Case диаграмму")
 
     def handle_key_press(self, event):
         """Обработка нажатий клавиш (вызывается из DiagramView)"""

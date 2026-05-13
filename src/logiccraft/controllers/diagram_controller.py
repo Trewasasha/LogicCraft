@@ -554,6 +554,66 @@ class DiagramController(QObject):
             if conn.source_id not in node_ids or conn.target_id not in node_ids:
                 warnings.append(f"❌ Связь ссылается на несуществующий класс")
 
+        # ── Валидация Use Case диаграмм ────────────────────────────────────────
+        
+        # Дублирующиеся имена актёров
+        actor_names = [a.name for a in diagram.uc_actors]
+        dup_actors = {n for n in actor_names if actor_names.count(n) > 1}
+        for name in dup_actors:
+            warnings.append(f"⚠️ Дублирующееся имя актёра: «{name}»")
+        
+        # Дублирующиеся имена сценариев
+        scenario_names = [s.name for s in diagram.uc_scenarios]
+        dup_scenarios = {n for n in scenario_names if scenario_names.count(n) > 1}
+        for name in dup_scenarios:
+            warnings.append(f"⚠️ Дублирующееся имя сценария: «{name}»")
+        
+        # Сценарии без описания
+        for scenario in diagram.uc_scenarios:
+            if not scenario.description or not scenario.description.strip():
+                warnings.append(f"ℹ️ Сценарий «{scenario.name}» не имеет описания")
+        
+        # Актёры без связей
+        actor_ids = {a.id for a in diagram.uc_actors}
+        scenario_ids = {s.id for s in diagram.uc_scenarios}
+        connected_actors = set()
+        for conn in diagram.uc_connections:
+            if conn.source_id in actor_ids:
+                connected_actors.add(conn.source_id)
+            if conn.target_id in actor_ids:
+                connected_actors.add(conn.target_id)
+        
+        for actor in diagram.uc_actors:
+            if actor.id not in connected_actors:
+                warnings.append(f"⚠️ Актёр «{actor.name}» не связан ни с одним сценарием")
+        
+        # Сценарии без связей с актёрами
+        scenarios_with_actors = set()
+        for conn in diagram.uc_connections:
+            if conn.type.value == "uc_association":
+                if conn.source_id in scenario_ids:
+                    scenarios_with_actors.add(conn.source_id)
+                if conn.target_id in scenario_ids:
+                    scenarios_with_actors.add(conn.target_id)
+        
+        for scenario in diagram.uc_scenarios:
+            if scenario.id not in scenarios_with_actors:
+                warnings.append(f"ℹ️ Сценарий «{scenario.name}» не связан ни с одним актёром")
+        
+        # Проверка корректности связей Include/Extend
+        for conn in diagram.uc_connections:
+            if conn.type.value in ("uc_include", "uc_extend"):
+                # Include/Extend должны связывать только сценарии
+                if conn.source_id not in scenario_ids or conn.target_id not in scenario_ids:
+                    conn_type_name = "Include" if conn.type.value == "uc_include" else "Extend"
+                    warnings.append(f"❌ Связь {conn_type_name} должна связывать только сценарии")
+        
+        # Связи к несуществующим Use Case элементам
+        all_uc_ids = actor_ids | scenario_ids
+        for conn in diagram.uc_connections:
+            if conn.source_id not in all_uc_ids or conn.target_id not in all_uc_ids:
+                warnings.append(f"❌ Use Case связь ссылается на несуществующий элемент")
+
         return warnings
 
     def save_diagram(self, filepath: str) -> bool:
