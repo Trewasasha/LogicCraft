@@ -12,10 +12,20 @@ class CodeGenerator:
 
     def __init__(self):
         self.language = "python"
-        # Настройка Jinja2 окружения
+        # Настройка Jinja2 окружения для встроенных шаблонов
         templates_dir = Path(__file__).parent.parent / "templates"
+        
+        # Добавляем путь к пользовательским шаблонам
+        user_templates_dir = Path.home() / ".logiccraft" / "templates"
+        user_templates_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Создаём загрузчик с несколькими путями (сначала пользовательские, потом встроенные)
+        from jinja2 import ChoiceLoader, FileSystemLoader
         self.env = Environment(
-            loader=FileSystemLoader(templates_dir),
+            loader=ChoiceLoader([
+                FileSystemLoader(user_templates_dir),
+                FileSystemLoader(templates_dir)
+            ]),
             trim_blocks=True,
             lstrip_blocks=True
         )
@@ -27,14 +37,29 @@ class CodeGenerator:
             'generate_method_params': self._generate_method_params,
         })
 
-    def generate(self, diagram: UMLDiagram, language: str = "python") -> str:
-        """Сгенерировать код для диаграммы"""
+    def generate(self, diagram: UMLDiagram, language: str = "python", custom_template: str = None) -> str:
+        """Сгенерировать код для диаграммы
+        
+        Args:
+            diagram: UML диаграмма
+            language: Язык программирования
+            custom_template: Имя пользовательского шаблона (опционально)
+        """
         if language not in get_supported_languages():
             raise ValueError(f"Unsupported language: {language}. Supported: {get_supported_languages()}")
             
         self.language = language
         config = get_language_config(language)
-        template = self.env.get_template(config["template"])
+        
+        # Если указан пользовательский шаблон, пытаемся его загрузить
+        if custom_template:
+            try:
+                template = self.env.get_template(f"{custom_template}.j2")
+            except Exception:
+                # Если не найден, используем стандартный
+                template = self.env.get_template(config["template"])
+        else:
+            template = self.env.get_template(config["template"])
         
         # Создаем карту наследования
         inheritance_map = self._build_inheritance_map(diagram)

@@ -34,10 +34,6 @@ class CodeSyntaxHighlighter(QSyntaxHighlighter):
             keywords = ["class", "def", "import", "from", "if", "else", "elif", "for", "while", "try", "except", "finally", "with", "as", "return", "yield", "pass", "break", "continue", "and", "or", "not", "in", "is", "None", "True", "False"]
         elif self.language == "java":
             keywords = ["class", "public", "private", "protected", "static", "final", "abstract", "interface", "extends", "implements", "import", "package", "if", "else", "for", "while", "do", "switch", "case", "default", "try", "catch", "finally", "throw", "throws", "return", "break", "continue", "new", "this", "super", "null", "true", "false"]
-        elif self.language in ["javascript", "typescript"]:
-            keywords = ["class", "function", "const", "let", "var", "if", "else", "for", "while", "do", "switch", "case", "default", "try", "catch", "finally", "throw", "return", "break", "continue", "new", "this", "null", "undefined", "true", "false", "export", "import", "from", "as"]
-        elif self.language == "csharp":
-            keywords = ["class", "public", "private", "protected", "internal", "static", "readonly", "const", "abstract", "virtual", "override", "sealed", "interface", "namespace", "using", "if", "else", "for", "foreach", "while", "do", "switch", "case", "default", "try", "catch", "finally", "throw", "return", "break", "continue", "new", "this", "base", "null", "true", "false"]
         else:
             keywords = []
         
@@ -58,7 +54,7 @@ class CodeSyntaxHighlighter(QSyntaxHighlighter):
         
         if self.language == "python":
             self.highlighting_rules.append((re.compile(r'#.*'), comment_format))
-        elif self.language in ["java", "javascript", "typescript", "csharp"]:
+        elif self.language == "java":
             self.highlighting_rules.append((re.compile(r'//.*'), comment_format))
             self.highlighting_rules.append((re.compile(r'/\*.*?\*/'), comment_format))
     
@@ -93,21 +89,74 @@ class CodeGenerationDialog(QDialog):
         
         # Верхняя панель с настройками
         settings_group = QGroupBox("⚙️ Настройки генерации")
-        settings_layout = QHBoxLayout(settings_group)
+        settings_layout = QVBoxLayout(settings_group)
         
-        # Выбор языка
-        settings_layout.addWidget(QLabel("Язык:"))
-        self.language_combo = QComboBox()
-        self.language_combo.addItems(self.generator.get_supported_languages())
-        self.language_combo.setCurrentText("python")
-        settings_layout.addWidget(self.language_combo)
+        # Выбор языка с иконками и описаниями
+        lang_label = QLabel("Выберите язык программирования:")
+        lang_label.setStyleSheet("font-weight: bold; font-size: 12px;")
+        settings_layout.addWidget(lang_label)
         
-        settings_layout.addStretch()
+        # Горизонтальный layout для языков
+        lang_buttons_layout = QHBoxLayout()
+        
+        self.language_buttons = {}
+        languages_info = {
+            "python": {"icon": "🐍", "desc": "Python 3.x"},
+            "java": {"icon": "☕", "desc": "Java 11+"}
+        }
+        
+        from PyQt6.QtWidgets import QButtonGroup, QRadioButton
+        self.language_button_group = QButtonGroup(self)
+        
+        for lang, info in languages_info.items():
+            radio = QRadioButton(f"{info['icon']} {info['desc']}")
+            radio.setProperty("language", lang)
+            radio.setStyleSheet("""
+                QRadioButton {
+                    padding: 8px;
+                    font-size: 11px;
+                }
+                QRadioButton::indicator {
+                    width: 18px;
+                    height: 18px;
+                }
+            """)
+            self.language_button_group.addButton(radio)
+            self.language_buttons[lang] = radio
+            lang_buttons_layout.addWidget(radio)
+        
+        # Устанавливаем Python по умолчанию
+        self.language_buttons["python"].setChecked(True)
+        settings_layout.addLayout(lang_buttons_layout)
+        
+        # Разделитель
+        from PyQt6.QtWidgets import QFrame
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
+        settings_layout.addWidget(line)
         
         # Опции генерации
+        options_layout = QHBoxLayout()
+        options_layout.addWidget(QLabel("Режим генерации:"))
+        
         self.single_file_checkbox = QCheckBox("Один файл")
         self.single_file_checkbox.setChecked(True)
-        settings_layout.addWidget(self.single_file_checkbox)
+        self.single_file_checkbox.setToolTip("Генерировать все классы в один файл")
+        options_layout.addWidget(self.single_file_checkbox)
+        
+        self.include_docs_checkbox = QCheckBox("Документация")
+        self.include_docs_checkbox.setChecked(True)
+        self.include_docs_checkbox.setToolTip("Включить docstrings/комментарии")
+        options_layout.addWidget(self.include_docs_checkbox)
+        
+        self.include_typing_checkbox = QCheckBox("Типизация")
+        self.include_typing_checkbox.setChecked(True)
+        self.include_typing_checkbox.setToolTip("Включить аннотации типов (где применимо)")
+        options_layout.addWidget(self.include_typing_checkbox)
+        
+        options_layout.addStretch()
+        settings_layout.addLayout(options_layout)
         
         layout.addWidget(settings_group)
         
@@ -140,10 +189,14 @@ class CodeGenerationDialog(QDialog):
         # Кнопки
         buttons_layout = QHBoxLayout()
         
+        self.templates_button = QPushButton("📝 Управление шаблонами")
+        self.templates_button.clicked.connect(self._on_templates_clicked)
+        
         self.export_button = QPushButton("💾 Экспорт файлов")
         self.copy_button = QPushButton("📋 Копировать код")
         self.close_button = QPushButton("❌ Закрыть")
         
+        buttons_layout.addWidget(self.templates_button)
         buttons_layout.addWidget(self.export_button)
         buttons_layout.addWidget(self.copy_button)
         buttons_layout.addStretch()
@@ -153,8 +206,10 @@ class CodeGenerationDialog(QDialog):
     
     def _connect_signals(self):
         """Подключение сигналов"""
-        self.language_combo.currentTextChanged.connect(self._on_language_changed)
+        self.language_button_group.buttonClicked.connect(self._on_language_changed)
         self.single_file_checkbox.toggled.connect(self._on_generation_mode_changed)
+        self.include_docs_checkbox.toggled.connect(self._on_generation_mode_changed)
+        self.include_typing_checkbox.toggled.connect(self._on_generation_mode_changed)
         self.export_button.clicked.connect(self._on_export_clicked)
         self.copy_button.clicked.connect(self._on_copy_clicked)
         self.close_button.clicked.connect(self.accept)
@@ -163,7 +218,7 @@ class CodeGenerationDialog(QDialog):
         """Генерация начального кода"""
         self._generate_code()
     
-    def _on_language_changed(self):
+    def _on_language_changed(self, button):
         """Обработка изменения языка"""
         self._generate_code()
     
@@ -173,7 +228,12 @@ class CodeGenerationDialog(QDialog):
     
     def _generate_code(self):
         """Генерация кода"""
-        language = self.language_combo.currentText()
+        # Получаем выбранный язык из radio buttons
+        selected_button = self.language_button_group.checkedButton()
+        if not selected_button:
+            return
+        
+        language = selected_button.property("language")
         single_file = self.single_file_checkbox.isChecked()
         
         try:
@@ -195,10 +255,7 @@ class CodeGenerationDialog(QDialog):
         """Получить расширение файла для языка"""
         extensions = {
             "python": "py",
-            "java": "java",
-            "javascript": "js", 
-            "typescript": "ts",
-            "csharp": "cs"
+            "java": "java"
         }
         return extensions.get(language, "txt")
     
@@ -230,18 +287,33 @@ class CodeGenerationDialog(QDialog):
     
     def _update_info(self):
         """Обновление информационной панели"""
-        language = self.language_combo.currentText()
+        selected_button = self.language_button_group.checkedButton()
+        if not selected_button:
+            return
+        
+        language = selected_button.property("language")
         file_count = len(self.generated_files)
         total_lines = sum(content.count('\n') + 1 for content in self.generated_files.values())
         class_count = len(self.diagram.nodes)
         
+        # Получаем иконку языка
+        lang_icons = {
+            "python": "🐍",
+            "java": "☕"
+        }
+        lang_icon = lang_icons.get(language, "💻")
+        
         info_text = f"""
 📊 Статистика генерации:
 
-🎯 Язык: {language.upper()}
+{lang_icon} Язык: {language.upper()}
 📁 Файлов: {file_count}
 📝 Строк кода: {total_lines}
 🏗️ Классов: {class_count}
+
+⚙️ Опции:
+• Документация: {'✅' if self.include_docs_checkbox.isChecked() else '❌'}
+• Типизация: {'✅' if self.include_typing_checkbox.isChecked() else '❌'}
 
 📋 Файлы:
 """
@@ -297,3 +369,16 @@ class CodeGenerationDialog(QDialog):
                 code_edit.selectAll()
                 code_edit.copy()
                 QMessageBox.information(self, "Успех", "Код скопирован в буфер обмена")
+    
+    def _on_templates_clicked(self):
+        """Открыть менеджер шаблонов"""
+        from .template_manager_dialog import TemplateManagerDialog
+        
+        dialog = TemplateManagerDialog(self)
+        dialog.templates_changed.connect(self._on_templates_changed)
+        dialog.exec()
+    
+    def _on_templates_changed(self):
+        """Обработка изменения шаблонов"""
+        # Перегенерируем код с новыми шаблонами
+        self._generate_code()

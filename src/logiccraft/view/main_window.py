@@ -14,6 +14,7 @@ from .dialogs.edit_class_dialog import EditClassDialog
 from .dialogs.connection_properties import ConnectionPropertiesDialog
 from .dialogs.code_generation_dialog import CodeGenerationDialog
 from .dialogs.project_export_dialog import ProjectExportDialog
+from .dialogs.validation_results_dialog import ValidationResultsDialog
 from .panels.toolbox_panel import ToolboxPanel
 from .panels.properties_panel import PropertiesPanel
 from logiccraft.utils.icon_manager import icon_manager
@@ -1014,11 +1015,8 @@ class MainWindow(QMainWindow):
     def _on_validate(self):
         """Валидация диаграммы"""
         warnings = self.controller.validate_diagram()
-        if not warnings:
-            QMessageBox.information(self, "Валидация", "Диаграмма корректна!")
-        else:
-            msg = "\n".join(warnings)
-            QMessageBox.warning(self, f"Валидация — {len(warnings)} замечаний", msg)
+        dialog = ValidationResultsDialog(warnings, self)
+        dialog.exec()
 
     def _get_selected_cards(self):
         return [i for i in self.scene.selectedItems() if isinstance(i, UMLCard)]
