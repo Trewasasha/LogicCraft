@@ -2,7 +2,7 @@
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSizePolicy
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 from pathlib import Path
 from logiccraft.utils.icon_manager import icon_manager
@@ -72,6 +72,7 @@ class WelcomeDialog(QDialog):
             Qt.WindowType.WindowMaximizeButtonHint |
             Qt.WindowType.WindowCloseButtonHint
         )
+        self.last_project_config = None  # Сохраняем конфигурацию проекта
         self._setup_ui()
 
     def _setup_ui(self):
@@ -130,9 +131,28 @@ class WelcomeDialog(QDialog):
         layout.addLayout(cards_layout)
 
     def _on_new_project(self):
-        self.new_project_requested.emit()
-        self.accept()
+        """Показать диалог создания проекта"""
+        from .new_project_dialog import NewProjectDialog
+
+        # Скрываем Welcome
+        self.setVisible(False)
+
+        # Создаём и показываем диалог МОДАЛЬНО
+        dialog = NewProjectDialog()
+        result = dialog.exec()
+
+        if result == QDialog.DialogCode.Accepted:
+            # Сохраняем конфигурацию проекта
+            self.last_project_config = dialog.get_project_config()
+            # Отправляем сигнал и закрываем Welcome
+            self.new_project_requested.emit()
+            self.accept()
+        else:
+            # Если отменили — показываем Welcome обратно и НЕ закрываем его
+            self.setVisible(True)
+            # Важно: НЕ вызываем ни accept() ни reject()
 
     def _on_open_project(self):
+        # Отправляем сигнал, но НЕ закрываем Welcome
+        # main.py покажет диалог выбора файла и закроет Welcome только если файл выбран
         self.open_project_requested.emit()
-        self.accept()

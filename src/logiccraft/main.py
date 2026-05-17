@@ -33,6 +33,7 @@ class Application:
 
         self.controller = DiagramController()
         self.window = MainWindow(self.controller)
+        self.project_config = None  # Конфигурация проекта
         self._connect_signals()
 
     def _connect_signals(self):
@@ -223,34 +224,116 @@ class Application:
 
     def run(self):
         self._show_welcome_dialog()
+        sys.exit(self.app.exec())
 
     def _show_welcome_dialog(self):
         """Показать стартовое окно"""
-        dialog = WelcomeDialog()
-        dialog.new_project_requested.connect(self._on_welcome_new_project)
-        dialog.open_project_requested.connect(self._on_welcome_open_project)
-        result = dialog.exec()
+        self.welcome_dialog = WelcomeDialog()
+        self.welcome_dialog.new_project_requested.connect(self._on_welcome_new_project)
+        self.welcome_dialog.open_project_requested.connect(self._on_welcome_open_project)
+        self.welcome_dialog.rejected.connect(self._on_welcome_rejected)
 
-        # Если закрыли крестиком — завершаем приложение
-        if result == QDialog.DialogCode.Rejected:
-            sys.exit(0)
+        # Показываем Welcome Dialog
+        self.welcome_dialog.show()
 
-        # Иначе показываем главное окно
-        self.window.show()
-        sys.exit(self.app.exec())
+    def _on_welcome_rejected(self):
+        """Обработка закрытия Welcome Dialog крестиком"""
+        sys.exit(0)
 
     def _on_welcome_new_project(self):
-        """Создать новый проект из стартового окна"""
-        pass
+        """Обработка создания нового проекта"""
+        # Получаем конфигурацию из Welcome Dialog (она уже показала NewProjectDialog)
+        if hasattr(self.welcome_dialog, 'last_project_config'):
+            self.project_config = self.welcome_dialog.last_project_config
+
+            # Устанавливаем тип диаграммы
+            diagram_type = self.project_config.get("diagram_type", "class")
+            self.controller.manager.diagram.diagram_type = diagram_type
+
+            # Обновляем заголовок окна с названием проекта
+            project_name = self.project_config.get("name", "Untitled")
+            self.window.setWindowTitle(f"LogicCraft — {project_name}")
+
+            # Создаём структуру проекта и сохраняем конфигурацию
+            self._create_project_structure()
+
+            # Показываем главное окно
+            self.window.show()
+
+    def _create_project_structure(self):
+        """Создать структуру проекта на диске"""
+        if not self.project_config:
+            return
+
+        import json
+        from pathlib import Path
+
+        try:
+            # Создаём папку проекта
+            project_path = Path(self.project_config["path"]) / self.project_config["name"]
+            project_path.mkdir(parents=True, exist_ok=True)
+
+            # Создаём папку .logiccraft для метаданных
+            logiccraft_dir = project_path / ".logiccraft"
+            logiccraft_dir.mkdir(exist_ok=True)
+
+            # Сохраняем конфигурацию проекта
+            config_file = logiccraft_dir / "project.json"
+            with open(config_file, "w", encoding="utf-8") as f:
+                json.dump(self.project_config, f, indent=2, ensure_ascii=False)
+
+            # Создаём .gitignore если нужно
+            if self.project_config.get("gitignore", False):
+                gitignore_file = project_path / ".gitignore"
+                gitignore_content = """# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# LogicCraft
+.logiccraft/
+"""
+                with open(gitignore_file, "w", encoding="utf-8") as f:
+                    f.write(gitignore_content)
+
+            # Инициализируем Git репозиторий если нужно
+            if self.project_config.get("git_init", False):
+                import subprocess
+                subprocess.run(["git", "init"], cwd=project_path, check=True)
+                subprocess.run(["git", "add", "."], cwd=project_path, check=False)
+                subprocess.run(
+                    ["git", "commit", "-m", "Initial commit: LogicCraft project"],
+                    cwd=project_path,
+                    check=False
+                )
+
+            self.window.update_status(f"Проект создан: {project_path}")
+
+        except Exception as e:
+            self.window.show_error(f"Ошибка создания проекта: {e}")
 
     def _on_welcome_open_project(self):
         """Открыть проект из стартового окна"""
         from PyQt6.QtWidgets import QFileDialog
         filepath, _ = QFileDialog.getOpenFileName(
-            None, "Открыть проект", "", "JSON Files (*.json)"
+            self.welcome_dialog, "Открыть проект", "", "JSON Files (*.json)"
         )
         if filepath:
             self.controller.load_diagram(filepath)
+            # Показываем главное окно только если файл выбран
+            self.window.show()
+        # Если отменили — ничего не делаем, Welcome остаётся открытым
 
 
 def main():
@@ -260,3 +343,20 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    def _save_project_config(self):
+        """Сохранить конфигурацию проекта"""
+        if not self.project_config:
+            return
+        
+        import json
+        from pathlib import Path
+        
+        project_path = Path(self.project_config["path"]) / self.project_config["name"]
+        project_path.mkdir(parents=True, exist_ok=True)
+        
+        config_file = project_path / ".logiccraft" / "project.json"
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(config_file, "w", encoding="utf-8") as f:
+            json.dump(self.project_config, f, indent=2, ensure_ascii=False)
