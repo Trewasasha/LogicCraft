@@ -136,47 +136,75 @@ class DiagramScene(QGraphicsScene):
         related_connections = []
         
         for conn_id, conn in connection_map.items():
-            if conn.source.id == card_id:
-                related_cards.add(conn.target.id)
-                related_connections.append(conn)
-            elif conn.target.id == card_id:
-                related_cards.add(conn.source.id)
-                related_connections.append(conn)
+            try:
+                if conn.scene() is None:  # Объект удалён
+                    continue
+                if conn.source.id == card_id:
+                    related_cards.add(conn.target.id)
+                    related_connections.append(conn)
+                elif conn.target.id == card_id:
+                    related_cards.add(conn.source.id)
+                    related_connections.append(conn)
+            except (RuntimeError, AttributeError):
+                # Объект был удалён или повреждён
+                continue
         
         # Затемняем все карточки
         for cid, card in card_map.items():
-            if cid == card_id:
-                # Выбранная карточка - оставляем как есть
-                card.setOpacity(1.0)
-            elif cid in related_cards:
-                # Связанные карточки - полная яркость
-                card.setOpacity(1.0)
-            else:
-                # Несвязанные карточки - затемняем
-                card.setOpacity(0.3)
+            try:
+                if card.scene() is None:  # Объект удалён
+                    continue
+                if cid == card_id:
+                    # Выбранная карточка - оставляем как есть
+                    card.setOpacity(1.0)
+                elif cid in related_cards:
+                    # Связанные карточки - полная яркость
+                    card.setOpacity(1.0)
+                else:
+                    # Несвязанные карточки - затемняем
+                    card.setOpacity(0.3)
+            except RuntimeError:
+                # Объект был удалён
+                continue
         
         # Подсвечиваем связи
         for conn in connection_map.values():
-            if conn in related_connections:
-                conn.setOpacity(1.0)
-                # Делаем линию толще
-                pen = conn.pen()
-                pen.setWidth(3)
-                conn.setPen(pen)
-            else:
-                conn.setOpacity(0.2)
+            try:
+                if conn.scene() is None:  # Объект удалён
+                    continue
+                if conn in related_connections:
+                    conn.setOpacity(1.0)
+                    # Делаем линию толще
+                    pen = conn.pen()
+                    pen.setWidth(3)
+                    conn.setPen(pen)
+                else:
+                    conn.setOpacity(0.2)
+            except RuntimeError:
+                # Объект был удалён
+                continue
     
     def clear_highlights(self, card_map: dict, connection_map: dict):
         """Снять подсветку со всех элементов"""
         for card in card_map.values():
-            card.setOpacity(1.0)
+            try:
+                if card.scene() is not None:  # Проверяем, что объект ещё существует
+                    card.setOpacity(1.0)
+            except RuntimeError:
+                # Объект был удалён
+                pass
         
         for conn in connection_map.values():
-            conn.setOpacity(1.0)
-            # Восстанавливаем обычную толщину линии
-            pen = conn.pen()
-            pen.setWidth(2)
-            conn.setPen(pen)
+            try:
+                if conn.scene() is not None:  # Проверяем, что объект ещё существует
+                    conn.setOpacity(1.0)
+                    # Восстанавливаем обычную толщину линии
+                    pen = conn.pen()
+                    pen.setWidth(2)
+                    conn.setPen(pen)
+            except RuntimeError:
+                # Объект был удалён
+                pass
     
     def _show_all_anchors(self, except_card=None):
         """Показать точки привязки у всех элементов (кроме источника)"""

@@ -256,7 +256,6 @@ class Application:
 
             # Создаём структуру проекта и сохраняем конфигурацию
             self._create_project_structure()
-
             # Обновляем панель инструментов для выбранного типа диаграммы
             self.window.toolbox_panel.set_diagram_type(diagram_type)
             # Синхронизируем комбобокс
@@ -363,7 +362,9 @@ venv/
         )
         if filepath:
             self.controller.load_diagram(filepath)
-            # Показываем главное окно только если файл выбран
+            # Закрываем Welcome Dialog
+            self.welcome_dialog.accept()
+            # Показываем главное окно
             self.window.show()
         # Если отменили — ничего не делаем, Welcome остаётся открытым
 
