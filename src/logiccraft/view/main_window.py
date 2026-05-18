@@ -17,6 +17,7 @@ from .dialogs.project_export_dialog import ProjectExportDialog
 from .dialogs.validation_results_dialog import ValidationResultsDialog
 from .panels.toolbox_panel import ToolboxPanel
 from .panels.properties_panel import PropertiesPanel
+from .builders import MenuBarBuilder, ToolBarBuilder, StatusBarBuilder
 from logiccraft.utils.icon_manager import icon_manager
 
 
@@ -164,11 +165,31 @@ class MainWindow(QMainWindow):
             self.setWindowIcon(window_icon)
 
         self._setup_ui()
-        self._setup_menubar()
-        self._setup_toolbar()
         self._setup_panels()
         self._connect_signals()
         self._connect_controller_signals()
+        
+        # Используем билдеры для создания UI компонентов
+        self._setup_menubar_with_builder()
+        self._setup_toolbar_with_builder()
+        self._setup_statusbar_with_builder()
+
+    def _setup_menubar_with_builder(self):
+        """Настройка менюбары через билдер"""
+        builder = MenuBarBuilder(self)
+        builder.build()
+        # Подключаем сигналы undo/redo от контроллера
+        self.controller.history.history_changed.connect(self._on_history_changed)
+
+    def _setup_toolbar_with_builder(self):
+        """Настройка тулбара через билдер"""
+        builder = ToolBarBuilder(self)
+        builder.build()
+
+    def _setup_statusbar_with_builder(self):
+        """Настройка статусбара через билдер"""
+        builder = StatusBarBuilder(self)
+        builder.build()
 
     def _setup_ui(self):
         """Настройка UI компонентов"""
@@ -234,359 +255,7 @@ class MainWindow(QMainWindow):
 
         self.status_bar.addPermanentWidget(self.stats_label)
         self.status_bar.addPermanentWidget(zoom_widget)
-    
-    def _setup_menubar(self):
-        """Настройка меню с иконками"""
-        menubar = self.menuBar()
 
-        # Меню File
-        file_menu = menubar.addMenu("&File")
-
-        # Save
-        save_action = QAction(icon_manager.get_icon("save"), " Save", self)
-        save_action.setShortcut(QKeySequence.StandardKey.Save)
-        save_action.triggered.connect(self._on_save_clicked)
-        file_menu.addAction(save_action)
-
-        # Load
-        load_action = QAction(icon_manager.get_icon("folder"), " Load", self)
-        load_action.setShortcut(QKeySequence.StandardKey.Open)
-        load_action.triggered.connect(self._on_load_clicked)
-        file_menu.addAction(load_action)
-
-        file_menu.addSeparator()
-
-        # Меню Edit с Undo/Redo
-        edit_menu = menubar.addMenu("&Edit")
-
-        # Undo
-        self.undo_action = QAction(icon_manager.get_icon("undo"), " Undo", self)
-        self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
-        self.undo_action.triggered.connect(self._on_undo)
-        self.undo_action.setEnabled(False)
-        edit_menu.addAction(self.undo_action)
-
-        # Redo
-        self.redo_action = QAction(icon_manager.get_icon("redo"), " Redo", self)
-        self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
-        self.redo_action.triggered.connect(self._on_redo)
-        self.redo_action.setEnabled(False)
-        edit_menu.addAction(self.redo_action)
-
-        edit_menu.addSeparator()
-
-        # Copy
-        copy_action = QAction(icon_manager.get_icon("copy"), " Копировать", self)
-        copy_action.setShortcut(QKeySequence("Ctrl+C"))
-        copy_action.triggered.connect(self._on_copy)
-        edit_menu.addAction(copy_action)
-
-        # Paste
-        paste_action = QAction(icon_manager.get_icon("duplicate"), " Вставить", self)
-        paste_action.setShortcut(QKeySequence("Ctrl+V"))
-        paste_action.triggered.connect(self._on_paste)
-        edit_menu.addAction(paste_action)
-
-        # Duplicate
-        duplicate_action = QAction(icon_manager.get_icon("duplicate"), " Дублировать", self)
-        duplicate_action.setShortcut(QKeySequence("Ctrl+D"))
-        duplicate_action.triggered.connect(self._on_duplicate)
-        edit_menu.addAction(duplicate_action)
-
-        # Select All
-        select_all_action = QAction(icon_manager.get_icon("copy"), "Выделить всё", self)
-        select_all_action.setShortcut(QKeySequence("Ctrl+A"))
-        select_all_action.triggered.connect(self._on_select_all)
-        edit_menu.addAction(select_all_action)
-
-        edit_menu.addSeparator()
-
-        # Delete
-        delete_action = QAction(icon_manager.get_icon("garbage"), " Delete Selected", self)
-        delete_action.setShortcut(QKeySequence("Del"))
-        delete_action.triggered.connect(self._on_delete_selected)
-        edit_menu.addAction(delete_action)
-        
-        edit_menu.addSeparator()
-        
-        # Clear All
-        clear_action = QAction(icon_manager.get_icon("clear"), " Clear All", self)
-        clear_action.triggered.connect(self._on_clear_clicked)
-        edit_menu.addAction(clear_action)
-        
-        # Меню Tools
-        tools_menu = menubar.addMenu("&Tools")
-        
-        # Search Classes
-        search_action = QAction("🔍 Поиск классов...", self)
-        search_action.setShortcut(QKeySequence("Ctrl+F"))
-        search_action.triggered.connect(self._show_search)
-        tools_menu.addAction(search_action)
-        
-        tools_menu.addSeparator()
-        
-        # Code Generation
-        generate_code_action = QAction(icon_manager.get_icon("generate"), " Generate Code", self)
-        generate_code_action.setShortcut(QKeySequence("Ctrl+G"))
-        generate_code_action.triggered.connect(self._on_generate_code_clicked)
-        tools_menu.addAction(generate_code_action)
-
-        # Export Project
-        export_project_action = QAction(icon_manager.get_icon("folder"), " Export Project...", self)
-        export_project_action.setShortcut(QKeySequence("Ctrl+E"))
-        export_project_action.triggered.connect(self._on_export_project_clicked)
-        tools_menu.addAction(export_project_action)
-
-        # Export Image
-        export_image_action = QAction("Export Image (PNG/SVG)...", self)
-        export_image_action.setShortcut(QKeySequence("Ctrl+Shift+E"))
-        export_image_action.triggered.connect(self._on_export_image)
-        tools_menu.addAction(export_image_action)
-
-        tools_menu.addSeparator()
-
-        # Validate
-        validate_action = QAction("Валидация диаграммы", self)
-        validate_action.setShortcut(QKeySequence("Ctrl+Shift+V"))
-        validate_action.triggered.connect(self._on_validate)
-        tools_menu.addAction(validate_action)
-        
-        tools_menu.addSeparator()
-
-        # Align submenu
-        align_menu = tools_menu.addMenu("Выравнивание")
-        for label, key, slot in [
-            ("По левому краю",  "Ctrl+Shift+Left",  self._align_left),
-            ("По правому краю", "Ctrl+Shift+Right", self._align_right),
-            ("По верхнему краю","Ctrl+Shift+Up",    self._align_top),
-            ("По нижнему краю", "Ctrl+Shift+Down",  self._align_bottom),
-            ("По центру (гор.)", None,              self._align_center_h),
-            ("По центру (верт.)", None,             self._align_center_v),
-        ]:
-            a = QAction(label, self)
-            if key:
-                a.setShortcut(QKeySequence(key))
-            a.triggered.connect(slot)
-            align_menu.addAction(a)
-        
-
-        # Подключаем сигналы undo/redo от контроллера
-        self.controller.history.history_changed.connect(self._on_history_changed)
-
-    def _setup_toolbar(self):
-        """Настройка тулбара с иконками"""
-        toolbar = self.addToolBar("Main")
-        toolbar.setMovable(False)
-        toolbar.setStyleSheet("""
-            QToolBar {
-                background-color: #FFFFFF;
-                border-bottom: 1px solid #E5E0F8;
-                spacing: 4px;
-                padding: 4px 12px;
-            }
-            QToolButton {
-                background-color: transparent;
-                color: #1F1F1F;
-                border: none;
-                border-radius: 6px;
-                padding: 5px 10px;
-                font-size: 13px;
-            }
-            QToolButton:hover {
-                background-color: #F3EEFF;
-                color: #7C3AED;
-            }
-        """)
-
-        # ===== ПЕРЕКЛЮЧАТЕЛЬ ТИПОВ ДИАГРАММ =====
-        from PyQt6.QtWidgets import QComboBox
-        
-        diagram_type_label = QLabel("Тип диаграммы:")
-        diagram_type_label.setStyleSheet("color: #666; font-size: 12px; padding: 0 8px;")
-        toolbar.addWidget(diagram_type_label)
-        
-        self.diagram_type_combo = QComboBox()
-        self.diagram_type_combo.addItem("📊 Диаграмма классов", "class")
-        self.diagram_type_combo.addItem("👤 Use Case диаграмма", "use_case")
-        self.diagram_type_combo.setCurrentIndex(0)
-        self.diagram_type_combo.setStyleSheet("""
-            QComboBox {
-                background-color: white;
-                border: 1.5px solid #7C3AED;
-                border-radius: 6px;
-                padding: 5px 10px;
-                font-size: 13px;
-                min-width: 180px;
-            }
-            QComboBox:hover {
-                background-color: #F3EEFF;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 6px solid #7C3AED;
-                margin-right: 5px;
-            }
-        """)
-        self.diagram_type_combo.currentIndexChanged.connect(self._on_diagram_type_changed)
-        toolbar.addWidget(self.diagram_type_combo)
-
-        # Левая часть — инструменты работы с диаграммой
-        toolbar.addSeparator()
-
-        edit_action = QAction(icon_manager.get_icon("pencil"), " Редактировать", self)
-        edit_action.triggered.connect(self._on_edit_selected)
-        toolbar.addAction(edit_action)
-
-        delete_action = QAction(icon_manager.get_icon("garbage"), " Удалить", self)
-        delete_action.triggered.connect(self._on_delete_selected)
-        toolbar.addAction(delete_action)
-
-        edit_conn_action = QAction(icon_manager.get_icon("generate"), " Связи", self)
-        edit_conn_action.triggered.connect(self._on_edit_connection)
-        toolbar.addAction(edit_conn_action)
-
-        toolbar.addSeparator()
-
-        # ===== НОВЫЕ КНОПКИ UNDO/REDO =====
-        # Кнопка Отменить (Undo)
-        undo_btn = QToolButton()
-        undo_btn.setIcon(icon_manager.get_icon("undo"))
-        undo_btn.setText(" Отменить")
-        undo_btn.setToolTip("Отменить последнее действие (Ctrl+Z)")
-        undo_btn.setIconSize(QSize(20, 20))
-        undo_btn.setStyleSheet("""
-            QToolButton {
-                background-color: transparent;
-                color: #1F1F1F;
-                border: none;
-                border-radius: 20px;
-                padding: 5px 12px;
-                font-weight: 500;
-                font-size: 13px;
-            }
-            QToolButton:hover {
-                background-color: #F3EEFF;
-                color: #7C3AED;
-            }
-        """)
-        undo_btn.clicked.connect(self._on_undo)
-        toolbar.addWidget(undo_btn)
-
-        # Кнопка Вернуть (Redo)
-        redo_btn = QToolButton()
-        redo_btn.setIcon(icon_manager.get_icon("redo"))
-        redo_btn.setText(" Вернуть")
-        redo_btn.setToolTip("Вернуть отменённое действие (Ctrl+Y)")
-        redo_btn.setIconSize(QSize(20, 20))
-        redo_btn.setStyleSheet("""
-            QToolButton {
-                background-color: transparent;
-                color: #1F1F1F;
-                border: none;
-                border-radius: 20px;
-                padding: 5px 12px;
-                font-weight: 500;
-                font-size: 13px;
-            }
-            QToolButton:hover {
-                background-color: #F3EEFF;
-                color: #7C3AED;
-            }
-        """)
-        redo_btn.clicked.connect(self._on_redo)
-        toolbar.addWidget(redo_btn)
-
-        toolbar.addSeparator()
-
-        # Растягивающийся разделитель
-        from PyQt6.QtWidgets import QSizePolicy
-        spacer_flex = QWidget()
-        spacer_flex.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        spacer_flex.setStyleSheet("background: transparent;")
-        toolbar.addWidget(spacer_flex)
-
-        # Кнопка Сохранить
-        save_btn = QToolButton()
-        save_btn.setIcon(icon_manager.get_icon("save"))
-        save_btn.setText(" Сохранить")
-        save_btn.setToolTip("Сохранить диаграмму")
-        save_btn.setIconSize(QSize(20, 20))
-        save_btn.setStyleSheet("""
-            QToolButton {
-                background-color: transparent;
-                color: #7C3AED;
-                border: 1.5px solid #7C3AED;
-                border-radius: 20px;
-                padding: 5px 15px;
-                font-weight: 600;
-                font-size: 13px;
-            }
-            QToolButton:hover {
-                background-color: #F3EEFF;
-            }
-        """)
-        save_btn.clicked.connect(self._on_save_clicked)
-        toolbar.addWidget(save_btn)
-
-        # Кнопка Загрузить диаграмму
-        load_btn = QToolButton()
-        load_btn.setIcon(icon_manager.get_icon("folder"))
-        load_btn.setText(" Загрузить диаграмму")
-        load_btn.setToolTip("Загрузить диаграмму")
-        load_btn.setIconSize(QSize(20, 20))
-        load_btn.setStyleSheet("""
-            QToolButton {
-                background-color: transparent;
-                color: #7C3AED;
-                border: 1.5px solid #7C3AED;
-                border-radius: 20px;
-                padding: 5px 15px;
-                font-weight: 600;
-                font-size: 13px;
-            }
-            QToolButton:hover {
-                background-color: #F3EEFF;
-            }
-        """)
-        load_btn.clicked.connect(self._on_load_clicked)
-        toolbar.addWidget(load_btn)
-
-        # Кнопка Сгенерировать код
-        gen_btn = QToolButton()
-        gen_btn.setIcon(icon_manager.get_icon("code"))
-        gen_btn.setText(" Сгенерировать код")
-        gen_btn.setToolTip("Сгенерировать код")
-        gen_btn.setIconSize(QSize(20, 20))
-        gen_btn.setStyleSheet("""
-            QToolButton {
-                background-color: #7C3AED;
-                color: white;
-                border: 2px solid #7C3AED;
-                border-radius: 20px;
-                padding: 5px 15px;
-                font-weight: 600;
-                font-size: 13px;
-            }
-            QToolButton:hover {
-                background-color: #6D28D9;
-                border-color: #6D28D9;
-            }
-        """)
-        gen_btn.clicked.connect(self._on_generate_code_clicked)
-        toolbar.addWidget(gen_btn)
-
-    def _primary_btn_style(self) -> str:
-        return ""
-
-    def _outline_btn_style(self) -> str:
-        return ""
-    
     def _setup_panels(self):
         """Настройка боковых панелей через QDockWidget"""
         # Левая панель — Toolbox
