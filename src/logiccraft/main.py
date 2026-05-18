@@ -282,6 +282,20 @@ class Application:
             with open(config_file, "w", encoding="utf-8") as f:
                 json.dump(self.project_config, f, indent=2, ensure_ascii=False)
 
+            # Создаём пустой файл диаграммы сразу при создании проекта
+            diagram_file = project_path / "diagram.json"
+            empty_diagram = {
+                "version": "1.0",
+                "diagram_type": self.project_config.get("diagram_type", "class"),
+                "nodes": [],
+                "connections": [],
+                "uc_actors": [],
+                "uc_scenarios": [],
+                "uc_connections": []
+            }
+            with open(diagram_file, "w", encoding="utf-8") as f:
+                json.dump(empty_diagram, f, indent=2, ensure_ascii=False)
+
             # Создаём .gitignore если нужно
             if self.project_config.get("gitignore", False):
                 gitignore_file = project_path / ".gitignore"
