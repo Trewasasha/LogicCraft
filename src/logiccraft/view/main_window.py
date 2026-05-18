@@ -803,6 +803,8 @@ class MainWindow(QMainWindow):
         self.controller.diagram_cleared.connect(self._on_diagram_cleared)
         self.controller.status_changed.connect(self.update_status)
         self.controller.error_occurred.connect(self.show_error)
+        # Сигнал загрузки диаграммы - обновляем панель инструментов
+        self.controller.diagram_loaded.connect(self._on_diagram_loaded)
         # Use Case сигналы
         self.controller.uc_actor_added.connect(self._on_uc_actor_added)
         self.controller.uc_actor_removed.connect(self._on_uc_actor_removed)
@@ -815,12 +817,26 @@ class MainWindow(QMainWindow):
         """Обновить индикатор масштаба"""
         self.zoom_label.setText(f"{percent}%")
     
+    def _on_diagram_loaded(self):
+        """Обработка загрузки диаграммы - обновляем панель инструментов"""
+        diagram_type = self.controller.manager.diagram.diagram_type
+        # Синхронизируем комбобокс с типом загруженной диаграммы
+        for i in range(self.diagram_type_combo.count()):
+            if self.diagram_type_combo.itemData(i) == diagram_type:
+                self.diagram_type_combo.setCurrentIndex(i)
+                break
+        # Обновляем панель инструментов
+        self.toolbox_panel.set_diagram_type(diagram_type)
+    
     def _on_diagram_type_changed(self, index: int):
         """Обработка переключения типа диаграммы"""
         diagram_type = self.diagram_type_combo.itemData(index)
         
         # Обновляем тип диаграммы в модели
         self.controller.manager.diagram.diagram_type = diagram_type
+        
+        # Обновляем панель инструментов - показываем только нужные секции
+        self.toolbox_panel.set_diagram_type(diagram_type)
         
         # Обновляем видимость элементов в зависимости от типа
         if diagram_type == "class":

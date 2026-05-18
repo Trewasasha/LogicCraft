@@ -153,3 +153,27 @@ class ToolboxPanel(QWidget):
         line.setFrameShape(QFrame.Shape.HLine)
         line.setObjectName("ToolboxDivider")
         return line
+
+    def set_diagram_type(self, diagram_type: str):
+        """Показать только инструменты для выбранного типа диаграммы"""
+        # Получаем все секции
+        sections = self.findChildren(ToolboxSection)
+        
+        for section in sections:
+            title = section.title() if hasattr(section, 'title') else ""
+            # Получаем заголовок из первого QLabel
+            label = section.findChild(QLabel)
+            section_title = label.text() if label else ""
+            
+            if diagram_type == "class":
+                # Показываем только секции для диаграммы классов
+                if section_title in ["Классы", "Связи классов"]:
+                    section.setVisible(True)
+                else:
+                    section.setVisible(False)
+            elif diagram_type == "use_case":
+                # Показываем только секции для Use Case диаграммы
+                if section_title in ["Use Case", "Связи Use Case"]:
+                    section.setVisible(True)
+                else:
+                    section.setVisible(False)
