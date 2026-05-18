@@ -286,7 +286,11 @@ class Application:
             with open(config_file, "w", encoding="utf-8") as f:
                 json.dump(self.project_config, f, indent=2, ensure_ascii=False)
 
+
             # Создаём файл диаграммы сразу при создании проекта (в корне проекта)
+
+            # Создаём пустой файл диаграммы сразу при создании проекта
+
             diagram_file = project_path / "diagram.json"
             empty_diagram = {
                 "version": "1.0",
@@ -299,6 +303,7 @@ class Application:
             }
             with open(diagram_file, "w", encoding="utf-8") as f:
                 json.dump(empty_diagram, f, indent=2, ensure_ascii=False)
+
 
             # Создаём папку .logiccraft только для служебных данных (кэш, настройки IDE)
             logiccraft_dir = project_path / ".logiccraft"
