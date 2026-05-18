@@ -1,35 +1,51 @@
-# Python
-__pycache__/
+```
+# Compiled Python files
 *.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
+__pycache__/
+
+# Dependencies
 .venv/
-pip-log.txt
-pip-delete-this-directory.txt
-.poetry/
+venv/
+env/
+Lib/site-packages/
 
-# Build and Distribution
-dist/
+# Build/dist directories
 build/
-*.spec
+dist/
+*.egg-info/
 
-# IDEs
-.idea/
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Editors/IDE
 .vscode/
+.idea/
 *.swp
 *.swo
-*.iml
+
+# OS
 .DS_Store
+Thumbs.db
 
-# Project specific
-data/exports/*
-data/saves/*
-temp/
-theme_pref.json
+# Testing/coverage
+.coverage
+htmlcov/
+.coverage.*
+.cache
+.pytest_cache/
+.mypy_cache/
 
-# Keep directories but ignore content
-!data/exports/.gitkeep
-!data/saves/.gitkeep
+# Distribution archives
+*.tar.gz
+*.zip
+*.whl
+
+# Temporary files
+*.tmp
+*~
+```

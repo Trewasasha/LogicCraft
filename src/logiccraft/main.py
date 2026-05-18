@@ -257,6 +257,14 @@ class Application:
             # Создаём структуру проекта и сохраняем конфигурацию
             self._create_project_structure()
 
+            # Обновляем панель инструментов для выбранного типа диаграммы
+            self.window.toolbox_panel.set_diagram_type(diagram_type)
+            # Синхронизируем комбобокс
+            for i in range(self.window.diagram_type_combo.count()):
+                if self.window.diagram_type_combo.itemData(i) == diagram_type:
+                    self.window.diagram_type_combo.setCurrentIndex(i)
+                    break
+
             # Показываем главное окно
             self.window.show()
 
@@ -273,14 +281,33 @@ class Application:
             project_path = Path(self.project_config["path"]) / self.project_config["name"]
             project_path.mkdir(parents=True, exist_ok=True)
 
-            # Создаём папку .logiccraft для метаданных
-            logiccraft_dir = project_path / ".logiccraft"
-            logiccraft_dir.mkdir(exist_ok=True)
-
-            # Сохраняем конфигурацию проекта
-            config_file = logiccraft_dir / "project.json"
+            # Сохраняем конфигурацию проекта в корне проекта (видимо для пользователя)
+            config_file = project_path / "project.json"
             with open(config_file, "w", encoding="utf-8") as f:
                 json.dump(self.project_config, f, indent=2, ensure_ascii=False)
+
+            # Создаём файл диаграммы сразу при создании проекта (в корне проекта)
+            diagram_file = project_path / "diagram.json"
+            empty_diagram = {
+                "version": "1.0",
+                "diagram_type": self.project_config.get("diagram_type", "class"),
+                "nodes": [],
+                "connections": [],
+                "uc_actors": [],
+                "uc_scenarios": [],
+                "uc_connections": []
+            }
+            with open(diagram_file, "w", encoding="utf-8") as f:
+                json.dump(empty_diagram, f, indent=2, ensure_ascii=False)
+
+            # Создаём папку .logiccraft только для служебных данных (кэш, настройки IDE)
+            logiccraft_dir = project_path / ".logiccraft"
+            logiccraft_dir.mkdir(exist_ok=True)
+            
+            # Файл .gitignore для исключения служебной папки
+            gitignore_logiccraft = logiccraft_dir / ".gitignore"
+            with open(gitignore_logiccraft, "w", encoding="utf-8") as f:
+                f.write("# Служебные файлы LogicCraft\n*.*\n!/.gitignore\n")
 
             # Создаём .gitignore если нужно
             if self.project_config.get("gitignore", False):
@@ -301,7 +328,7 @@ venv/
 *.swp
 *.swo
 
-# LogicCraft
+# LogicCraft (служебные файлы)
 .logiccraft/
 """
                 with open(gitignore_file, "w", encoding="utf-8") as f:
@@ -355,8 +382,7 @@ if __name__ == "__main__":
         project_path = Path(self.project_config["path"]) / self.project_config["name"]
         project_path.mkdir(parents=True, exist_ok=True)
         
-        config_file = project_path / ".logiccraft" / "project.json"
-        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file = project_path / "project.json"
         
         with open(config_file, "w", encoding="utf-8") as f:
             json.dump(self.project_config, f, indent=2, ensure_ascii=False)

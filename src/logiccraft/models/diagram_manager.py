@@ -1,7 +1,10 @@
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 import json
-from .diagram import UMLDiagram, UMLNode, UMLConnection, ConnectionType, UMLProperty, UMLMethod, NodeType
+from .diagram import (
+    UMLDiagram, UMLNode, UMLConnection, ConnectionType, UMLProperty, UMLMethod, NodeType,
+    UseCaseActor, UseCaseScenario, UseCaseConnection
+)
 
 
 class DiagramManager:
@@ -125,9 +128,14 @@ class DiagramManager:
         """Сохранить диаграмму в файл"""
         try:
             data = {
+                "version": "1.0",
                 "name": self.diagram.name,
+                "diagram_type": self.diagram.diagram_type.value if hasattr(self.diagram, 'diagram_type') and self.diagram.diagram_type else "class",
                 "nodes": [node.model_dump() for node in self.diagram.nodes],
-                "connections": [conn.model_dump() for conn in self.diagram.connections]
+                "connections": [conn.model_dump() for conn in self.diagram.connections],
+                "uc_actors": [actor.model_dump() for actor in self.diagram.uc_actors],
+                "uc_scenarios": [scenario.model_dump() for scenario in self.diagram.uc_scenarios],
+                "uc_connections": [conn.model_dump() for conn in self.diagram.uc_connections],
             }
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
@@ -144,11 +152,21 @@ class DiagramManager:
 
             nodes = [UMLNode(**node_data) for node_data in data.get("nodes", [])]
             connections = [UMLConnection(**conn_data) for conn_data in data.get("connections", [])]
+            uc_actors = [UseCaseActor(**a) for a in data.get("uc_actors", [])]
+            uc_scenarios = [UseCaseScenario(**s) for s in data.get("uc_scenarios", [])]
+            uc_connections = [UseCaseConnection(**c) for c in data.get("uc_connections", [])]
+
+            from .diagram import DiagramType
+            diagram_type = DiagramType(data.get("diagram_type", "class"))
 
             self.diagram = UMLDiagram(
                 name=data.get("name", "Untitled"),
+                diagram_type=diagram_type,
                 nodes=nodes,
-                connections=connections
+                connections=connections,
+                uc_actors=uc_actors,
+                uc_scenarios=uc_scenarios,
+                uc_connections=uc_connections,
             )
             return True
         except Exception as e:
