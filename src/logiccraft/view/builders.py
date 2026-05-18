@@ -299,8 +299,10 @@ class StatusBarBuilder:
         zoom_layout.addWidget(fit_btn)
         zoom_layout.addWidget(reset_btn)
         
+        self.status_bar.addPermanentWidget(zoom_widget)
+    
+    def _build_stats_label(self):
+        """Метка статистики"""
         self.main_window.stats_label = QLabel("")
         self.main_window.stats_label.setObjectName("StatusBarStats")
-        
         self.status_bar.addPermanentWidget(self.main_window.stats_label)
-        self.status_bar.addPermanentWidget(zoom_widget)
