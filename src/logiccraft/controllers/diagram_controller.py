@@ -76,6 +76,7 @@ class DiagramController(QObject):
     def _save_state(self):
         """Создает точку восстановления в HistoryService"""
         self.history.push_state(self.manager.diagram)
+        self._mark_modified()
 
     # --- ОПЕРАЦИИ С КАРТОЧКАМИ ---
 
@@ -618,11 +619,23 @@ class DiagramController(QObject):
 
     def save_diagram(self, filepath: str) -> bool:
         """Сохранить диаграмму в файл"""
-        return self.manager.save_to_file(filepath)
+        result = self.manager.save_to_file(filepath)
+        if result:
+            self._is_modified = False
+        return result
 
     def load_diagram(self, filepath: str) -> bool:
         """Загрузить диаграмму из файла"""
         result = self.manager.load_from_file(filepath)
         if result:
+            self._is_modified = False
             self.diagram_loaded.emit()
         return result
+
+    def is_modified(self) -> bool:
+        """Есть ли несохранённые изменения"""
+        return getattr(self, '_is_modified', False)
+
+    def _mark_modified(self):
+        """Пометить диаграмму как изменённую"""
+        self._is_modified = True
