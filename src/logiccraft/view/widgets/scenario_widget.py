@@ -123,8 +123,9 @@ class ScenarioWidget(QGraphicsItem):
     def setSelected(self, selected: bool):
         super().setSelected(selected)
         self._is_selected = selected
-        for anchor in self.anchors.values():
-            anchor.setVisible(selected)
+        # Не управляем видимостью anchors здесь - это делает сцена
+        # для anchor in self.anchors.values():
+        #     anchor.setVisible(selected)
         self.update()
 
     def isSelected(self) -> bool:
@@ -165,9 +166,9 @@ class ScenarioWidget(QGraphicsItem):
     def contextMenuEvent(self, event):
         from PyQt6.QtWidgets import QMenu, QInputDialog
         menu = QMenu()
-        rename_action = menu.addAction("✏  Переименовать")
+        rename_action = menu.addAction("Переименовать")
         menu.addSeparator()
-        delete_action = menu.addAction("🗑  Удалить сценарий")
+        delete_action = menu.addAction("Удалить сценарий")
 
         action = menu.exec(event.screenPos())
         if action == rename_action:

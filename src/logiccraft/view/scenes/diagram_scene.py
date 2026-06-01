@@ -219,13 +219,13 @@ class DiagramScene(QGraphicsScene):
                         anchor.setVisible(True)
     
     def _hide_all_anchors(self):
-        """Скрыть точки привязки у всех невыделенных элементов"""
+        """Скрыть точки привязки у всех элементов"""
         from ..widgets.uml_card import UMLCard
         from ..widgets.actor_widget import ActorWidget
         from ..widgets.scenario_widget import ScenarioWidget
         
         for item in self.items():
             if isinstance(item, (UMLCard, ActorWidget, ScenarioWidget)):
-                if hasattr(item, 'anchors') and not item.isSelected():
+                if hasattr(item, 'anchors'):
                     for anchor in item.anchors.values():
                         anchor.setVisible(False)

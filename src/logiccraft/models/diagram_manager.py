@@ -1,10 +1,13 @@
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 import json
+import logging
 from .diagram import (
     UMLDiagram, UMLNode, UMLConnection, ConnectionType, UMLProperty, UMLMethod, NodeType,
     UseCaseActor, UseCaseScenario, UseCaseConnection
 )
+
+logger = logging.getLogger(__name__)
 
 
 class DiagramManager:
@@ -141,7 +144,7 @@ class DiagramManager:
                 json.dump(data, f, indent=2, ensure_ascii=False)
             return True
         except Exception as e:
-            print(f"Error saving diagram: {e}")
+            logger.error(f"Error saving diagram: {e}")
             return False
 
     def load_from_file(self, filepath: str) -> bool:
@@ -170,7 +173,7 @@ class DiagramManager:
             )
             return True
         except Exception as e:
-            print(f"Error loading diagram: {e}")
+            logger.error(f"Error loading diagram: {e}")
             return False
 
     def clear(self):

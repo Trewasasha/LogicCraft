@@ -1,11 +1,14 @@
 """Сервис сериализации диаграмм"""
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Any, Tuple, List
 from ..models.diagram import (
     UMLDiagram, UMLNode, UMLConnection,
     UseCaseActor, UseCaseScenario, UseCaseConnection
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SerializationService:
@@ -83,7 +86,7 @@ class SerializationService:
                 json.dump(data, f, indent=2, ensure_ascii=False)
             return True
         except Exception as e:
-            print(f"Error saving to JSON: {e}")
+            logger.error(f"Error saving to JSON: {e}")
             return False
 
     @staticmethod
@@ -95,5 +98,5 @@ class SerializationService:
             diagram = SerializationService.deserialize(data)
             return True, diagram
         except Exception as e:
-            print(f"Error loading from JSON: {e}")
+            logger.error(f"Error loading from JSON: {e}")
             return False, None
