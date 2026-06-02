@@ -1,7 +1,7 @@
 """Линия связи между карточками"""
 import math
 import uuid
-from PyQt6.QtWidgets import QGraphicsLineItem, QGraphicsTextItem
+from PyQt6.QtWidgets import QGraphicsLineItem, QGraphicsTextItem, QGraphicsItem
 from PyQt6.QtCore import Qt, QPointF, QLineF, QObject, pyqtSignal
 from PyQt6.QtGui import QPen, QColor, QFont
 
@@ -16,7 +16,7 @@ class ConnectionSignals(QObject):
 
 
 class ConnectionLine(QGraphicsLineItem):
-    """Линия связи с защитой от дублирования наконечников"""
+    """Линия связи с защитой от смещения наконечников и утечек памяти"""
 
     def __init__(self, source, target,
                  source_anchor: str = "right", target_anchor: str = "left",
@@ -34,17 +34,21 @@ class ConnectionLine(QGraphicsLineItem):
         self.connection_type = connection_type
         self.multiplicity = multiplicity or ""
         self.name = name or ""
-        self._is_selected = False
 
         self.signals = ConnectionSignals()
 
-        # Настройка пера
+        # Настройка пера и флагов Qt
         pen = QPen(QColor(ConnectionStyle.LINE_COLOR), ConnectionStyle.LINE_WIDTH)
         type_value = connection_type.value if hasattr(connection_type, 'value') else str(connection_type)
         if type_value in ("dependency", "realization", "uc_include", "uc_extend"):
             pen.setStyle(Qt.PenStyle.DashLine)
         self.setPen(pen)
-        self.setFlags(QGraphicsLineItem.GraphicsItemFlag.ItemIsSelectable)
+
+        # Нативное выделение Qt через itemChange
+        self.setFlags(
+            QGraphicsLineItem.GraphicsItemFlag.ItemIsSelectable |
+            QGraphicsLineItem.GraphicsItemFlag.ItemSendsGeometryChanges
+        )
 
         # Наконечник
         self.arrow_head = ArrowHead(QPointF(1, 0), self.connection_type)
@@ -74,10 +78,54 @@ class ConnectionLine(QGraphicsLineItem):
         self._update_labels()
         self.update_position()
 
+        # Подключаем сигналы перемещения карточек
         if hasattr(source, 'signals'):
             source.signals.position_changed.connect(self.update_position)
         if hasattr(target, 'signals'):
             target.signals.position_changed.connect(self.update_position)
+
+    def disconnect_signals(self):
+        """Принудительная очистка связей для предотвращения утечек памяти"""
+        try:
+            if self.source and hasattr(self.source, 'signals'):
+                self.source.signals.position_changed.disconnect(self.update_position)
+        except Exception:
+            pass
+        try:
+            if self.target and hasattr(self.target, 'signals'):
+                self.target.signals.position_changed.disconnect(self.update_position)
+        except Exception:
+            pass
+
+    def itemChange(self, change, value):
+        """Перехват изменения состояния выделения элемента механизмами Qt"""
+        if change == QGraphicsItem.GraphicsItemChange.ItemSelectedChange:
+            is_sel = bool(value)
+            color = QColor(ConnectionStyle.SELECTED_COLOR) if is_sel else QColor(ConnectionStyle.LINE_COLOR)
+            width = ConnectionStyle.SELECTED_WIDTH if is_sel else ConnectionStyle.LINE_WIDTH
+
+            pen = QPen(color, width)
+            type_value = self.connection_type.value if hasattr(self.connection_type, 'value') else str(self.connection_type)
+            if type_value in ("dependency", "realization", "uc_include", "uc_extend"):
+                pen.setStyle(Qt.PenStyle.DashLine)
+
+            self.setPen(pen)
+            if self.arrow_head:
+                self.arrow_head.setPen(pen)
+            self.signals.selected_changed.emit(self, is_sel)
+
+        return super().itemChange(change, value)
+
+    def is_selected(self):
+        return self.isSelected()
+
+    def set_selected(self, selected: bool):
+        if self.isSelected() != selected:
+            self.setSelected(selected)
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        event.accept()
 
     def _update_labels(self):
         """Обновляет текст меток множественности и имени"""
@@ -108,7 +156,7 @@ class ConnectionLine(QGraphicsLineItem):
             self._stereotype_label.setVisible(False)
 
     def update_position(self):
-        """Обновление координат без пересоздания наконечника"""
+        """Обновление координат без использования искажающего mapFromScene"""
         if not self.source or not self.target or not self.arrow_head:
             return
 
@@ -123,70 +171,75 @@ class ConnectionLine(QGraphicsLineItem):
             self.setLine(line_vec)
             return
 
-        self.arrow_head.setVisible(True)
+        # Безопасно извлекаем строку типа связи
+        type_str = self.connection_type.value if hasattr(self.connection_type, 'value') else str(self.connection_type)
+        if "." in type_str:
+            type_str = type_str.split(".")[-1]
+        type_str = type_str.lower()
 
-        angle = math.atan2(-line_vec.dy(), line_vec.dx())
-        offset = 12
-        p2_adj = QPointF(
-            p2.x() - math.cos(angle) * offset,
-            p2.y() + math.sin(angle) * offset
-        )
+        # В Use Case обычная ассоциация стрелки не имеет
+        if type_str in ("uc_association", "association_none"):
+            self.arrow_head.setVisible(False)
+            self.setLine(line_vec)
+        else:
+            self.arrow_head.setVisible(True)
 
-        self.setLine(QLineF(p1, p2_adj))
-        self.arrow_head.setPos(self.mapFromScene(p2))
-        self.arrow_head.set_direction(p2 - p1)
+            angle = math.atan2(-line_vec.dy(), line_vec.dx())
 
-        # Позиционируем метки
+            # Сдвиг для плотной посадки линии внутрь V-образного наконечника
+            offset = 6 if type_str in ("uc_include", "uc_extend", "dependency") else 12
+            p2_adj = QPointF(
+                p2.x() - math.cos(angle) * offset,
+                p2.y() + math.sin(angle) * offset
+            )
+
+            self.setLine(QLineF(p1, p2_adj))
+
+            # Фикс: Позиционируем дочерний элемент напрямую по координате сцены p2,
+            # так как позиция родительской линии не смещена (pos == 0,0)
+            self.arrow_head.setPos(p2)
+            self.arrow_head.set_direction(p2 - p1)
+
+        # Позиционируем метки во внутренних координатах линии
         lp1 = self.mapFromScene(p1)
         lp2 = self.mapFromScene(p2)
         mid = QPointF((lp1.x() + lp2.x()) / 2, (lp1.y() + lp2.y()) / 2)
 
-        # Множественность у источника
-        self._source_mult_label.setPos(lp1.x() + 6, lp1.y() - 18)
-        # Множественность у цели
-        self._target_mult_label.setPos(lp2.x() - 20, lp2.y() - 18)
+        angle_labels = math.atan2(-line_vec.dy(), line_vec.dx())
+        cos_a = math.cos(angle_labels)
+        sin_a = math.sin(angle_labels)
+
+        self._source_mult_label.setPos(lp1.x() + cos_a * 15 + 5, lp1.y() - sin_a * 15 - 15)
+        self._target_mult_label.setPos(lp2.x() - cos_a * 35, lp2.y() + sin_a * 15 - 15)
+
         # Имя по центру линии
         self._name_label.setPos(mid.x() - self._name_label.boundingRect().width() / 2, mid.y() - 18)
-        # Стереотип по центру линии (чуть выше имени)
+
+        # Стереотип по центру линии
         sl_w = self._stereotype_label.boundingRect().width()
-        offset = -32 if self._name_label.isVisible() else -18
-        self._stereotype_label.setPos(mid.x() - sl_w / 2, mid.y() + offset)
-
-    def is_selected(self):
-        return self._is_selected
-
-    def set_selected(self, selected: bool):
-        self._is_selected = selected
-        # Синхронизируем с Qt чтобы scene.selectedItems() работал
-        if self.isSelected() != selected:
-            self.setSelected(selected)
-        color = QColor(ConnectionStyle.SELECTED_COLOR) if selected else QColor(ConnectionStyle.LINE_COLOR)
-        width = ConnectionStyle.SELECTED_WIDTH if selected else ConnectionStyle.LINE_WIDTH
-        pen = QPen(color, width)
-        type_value = self.connection_type.value if hasattr(self.connection_type, 'value') else str(self.connection_type)
-        if type_value in ("dependency", "realization", "uc_include", "uc_extend"):
-            pen.setStyle(Qt.PenStyle.DashLine)
-        self.setPen(pen)
-        if self.arrow_head:
-            self.arrow_head.setPen(pen)
-        self.signals.selected_changed.emit(self, selected)
-
-    def mousePressEvent(self, event):
-        super().mousePressEvent(event)
-        self.set_selected(not self._is_selected)
-        event.accept()
+        lbl_offset = -32 if self._name_label.isVisible() else -18
+        self._stereotype_label.setPos(mid.x() - sl_w / 2, mid.y() + lbl_offset)
 
     def set_connection_type(self, connection_type):
         self.connection_type = connection_type
         if self.arrow_head:
             self.arrow_head.set_connection_type(connection_type)
+
         type_value = connection_type.value if hasattr(connection_type, 'value') else str(connection_type)
+        if "." in type_value:
+            type_value = type_value.split(".")[-1]
+        type_value = type_value.lower()
+
         pen = self.pen()
         if type_value in ("dependency", "realization", "uc_include", "uc_extend"):
             pen.setStyle(Qt.PenStyle.DashLine)
         else:
             pen.setStyle(Qt.PenStyle.SolidLine)
+
         self.setPen(pen)
+        if self.arrow_head:
+            self.arrow_head.setPen(pen)
+
         self._update_stereotype_label()
         self.update_position()
 
