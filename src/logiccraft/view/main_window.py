@@ -1496,10 +1496,22 @@ class MainWindow(QMainWindow):
     def update_status(self, text: str):
         """Обновить статус"""
         self.status_label.setText(text)
-        # Обновляем статистику
-        n_nodes = len(self.controller.manager.diagram.nodes)
-        n_conns = len(self.controller.manager.diagram.connections)
-        self.stats_label.setText(f"Классов: {n_nodes}  |  Связей: {n_conns}")
+
+        # Безопасно получаем доступ к текущей диаграмме
+        diagram = self.controller.manager.diagram
+
+        # Проверяем, какой тип диаграммы сейчас выбран в комбобоксе
+        current_type = self.diagram_type_combo.currentData()
+
+        if current_type == "class":
+            n_nodes = len(diagram.nodes)
+            n_conns = len(diagram.connections)
+            self.stats_label.setText(f"Классов: {n_nodes}  |  Связей: {n_conns}")
+        else:
+            # Для Use Case считаем сумму актёров и сценариев
+            n_elements = len(diagram.uc_actors) + len(diagram.uc_scenarios)
+            n_uc_conns = len(diagram.uc_connections)
+            self.stats_label.setText(f"Элементов UC: {n_elements}  |  Связей UC: {n_uc_conns}")
 
     def show_error(self, message: str):
         """Показать ошибку"""
