@@ -13,6 +13,12 @@ Lib/site-packages/
 build/
 dist/
 *.egg-info/
+dmg_staging/
+temp.dmg
+
+# macOS application bundles
+*.app
+*.dmg
 
 # Logs
 *.log

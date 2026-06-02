@@ -130,10 +130,17 @@ class DiagramManager:
     def save_to_file(self, filepath: str) -> bool:
         """Сохранить диаграмму в файл"""
         try:
+            directory = Path(filepath).parent
+            directory.mkdir(parents=True, exist_ok=True)
+
+            # Безопасное приведение типов (Enum/str) для diagram_type
+            d_type = getattr(self.diagram, 'diagram_type', 'class') or 'class'
+            diagram_type_str = d_type.value if hasattr(d_type, 'value') else d_type
+
             data = {
                 "version": "1.0",
                 "name": self.diagram.name,
-                "diagram_type": self.diagram.diagram_type.value if hasattr(self.diagram, 'diagram_type') and self.diagram.diagram_type else "class",
+                "diagram_type": diagram_type_str,
                 "nodes": [node.model_dump() for node in self.diagram.nodes],
                 "connections": [conn.model_dump() for conn in self.diagram.connections],
                 "uc_actors": [actor.model_dump() for actor in self.diagram.uc_actors],
@@ -142,9 +149,16 @@ class DiagramManager:
             }
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
+            logger.info(f"Diagram saved successfully to {filepath}")
             return True
+        except PermissionError as e:
+            logger.error(f"Permission denied when saving diagram to {filepath}: {e}")
+            return False
+        except OSError as e:
+            logger.error(f"OS error when saving diagram to {filepath}: {e}")
+            return False
         except Exception as e:
-            logger.error(f"Error saving diagram: {e}")
+            logger.error(f"Unexpected error saving diagram to {filepath}: {e}", exc_info=True)
             return False
 
     def load_from_file(self, filepath: str) -> bool:
@@ -183,14 +197,18 @@ class DiagramManager:
 
     def get_statistics(self) -> Dict[str, int]:
         """Получить статистику диаграммы"""
+        def get_type_str(node):
+            nt = node.node_type
+            return nt.value if hasattr(nt, 'value') else nt
+
         return {
             "nodes": len(self.diagram.nodes),
             "connections": len(self.diagram.connections),
-            "classes": sum(1 for n in self.diagram.nodes if n.node_type.value == 'class'),
-            "interfaces": sum(1 for n in self.diagram.nodes if n.node_type.value == 'interface'),
-            "enums": sum(1 for n in self.diagram.nodes if n.node_type.value == 'enum'),
-            "abstract_classes": sum(1 for n in self.diagram.nodes if n.node_type.value == 'abstract_class' or n.is_abstract),
+            "classes": sum(1 for n in self.diagram.nodes if get_type_str(n) == 'class'),
+            "interfaces": sum(1 for n in self.diagram.nodes if get_type_str(n) == 'interface'),
+            "enums": sum(1 for n in self.diagram.nodes if get_type_str(n) == 'enum'),
+            "abstract_classes": sum(1 for n in self.diagram.nodes if get_type_str(n) == 'abstract_class' or getattr(n, 'is_abstract', False)),
             "total_attributes": sum(len(n.properties) for n in self.diagram.nodes),
             "total_methods": sum(len(n.methods) for n in self.diagram.nodes),
-            "total_enum_literals": sum(len(n.enum_literals) for n in self.diagram.nodes)
+            "total_enum_literals": sum(len(getattr(n, 'enum_literals', [])) for n in self.diagram.nodes)
         }

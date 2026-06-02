@@ -49,6 +49,8 @@
 
 ## 🚀 Быстрый старт
 
+### Запуск из исходников
+
 ```bash
 git clone https://github.com/yourusername/logiccraft.git
 cd logiccraft
@@ -56,12 +58,35 @@ poetry install
 poetry run python -m logiccraft
 ```
 
+### 🍎 Сборка .app для macOS
+
+Для создания полноценного macOS приложения с автоматическими разрешениями:
+
+```bash
+# Установить зависимости для сборки
+poetry add --group dev py2app
+
+# Собрать приложение
+./build_macos.sh
+
+# Создать DMG для распространения
+./create_dmg.sh
+```
+
+Подробнее см. [docs/MACOS_PERMISSIONS.md](docs/MACOS_PERMISSIONS.md)
+
 ## 📋 Системные требования
 
 - **Python**: 3.13+
 - **ОС**: Windows 10+, macOS 11+, Linux (Ubuntu 20.04+)
 - **RAM**: 512 MB
 - **Дисплей**: 1280x720+
+
+### 🍎 Дополнительно для macOS
+
+На macOS приложению требуются разрешения для доступа к файловой системе. Подробнее см. [docs/MACOS_PERMISSIONS.md](docs/MACOS_PERMISSIONS.md)
+
+**Рекомендуемый способ:** При создании проекта используйте кнопку "Обзор" — это автоматически даст приложению доступ к выбранной папке через системный диалог.
 
 ## ⌨️ Горячие клавиши
 
@@ -98,6 +123,7 @@ poetry run python -m logiccraft
 | Документ | Описание |
 |----------|----------|
 | [USER_GUIDE.md](docs/USER_GUIDE.md) | Руководство пользователя |
+| [MACOS_PERMISSIONS.md](docs/MACOS_PERMISSIONS.md) | Настройка разрешений на macOS |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Техническая архитектура |
 | [DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) | Руководство разработчика |
 | [ROADMAP.md](docs/ROADMAP.md) | Дорожная карта |

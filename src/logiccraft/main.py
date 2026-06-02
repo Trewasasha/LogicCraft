@@ -1,11 +1,15 @@
 """Главная точка входа приложения"""
 import sys
+import platform
+import json
+import subprocess
+import time
 from pathlib import Path
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from PyQt6.QtWidgets import QApplication, QDialog
+from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox, QFileDialog
 
 from logiccraft.controllers.diagram_controller import DiagramController
 from logiccraft.view.main_window import MainWindow
@@ -23,7 +27,6 @@ class Application:
 
         # Устанавливаем иконку приложения
         from PyQt6.QtGui import QIcon
-        from pathlib import Path
         icon_path = Path(__file__).parent.parent.parent / "resources" / "icons" / "icon2.png"
         if icon_path.exists():
             self.app.setWindowIcon(QIcon(str(icon_path)))
@@ -34,6 +37,7 @@ class Application:
         self.controller = DiagramController()
         self.window = MainWindow(self.controller)
         self.project_config = None  # Конфигурация проекта
+
         self._connect_signals()
 
     def _connect_signals(self):
@@ -60,7 +64,7 @@ class Application:
             nt = NodeType(node_type)
         except ValueError:
             nt = NodeType.CLASS
-        self._creating_card = True  # флаг: карточка создаётся через UI
+        self._creating_card = True
         node = self.controller.add_card(x, y, node_type=nt)
         self._creating_card = False
         if node:
@@ -76,8 +80,6 @@ class Application:
             self.window.add_card_to_scene(card)
 
     def _on_card_added(self, node):
-        """Создать карточку на сцене при добавлении через контроллер (дублирование, вставка)"""
-        # Пропускаем если карточка создаётся через _on_add_card
         if getattr(self, '_creating_card', False):
             return
         card = UMLCard(node.name, node.x, node.y,
@@ -92,13 +94,10 @@ class Application:
         self.window.add_card_to_scene(card)
 
     def _on_card_move_finished(self, card_id: str, x: float, y: float):
-        """Сохраняем состояние после завершения перетаскивания"""
         self.controller.on_card_move_finished(card_id, x, y)
 
     def _on_card_edit_requested(self, card_id: str):
-        """Обработка запроса на редактирование карточки из контекстного меню"""
         from logiccraft.view.dialogs.edit_class_dialog import EditClassDialog
-
         card = self.controller.card_map.get(card_id)
         if card:
             dialog = EditClassDialog(card, self.window)
@@ -107,7 +106,6 @@ class Application:
                 self._on_edit_card(card_id, name, attributes, methods, node_type)
 
     def _on_card_delete_requested(self, card_id: str):
-        """Обработка запроса на удаление карточки из контекстного меню"""
         self.controller.remove_card(card_id)
 
     def _on_card_removed(self, card_id):
@@ -133,7 +131,17 @@ class Application:
         self.window.remove_connection_from_scene(connection_id)
 
     def _on_save(self, filepath: str):
-        self.controller.save_diagram(filepath)
+        result = self.controller.save_diagram(filepath)
+        if result:
+            self.window.update_status(f"✅ Диаграмма сохранена: {filepath}")
+        else:
+            QMessageBox.critical(
+                self.window,
+                "Ошибка сохранения",
+                f"Не удалось сохранить диаграмму в файл:\n{filepath}\n\n"
+                "Проверьте права доступа приложения к этой папке."
+            )
+            self.window.update_status("❌ Ошибка сохранения")
 
     def _on_load(self, filepath: str):
         self.controller.load_diagram(filepath)
@@ -171,19 +179,12 @@ class Application:
         self.window.clear_scene()
         self.controller.card_map.clear()
         self.controller.connection_map.clear()
-        self.window.uc_actor_map.clear()
-        self.window.uc_scenario_map.clear()
-        self.window.uc_connection_map.clear()
 
     def _on_diagram_loaded(self):
         self.window.clear_scene()
         self.controller.card_map.clear()
         self.controller.connection_map.clear()
-        self.window.uc_actor_map.clear()
-        self.window.uc_scenario_map.clear()
-        self.window.uc_connection_map.clear()
 
-        # Восстанавливаем обычные классы
         for node in self.controller.manager.diagram.nodes:
             card = UMLCard(node.name, node.x, node.y,
                            attributes=[p.name for p in node.properties],
@@ -202,23 +203,19 @@ class Application:
             if source_card and target_card:
                 conn_line = ConnectionLine(
                     source_card, target_card,
-                    conn.source_anchor,
-                    conn.target_anchor,
-                    conn.type,
-                    conn.id,
+                    conn.source_anchor, conn.target_anchor,
+                    conn.type, conn.id,
                     multiplicity=conn.multiplicity or "",
                     name=conn.name or ""
                 )
                 self.controller.register_connection_view(conn.id, conn_line)
                 self.window.add_connection_to_scene(conn_line)
 
-        # Восстанавливаем UC-элементы
+        # Восстановление UC
         for actor in self.controller.manager.diagram.uc_actors:
             self.controller.uc_actor_added.emit(actor)
-
         for scenario in self.controller.manager.diagram.uc_scenarios:
             self.controller.uc_scenario_added.emit(scenario)
-
         for uc_conn in self.controller.manager.diagram.uc_connections:
             self.controller.uc_connection_added.emit(uc_conn)
 
@@ -227,146 +224,107 @@ class Application:
         sys.exit(self.app.exec())
 
     def _show_welcome_dialog(self):
-        """Показать стартовое окно"""
         self.welcome_dialog = WelcomeDialog()
         self.welcome_dialog.new_project_requested.connect(self._on_welcome_new_project)
         self.welcome_dialog.open_project_requested.connect(self._on_welcome_open_project)
         self.welcome_dialog.rejected.connect(self._on_welcome_rejected)
-
-        # Показываем Welcome Dialog
         self.welcome_dialog.show()
 
     def _on_welcome_rejected(self):
-        """Обработка закрытия Welcome Dialog крестиком"""
         sys.exit(0)
 
     def _on_welcome_new_project(self):
-        """Обработка создания нового проекта"""
-        # Получаем конфигурацию из Welcome Dialog (она уже показала NewProjectDialog)
         if hasattr(self.welcome_dialog, 'last_project_config'):
             self.project_config = self.welcome_dialog.last_project_config
 
-            # Устанавливаем тип диаграммы
             diagram_type = self.project_config.get("diagram_type", "class")
             self.controller.manager.diagram.diagram_type = diagram_type
 
-            # Обновляем заголовок окна с названием проекта
             project_name = self.project_config.get("name", "Untitled")
             self.window.setWindowTitle(f"LogicCraft — {project_name}")
 
-            # Создаём структуру проекта и сохраняем конфигурацию
-            self._create_project_structure()
-            # Обновляем панель инструментов для выбранного типа диаграммы
-            self.window.toolbox_panel.set_diagram_type(diagram_type)
-            # Синхронизируем комбобокс
-            for i in range(self.window.diagram_type_combo.count()):
-                if self.window.diagram_type_combo.itemData(i) == diagram_type:
-                    self.window.diagram_type_combo.setCurrentIndex(i)
-                    break
+            if self._ensure_folder_access():
+                self._create_project_structure()
+                self.window.toolbox_panel.set_diagram_type(diagram_type)
+                self.window.show()
+                self.welcome_dialog.accept()
 
-            # Показываем главное окно
-            self.window.show()
+    def _ensure_folder_access(self):
+        """Обеспечить безопасный доступ к папке на macOS и Windows без внешних зависимостей"""
+        if not self.project_config:
+            return False
+
+        project_dir_path = Path(self.project_config["path"])
+
+        # Обход песочницы macOS через вызов системного диалога Finder
+        if platform.system() == "Darwin":
+            path_str = str(project_dir_path.resolve())
+
+            # Запрашиваем подтверждение директории через AppleScript диалог (гарантия получения прав)
+            as_script = f'POSIX path of (choose folder with prompt "LogicCraft требует подтверждения доступа к папке проекта:" default location POSIX file "{path_str}")'
+            try:
+                proc = subprocess.run(['osascript', '-e', as_script], capture_output=True, text=True, check=True)
+                chosen_dir = proc.stdout.strip()
+                if chosen_dir:
+                    self.project_config["path"] = chosen_dir
+                    project_dir_path = Path(chosen_dir)
+            except subprocess.CalledProcessError:
+                self.window.show_error("Отменено: доступ к директории не был подтвержден.")
+                return False
+
+        # Кроссплатформенная проверка на запись тестового файла
+        try:
+            # Используем метку времени вместо ревизии Python, это никогда не упадет
+            test_file = project_dir_path / f".tmp_access_test_{int(time.time())}"
+            test_file.touch()
+            test_file.unlink()
+            return True
+        except (PermissionError, OSError) as e:
+            QMessageBox.critical(
+                self.window, "Ошибка прав",
+                f"Выбранная директория защищена от записи:\n{project_dir_path}\n\nОшибка: {e}"
+            )
+            return False
 
     def _create_project_structure(self):
-        """Создать структуру проекта на диске"""
         if not self.project_config:
             return
-
-        import json
-        from pathlib import Path
-
         try:
-            # Создаём папку проекта
             project_path = Path(self.project_config["path"]) / self.project_config["name"]
             project_path.mkdir(parents=True, exist_ok=True)
 
-            # Сохраняем конфигурацию проекта в корне проекта (видимо для пользователя)
-            config_file = project_path / "project.json"
-            with open(config_file, "w", encoding="utf-8") as f:
+            with open(project_path / "project.json", "w", encoding="utf-8") as f:
                 json.dump(self.project_config, f, indent=2, ensure_ascii=False)
 
-
-            # Создаём файл диаграммы сразу при создании проекта (в корне проекта)
-
-            # Создаём пустой файл диаграммы сразу при создании проекта
-
-            diagram_file = project_path / "diagram.json"
             empty_diagram = {
                 "version": "1.0",
                 "diagram_type": self.project_config.get("diagram_type", "class"),
-                "nodes": [],
-                "connections": [],
-                "uc_actors": [],
-                "uc_scenarios": [],
-                "uc_connections": []
+                "nodes": [], "connections": [], "uc_actors": [], "uc_scenarios": [], "uc_connections": []
             }
-            with open(diagram_file, "w", encoding="utf-8") as f:
+            with open(project_path / "diagram.json", "w", encoding="utf-8") as f:
                 json.dump(empty_diagram, f, indent=2, ensure_ascii=False)
 
-
-            # Создаём папку .logiccraft только для служебных данных (кэш, настройки IDE)
-            logiccraft_dir = project_path / ".logiccraft"
-            logiccraft_dir.mkdir(exist_ok=True)
-            
-            # Файл .gitignore для исключения служебной папки
-            gitignore_logiccraft = logiccraft_dir / ".gitignore"
-            with open(gitignore_logiccraft, "w", encoding="utf-8") as f:
+            (project_path / ".logiccraft").mkdir(exist_ok=True)
+            with open(project_path / ".logiccraft" / ".gitignore", "w", encoding="utf-8") as f:
                 f.write("# Служебные файлы LogicCraft\n*.*\n!/.gitignore\n")
 
-            # Создаём .gitignore если нужно
             if self.project_config.get("gitignore", False):
-                gitignore_file = project_path / ".gitignore"
-                gitignore_content = """# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-*.egg-info/
+                with open(project_path / ".gitignore", "w", encoding="utf-8") as f:
+                    f.write("__pycache__/\n*.py[cod]\n.vscode/\n.idea/\n.logiccraft/\n")
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# LogicCraft (служебные файлы)
-.logiccraft/
-"""
-                with open(gitignore_file, "w", encoding="utf-8") as f:
-                    f.write(gitignore_content)
-
-            # Инициализируем Git репозиторий если нужно
             if self.project_config.get("git_init", False):
-                import subprocess
                 subprocess.run(["git", "init"], cwd=project_path, check=True)
-                subprocess.run(["git", "add", "."], cwd=project_path, check=False)
-                subprocess.run(
-                    ["git", "commit", "-m", "Initial commit: LogicCraft project"],
-                    cwd=project_path,
-                    check=False
-                )
 
             self.window.update_status(f"Проект создан: {project_path}")
-
         except Exception as e:
-            self.window.show_error(f"Ошибка создания проекта: {e}")
+            self.window.show_error(f"Ошибка структуры проекта: {e}")
 
     def _on_welcome_open_project(self):
-        """Открыть проект из стартового окна"""
-        from PyQt6.QtWidgets import QFileDialog
-        filepath, _ = QFileDialog.getOpenFileName(
-            self.welcome_dialog, "Открыть проект", "", "JSON Files (*.json)"
-        )
+        filepath, _ = QFileDialog.getOpenFileName(self.welcome_dialog, "Открыть проект", "", "JSON Files (*.json)")
         if filepath:
             self.controller.load_diagram(filepath)
-            # Закрываем Welcome Dialog
             self.welcome_dialog.accept()
-            # Показываем главное окно
             self.window.show()
-        # Если отменили — ничего не делаем, Welcome остаётся открытым
 
 
 def main():
@@ -376,19 +334,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    def _save_project_config(self):
-        """Сохранить конфигурацию проекта"""
-        if not self.project_config:
-            return
-        
-        import json
-        from pathlib import Path
-        
-        project_path = Path(self.project_config["path"]) / self.project_config["name"]
-        project_path.mkdir(parents=True, exist_ok=True)
-        
-        config_file = project_path / "project.json"
-        
-        with open(config_file, "w", encoding="utf-8") as f:
-            json.dump(self.project_config, f, indent=2, ensure_ascii=False)

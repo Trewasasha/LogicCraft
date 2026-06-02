@@ -284,14 +284,34 @@ class NewProjectDialog(QDialog):
                 break
 
     def _browse_path(self):
-        """Выбрать путь сохранения"""
+        """Выбрать путь сохранения через системный диалог (для получения доступа на macOS)"""
+        # Используем нативный диалог macOS для автоматического получения разрешений
         path = QFileDialog.getExistingDirectory(
             self,
             "Выберите папку для проекта",
-            str(Path.home())
+            str(Path.home()),
+            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontUseNativeDialog
         )
         if path:
             self.path_input.setText(path)
+            # Проверяем доступ к выбранной папке
+            self._verify_folder_access(path)
+    
+    def _verify_folder_access(self, path: str):
+        """Проверить доступ к выбранной папке"""
+        try:
+            test_file = Path(path) / ".logiccraft_access_test"
+            test_file.touch()
+            test_file.unlink()
+        except (PermissionError, OSError):
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Предупреждение о доступе",
+                f"У приложения может не быть доступа к папке:\n{path}\n\n"
+                "Если возникнут проблемы при сохранении, предоставьте доступ в:\n"
+                "Системные настройки → Конфиденциальность и безопасность → Файлы и папки"
+            )
 
     def _create_project(self):
         """Создать проект с выбранными настройками"""
