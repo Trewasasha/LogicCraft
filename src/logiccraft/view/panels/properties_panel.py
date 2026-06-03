@@ -132,7 +132,7 @@ class PropertiesPanel(QWidget):
         self._content_layout.addWidget(self._methods_section)
 
         # --- Кнопка удаления ---
-        self._delete_btn = QPushButton("🗑  Удалить элемент")
+        self._delete_btn = QPushButton("Удалить элемент")
         self._delete_btn.setObjectName("PropertiesDeleteButton")
         self._delete_btn.clicked.connect(self._on_delete)
         self._content_layout.addWidget(self._delete_btn)
@@ -156,7 +156,7 @@ class PropertiesPanel(QWidget):
         self._uc_desc_section.layout().addWidget(self._uc_desc_edit)
         self._content_layout.addWidget(self._uc_desc_section)
         
-        self._uc_delete_btn = QPushButton("🗑  Удалить элемент")
+        self._uc_delete_btn = QPushButton("Удалить элемент")
         self._uc_delete_btn.setObjectName("PropertiesDeleteButton")
         self._uc_delete_btn.clicked.connect(self._on_uc_delete)
         self._content_layout.addWidget(self._uc_delete_btn)

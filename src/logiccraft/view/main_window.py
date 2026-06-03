@@ -827,6 +827,33 @@ class MainWindow(QMainWindow):
                 break
         # Обновляем панель инструментов
         self.toolbox_panel.set_diagram_type(diagram_type)
+        
+        # Обновляем видимость элементов в зависимости от типа диаграммы
+        # Это необходимо после Undo/Redo, чтобы не смешивались элементы разных типов
+        if diagram_type == "class":
+            # Показываем классы, скрываем Use Case элементы
+            for card in self.card_map.values():
+                card.setVisible(True)
+            for conn in self.connection_map.values():
+                conn.setVisible(True)
+            for actor in self.uc_actor_map.values():
+                actor.setVisible(False)
+            for scenario in self.uc_scenario_map.values():
+                scenario.setVisible(False)
+            for uc_conn in self.uc_connection_map.values():
+                uc_conn.setVisible(False)
+        else:  # use_case
+            # Скрываем классы, показываем Use Case элементы
+            for card in self.card_map.values():
+                card.setVisible(False)
+            for conn in self.connection_map.values():
+                conn.setVisible(False)
+            for actor in self.uc_actor_map.values():
+                actor.setVisible(True)
+            for scenario in self.uc_scenario_map.values():
+                scenario.setVisible(True)
+            for uc_conn in self.uc_connection_map.values():
+                uc_conn.setVisible(True)
     
     def _on_diagram_type_changed(self, index: int):
         """Обработка переключения типа диаграммы"""
@@ -1336,6 +1363,10 @@ class MainWindow(QMainWindow):
         widget.signals.delete_requested.connect(self.controller.remove_uc_actor)
         self.scene.addItem(widget)
         self.uc_actor_map[actor_model.id] = widget
+        
+        # Устанавливаем видимость в зависимости от текущего типа диаграммы
+        current_diagram_type = self.diagram_type_combo.currentData()
+        widget.setVisible(current_diagram_type == "use_case")
 
     def _on_uc_actor_removed(self, actor_id: str):
         widget = self.uc_actor_map.pop(actor_id, None)
@@ -1357,6 +1388,10 @@ class MainWindow(QMainWindow):
         widget.signals.delete_requested.connect(self.controller.remove_uc_scenario)
         self.scene.addItem(widget)
         self.uc_scenario_map[scenario_model.id] = widget
+        
+        # Устанавливаем видимость в зависимости от текущего типа диаграммы
+        current_diagram_type = self.diagram_type_combo.currentData()
+        widget.setVisible(current_diagram_type == "use_case")
 
     def _on_uc_scenario_removed(self, scenario_id: str):
         widget = self.uc_scenario_map.pop(scenario_id, None)
@@ -1394,6 +1429,10 @@ class MainWindow(QMainWindow):
         line.signals.about_to_delete.connect(
             lambda c: self.controller.remove_uc_connection(c.id)
         )
+        
+        # Устанавливаем видимость в зависимости от текущего типа диаграммы
+        current_diagram_type = self.diagram_type_combo.currentData()
+        line.setVisible(current_diagram_type == "use_case")
 
     def _on_uc_connection_removed(self, conn_id: str):
         line = self.uc_connection_map.pop(conn_id, None)
@@ -1408,6 +1447,10 @@ class MainWindow(QMainWindow):
         self.scene.addItem(card)
         self.card_map[card.id] = card
         self.controller.register_card_view(card.id, card)
+        
+        # Устанавливаем видимость в зависимости от текущего типа диаграммы
+        current_diagram_type = self.diagram_type_combo.currentData()
+        card.setVisible(current_diagram_type == "class")
 
     def remove_card_from_scene(self, card_id: str):
         """Удалить карточку со сцены"""
@@ -1426,6 +1469,10 @@ class MainWindow(QMainWindow):
         connection.signals.about_to_delete.connect(
             lambda c: self.remove_connection_from_scene(c.id)
         )
+        
+        # Устанавливаем видимость в зависимости от текущего типа диаграммы
+        current_diagram_type = self.diagram_type_combo.currentData()
+        connection.setVisible(current_diagram_type == "class")
 
     def remove_connection_from_scene(self, connection_id: str):
         connection = self.connection_map.get(connection_id)
@@ -1449,10 +1496,22 @@ class MainWindow(QMainWindow):
     def update_status(self, text: str):
         """Обновить статус"""
         self.status_label.setText(text)
-        # Обновляем статистику
-        n_nodes = len(self.controller.manager.diagram.nodes)
-        n_conns = len(self.controller.manager.diagram.connections)
-        self.stats_label.setText(f"Классов: {n_nodes}  |  Связей: {n_conns}")
+
+        # Безопасно получаем доступ к текущей диаграмме
+        diagram = self.controller.manager.diagram
+
+        # Проверяем, какой тип диаграммы сейчас выбран в комбобоксе
+        current_type = self.diagram_type_combo.currentData()
+
+        if current_type == "class":
+            n_nodes = len(diagram.nodes)
+            n_conns = len(diagram.connections)
+            self.stats_label.setText(f"Классов: {n_nodes}  |  Связей: {n_conns}")
+        else:
+            # Для Use Case считаем сумму актёров и сценариев
+            n_elements = len(diagram.uc_actors) + len(diagram.uc_scenarios)
+            n_uc_conns = len(diagram.uc_connections)
+            self.stats_label.setText(f"Элементов UC: {n_elements}  |  Связей UC: {n_uc_conns}")
 
     def show_error(self, message: str):
         """Показать ошибку"""

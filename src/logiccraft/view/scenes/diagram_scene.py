@@ -51,9 +51,13 @@ class DiagramScene(QGraphicsScene):
         self.temp_line.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
         self.temp_line.setZValue(1000)
         self.addItem(self.temp_line)
-        
+
         # Показываем точки привязки у всех потенциальных целей
         self._show_all_anchors(except_card=source_card)
+
+    def mousePressEvent(self, event):
+        """Проброс события нажатия мыши для корректного выделения элементов"""
+        super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         """Тянем линию за мышкой"""
@@ -62,6 +66,10 @@ class DiagramScene(QGraphicsScene):
             line.setP2(event.scenePos())
             self.temp_line.setLine(line)
         super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """Проброс события отпускания мыши"""
+        super().mouseReleaseEvent(event)
 
     def finish_connection(self, target_card, target_anchor):
         """Завершение: удаляем пунктир и шлем сигнал контроллеру"""
@@ -83,7 +91,7 @@ class DiagramScene(QGraphicsScene):
         self.connection_source = None
         self.source_anchor = None
         self.connection_active = False
-        
+
         # Скрываем точки привязки у всех элементов
         self._hide_all_anchors()
 
@@ -95,7 +103,7 @@ class DiagramScene(QGraphicsScene):
         self.connection_source = None
         self.source_anchor = None
         self.connection_active = False
-        
+
         # Скрываем точки привязки у всех элементов
         self._hide_all_anchors()
 
@@ -125,16 +133,15 @@ class DiagramScene(QGraphicsScene):
 
     def on_card_name_changed(self, card_id: str, old_name: str, new_name: str):
         """Обработка изменения имени карточки через inline редактирование"""
-        # Эмитим сигнал для контроллера
-        # Контроллер должен обновить модель
-        pass  # Пока просто заглушка, логика в контроллере
+        # Эмитим сигнал для контроллера при необходимости реализации inline-сохранения
+        pass
 
     def highlight_related_cards(self, card_id: str, card_map: dict, connection_map: dict):
         """Подсветка связанных классов при выборе"""
         # Находим все связи для выбранной карточки
         related_cards = set()
         related_connections = []
-        
+
         for conn_id, conn in connection_map.items():
             try:
                 if conn.scene() is None:  # Объект удалён
@@ -148,7 +155,7 @@ class DiagramScene(QGraphicsScene):
             except (RuntimeError, AttributeError):
                 # Объект был удалён или повреждён
                 continue
-        
+
         # Затемняем все карточки
         for cid, card in card_map.items():
             try:
@@ -166,7 +173,7 @@ class DiagramScene(QGraphicsScene):
             except RuntimeError:
                 # Объект был удалён
                 continue
-        
+
         # Подсвечиваем связи
         for conn in connection_map.values():
             try:
@@ -183,7 +190,7 @@ class DiagramScene(QGraphicsScene):
             except RuntimeError:
                 # Объект был удалён
                 continue
-    
+
     def clear_highlights(self, card_map: dict, connection_map: dict):
         """Снять подсветку со всех элементов"""
         for card in card_map.values():
@@ -193,7 +200,7 @@ class DiagramScene(QGraphicsScene):
             except RuntimeError:
                 # Объект был удалён
                 pass
-        
+
         for conn in connection_map.values():
             try:
                 if conn.scene() is not None:  # Проверяем, что объект ещё существует
@@ -205,27 +212,27 @@ class DiagramScene(QGraphicsScene):
             except RuntimeError:
                 # Объект был удалён
                 pass
-    
+
     def _show_all_anchors(self, except_card=None):
         """Показать точки привязки у всех элементов (кроме источника)"""
         from ..widgets.uml_card import UMLCard
         from ..widgets.actor_widget import ActorWidget
         from ..widgets.scenario_widget import ScenarioWidget
-        
+
         for item in self.items():
             if isinstance(item, (UMLCard, ActorWidget, ScenarioWidget)):
                 if item != except_card and hasattr(item, 'anchors'):
                     for anchor in item.anchors.values():
                         anchor.setVisible(True)
-    
+
     def _hide_all_anchors(self):
-        """Скрыть точки привязки у всех невыделенных элементов"""
+        """Скрыть точки привязки у всех элементов"""
         from ..widgets.uml_card import UMLCard
         from ..widgets.actor_widget import ActorWidget
         from ..widgets.scenario_widget import ScenarioWidget
-        
+
         for item in self.items():
             if isinstance(item, (UMLCard, ActorWidget, ScenarioWidget)):
-                if hasattr(item, 'anchors') and not item.isSelected():
+                if hasattr(item, 'anchors'):
                     for anchor in item.anchors.values():
                         anchor.setVisible(False)

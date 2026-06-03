@@ -253,8 +253,9 @@ class UMLCard(QGraphicsRectItem):
         """Устанавливает состояние выделения"""
         super().setSelected(selected)
         self._is_selected = selected
-        for anchor in self.anchors.values():
-            anchor.setVisible(selected)
+        # Не управляем видимостью anchors здесь - это делает сцена
+        # для anchor in self.anchors.values():
+        #     anchor.setVisible(selected)
         self.update()
 
     def isSelected(self) -> bool:
@@ -273,12 +274,19 @@ class UMLCard(QGraphicsRectItem):
             super().mouseDoubleClickEvent(event)
 
     def hoverEnterEvent(self, event):
-        """При наведении курсора показываем подсказку"""
+        """При наведении курсора показываем подсказку и точки привязки"""
         self.setToolTip("Двойной клик для редактирования")
+        # Показываем точки привязки при наведении
+        for anchor in self.anchors.values():
+            anchor.setVisible(True)
         super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
-        """При уходе курсора"""
+        """При уходе курсора скрываем точки привязки (если не выделен)"""
+        # Скрываем точки привязки при уходе курсора (если не выделен)
+        if not self._is_selected:
+            for anchor in self.anchors.values():
+                anchor.setVisible(False)
         super().hoverLeaveEvent(event)
     
     def start_inline_editing(self):

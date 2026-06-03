@@ -1,8 +1,8 @@
 """Наконечник стрелки для линий связи"""
 import math
-from PyQt6.QtWidgets import QGraphicsPolygonItem
+from PyQt6.QtWidgets import QGraphicsPathItem
 from PyQt6.QtCore import QPointF, Qt
-from PyQt6.QtGui import QPolygonF, QBrush, QPen, QColor
+from PyQt6.QtGui import QPolygonF, QBrush, QColor, QPen, QPainterPath
 from enum import Enum
 
 from ..theme import ArrowStyle
@@ -23,81 +23,97 @@ class ConnectionType(Enum):
     UC_EXTEND = "uc_extend"
 
 
-class ArrowHead(QGraphicsPolygonItem):
-    """Наконечник стрелки с поддержкой разных типов связей"""
+class ArrowHead(QGraphicsPathItem):
+    """Наконечник стрелки на базе QPainterPath, устойчивый к любым входным типам данных"""
 
-    def __init__(self, direction: QPointF, connection_type: ConnectionType):
+    def __init__(self, direction: QPointF, connection_type):
         super().__init__()
         self.connection_type = connection_type
         self.direction = direction
         self._update_shape()
         self._update_rotation()
 
+    def _get_clean_type(self) -> str:
+        """Абсолютно безопасное извлечение типа связи при любых типах данных из контроллера"""
+        if connection_type_attr := getattr(self.connection_type, 'value', None):
+            val = str(connection_type_attr)
+        else:
+            val = str(self.connection_type)
+
+        # Если пришла строка вида "ConnectionType.UC_INCLUDE"
+        if "." in val:
+            val = val.split(".")[-1]
+
+        return val.lower().strip()
+
     def _update_shape(self):
-        """Обновляет форму наконечника в зависимости от типа связи"""
+        """Обновляет форму наконечника через векторный путь QPainterPath"""
         size = ArrowStyle.SIZE
-        type_value = self.connection_type.value if hasattr(self.connection_type, 'value') else str(self.connection_type)
+        type_str = self._get_clean_type()
 
-        if type_value == "inheritance":
-            # Пустой треугольник
-            points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(0, size * 0.6)]
-            self.setPolygon(QPolygonF(points))
-            self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
-            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
+        normal_pen = QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL)
+        thin_pen = QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_THIN)
+        background_brush = QBrush(QColor("#FFFFFF"))
 
-        elif type_value == "composition":
-            # Закрашенный ромб
-            points = [QPointF(size, 0), QPointF(size / 2, -size * 0.6), QPointF(0, 0), QPointF(size / 2, size * 0.6)]
-            self.setPolygon(QPolygonF(points))
+        path = QPainterPath()
+
+        # Проверяем все возможные вариации строк (включая префиксы use_case / uc)
+        if type_str in ("inheritance", "realization"):
+            path.moveTo(size, 0)
+            path.lineTo(0, -size * 0.6)
+            path.lineTo(0, size * 0.6)
+            path.closeSubpath()
+            self.setPath(path)
+            self.setBrush(background_brush)
+            self.setPen(normal_pen)
+
+        elif type_str == "composition":
+            path.moveTo(size, 0)
+            path.lineTo(size / 2, -size * 0.6)
+            path.lineTo(0, 0)
+            path.lineTo(size / 2, size * 0.6)
+            path.closeSubpath()
+            self.setPath(path)
             self.setBrush(QBrush(QColor(ArrowStyle.COLOR)))
-            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_THIN))
+            self.setPen(thin_pen)
 
-        elif type_value == "aggregation":
-            # Пустой ромб
-            points = [QPointF(size, 0), QPointF(size / 2, -size * 0.6), QPointF(0, 0), QPointF(size / 2, size * 0.6)]
-            self.setPolygon(QPolygonF(points))
+        elif type_str == "aggregation":
+            path.moveTo(size, 0)
+            path.lineTo(size / 2, -size * 0.6)
+            path.lineTo(0, 0)
+            path.lineTo(size / 2, size * 0.6)
+            path.closeSubpath()
+            self.setPath(path)
+            self.setBrush(background_brush)
+            self.setPen(normal_pen)
+
+        elif type_str in ("dependency", "uc_include", "uc_extend", "include", "extend"):
+            # Идеальный открытый уголок без заливки ядра
+            path.moveTo(0, -size * 0.5)
+            path.lineTo(size, 0)
+            path.lineTo(0, size * 0.5)
+            self.setPath(path)
             self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
-            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
+            self.setPen(normal_pen)
 
-        elif type_value == "realization":
-            # Пустой треугольник (как inheritance, но линия пунктирная — задаётся в connection_line)
-            points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(0, size * 0.6)]
-            self.setPolygon(QPolygonF(points))
-            self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
-            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
-
-        elif type_value == "dependency":
-            # Открытая стрелка (как association, но линия пунктирная — задаётся в connection_line)
-            points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(size * 0.4, 0), QPointF(0, size * 0.6)]
-            self.setPolygon(QPolygonF(points))
-            self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
-            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
-
-        elif type_value in ("uc_include", "uc_extend"):
-            # Открытая стрелка, пунктирная линия (задаётся в connection_line)
-            points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(size * 0.4, 0), QPointF(0, size * 0.6)]
-            self.setPolygon(QPolygonF(points))
-            self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
-            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_NORMAL))
-
-        elif type_value == "uc_association":
-            # Простая линия без наконечника — рисуем невидимый полигон
-            points = [QPointF(0, 0)]
-            self.setPolygon(QPolygonF(points))
+        elif type_str in ("uc_association", "association_none", "none"):
+            # Обычная ассоциация в Use Case — просто линия
+            self.setPath(path)
             self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
             self.setPen(QPen(Qt.PenStyle.NoPen))
 
         else:  # association, interaction
-            # Закрашенная стрелка
-            points = [QPointF(size, 0), QPointF(0, -size * 0.6), QPointF(0, size * 0.6)]
-            self.setPolygon(QPolygonF(points))
+            path.moveTo(size, 0)
+            path.lineTo(0, -size * 0.5)
+            path.lineTo(0, size * 0.5)
+            path.closeSubpath()
+            self.setPath(path)
             self.setBrush(QBrush(QColor(ArrowStyle.COLOR)))
-            self.setPen(QPen(QColor(ArrowStyle.COLOR), ArrowStyle.WIDTH_THIN))
+            self.setPen(thin_pen)
 
         self.update()
 
     def _update_rotation(self):
-        """Обновляет поворот наконечника"""
         if hasattr(self, 'direction') and self.direction:
             angle = math.degrees(math.atan2(self.direction.y(), self.direction.x()))
             self.setRotation(angle)
@@ -106,7 +122,7 @@ class ArrowHead(QGraphicsPolygonItem):
         self.direction = direction
         self._update_rotation()
 
-    def set_connection_type(self, connection_type: ConnectionType):
+    def set_connection_type(self, connection_type):
         self.connection_type = connection_type
         self._update_shape()
         self.update()

@@ -10,7 +10,10 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from typing import Dict, Optional
 import json
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateManagerDialog(QDialog):
@@ -170,7 +173,7 @@ class TemplateManagerDialog(QDialog):
                     template_data = json.load(f)
                     templates[template_file.stem] = template_data
             except Exception as e:
-                print(f"Error loading template {template_file}: {e}")
+                logger.error(f"Error loading template {template_file}: {e}")
         
         return templates
     

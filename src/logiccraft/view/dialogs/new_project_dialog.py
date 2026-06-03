@@ -14,7 +14,7 @@ from logiccraft.utils.icon_manager import icon_manager
 class DiagramTypeButton(QPushButton):
     """Компактная кнопка выбора типа диаграммы"""
 
-    def __init__(self, diagram_type: str, icon_text: str, label: str, is_available: bool = True):
+    def __init__(self, diagram_type: str, label: str, is_available: bool = True):
         super().__init__()
         self.diagram_type = diagram_type
         self.is_available = is_available
@@ -32,14 +32,6 @@ class DiagramTypeButton(QPushButton):
         layout = QVBoxLayout(self)
         layout.setSpacing(6)
         layout.setContentsMargins(8, 8, 8, 8)
-
-        # Иконка
-        icon_label = QLabel(icon_text)
-        icon_label.setObjectName("DiagramTypeIcon")
-        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        font = QFont("Arial", 28)
-        icon_label.setFont(font)
-        layout.addWidget(icon_label)
 
         # Название
         name_label = QLabel(label)
@@ -149,17 +141,17 @@ class NewProjectDialog(QDialog):
         types_grid.setSpacing(10)
 
         diagram_types = [
-            ("class", "📦", "Классы", True),
-            ("use_case", "👤", "Use Case", True),
-            ("sequence", "⏱️", "Sequence", False),
-            ("package", "📁", "Package", False),
-            ("activity", "🔄", "Activity", False),
-            ("state", "🔀", "State", False),
+            ("class", "Классы", True),
+            ("use_case", "Use Case", True),
+            ("sequence", "Sequence", False),
+            ("package", "Package", False),
+            ("activity", "Activity", False),
+            ("state", "State", False),
         ]
 
         row, col = 0, 0
-        for dtype, icon, label, available in diagram_types:
-            btn = DiagramTypeButton(dtype, icon, label, available)
+        for dtype, label, available in diagram_types:
+            btn = DiagramTypeButton(dtype, label, available)
             self.diagram_type_group.addButton(btn)
             types_grid.addWidget(btn, row, col)
             col += 1
@@ -292,14 +284,34 @@ class NewProjectDialog(QDialog):
                 break
 
     def _browse_path(self):
-        """Выбрать путь сохранения"""
+        """Выбрать путь сохранения через системный диалог (для получения доступа на macOS)"""
+        # Используем нативный диалог macOS для автоматического получения разрешений
         path = QFileDialog.getExistingDirectory(
             self,
             "Выберите папку для проекта",
-            str(Path.home())
+            str(Path.home()),
+            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontUseNativeDialog
         )
         if path:
             self.path_input.setText(path)
+            # Проверяем доступ к выбранной папке
+            self._verify_folder_access(path)
+    
+    def _verify_folder_access(self, path: str):
+        """Проверить доступ к выбранной папке"""
+        try:
+            test_file = Path(path) / ".logiccraft_access_test"
+            test_file.touch()
+            test_file.unlink()
+        except (PermissionError, OSError):
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Предупреждение о доступе",
+                f"У приложения может не быть доступа к папке:\n{path}\n\n"
+                "Если возникнут проблемы при сохранении, предоставьте доступ в:\n"
+                "Системные настройки → Конфиденциальность и безопасность → Файлы и папки"
+            )
 
     def _create_project(self):
         """Создать проект с выбранными настройками"""
