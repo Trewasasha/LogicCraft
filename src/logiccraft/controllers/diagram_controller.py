@@ -365,19 +365,30 @@ class DiagramController(QObject):
             return None
 
     def remove_uc_actor(self, actor_id: str) -> bool:
-        """Удалить актёра и его связи"""
+        """Удалить актёра и каскадно все связанные с ним Use Case линии"""
         try:
             diagram = self.manager.diagram
-            # Удаляем связи актёра
-            diagram.uc_connections = [
+
+            # 1. Находим все линии связи, где участвует этот актёр
+            connections_to_remove = [
                 c for c in diagram.uc_connections
-                if c.source_id != actor_id and c.target_id != actor_id
+                if c.source_id == actor_id or c.target_id == actor_id
             ]
+
+            # 2. Графически удаляем каждую линию с холста через отправку сигналов
+            for conn in connections_to_remove:
+                self.uc_connection_removed.emit(conn.id)
+                if conn in diagram.uc_connections:
+                    diagram.uc_connections.remove(conn)
+
+            # 3. Удаляем самого актёра из модели и шлём сигнал сцене
             before = len(diagram.uc_actors)
             diagram.uc_actors = [a for a in diagram.uc_actors if a.id != actor_id]
+
             if len(diagram.uc_actors) < before:
                 self.uc_actor_removed.emit(actor_id)
                 self._save_state()
+                self.status_changed.emit("Актёр и связанные связи успешно удалены")
                 return True
             return False
         except Exception as e:
@@ -426,18 +437,30 @@ class DiagramController(QObject):
             return None
 
     def remove_uc_scenario(self, scenario_id: str) -> bool:
-        """Удалить сценарий и его связи"""
+        """Удалить сценарий (Use Case) и каскадно все связанные с ним линии"""
         try:
             diagram = self.manager.diagram
-            diagram.uc_connections = [
+
+            # 1. Находим все линии связи, подключенные к этому сценарию
+            connections_to_remove = [
                 c for c in diagram.uc_connections
-                if c.source_id != scenario_id and c.target_id != scenario_id
+                if c.source_id == scenario_id or c.target_id == scenario_id
             ]
+
+            # 2. Очищаем связи в модели и уведомляем UI для удаления графики линий
+            for conn in connections_to_remove:
+                self.uc_connection_removed.emit(conn.id)
+                if conn in diagram.uc_connections:
+                    diagram.uc_connections.remove(conn)
+
+            # 3. Удаляем сам сценарий из модели и отправляем сигнал
             before = len(diagram.uc_scenarios)
             diagram.uc_scenarios = [s for s in diagram.uc_scenarios if s.id != scenario_id]
+
             if len(diagram.uc_scenarios) < before:
                 self.uc_scenario_removed.emit(scenario_id)
                 self._save_state()
+                self.status_changed.emit("Сценарий и связанные связи успешно удалены")
                 return True
             return False
         except Exception as e:
