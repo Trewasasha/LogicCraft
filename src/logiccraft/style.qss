@@ -583,3 +583,98 @@ QDockWidget::title {
     font-size: 12px;
     padding-right: 12px;
 }
+/* === Исправление для кнопки выбора папки === */
+QDialog QPushButton#BrowseButton {
+    background-color: #F8F6FF;  /* Светлый фон, как у полей ввода */
+    border: 1px solid #D4C9F8;   /* Нежная рамка */
+    border-radius: 8px;
+    padding: 0px;               /* Сбрасываем огромные отступы */
+    min-width: 36px;            /* Корректируем минимальную ширину под код */
+    max-width: 36px;
+    height: 36px;
+}
+
+/* Эффект при наведении курсора */
+QDialog QPushButton#BrowseButton:hover {
+    background-color: #EDE9FE;  /* Чуть темнее при наведении */
+    border-color: #7C3AED;      /* Фиолетовая рамка */
+}
+
+/* Эффект при нажатии */
+QDialog QPushButton#BrowseButton:pressed {
+    background-color: #D4C9F8;
+}
+/* === Исправление состояния выбора для кнопок диаграмм === */
+
+/* Изменение фона и рамки самой кнопки при выборе */
+QPushButton#DiagramTypeButton:checked {
+    background-color: #F3EEFF !important;  /* Нежно-фиолетовый фон */
+    border: 2px solid #7C3AED !important;   /* Яркая фиолетовая рамка */
+}
+
+/* Изменение цвета текста внутри выбранной кнопки */
+QPushButton#DiagramTypeButton:checked QLabel {
+    color: #7C3AED !important;             /* Делаем текст фиолетовым */
+    font-weight: 700;                      /* Делаем текст жирным */
+}
+
+/* Изменение стиля при наведении на уже выбранную кнопку */
+QPushButton#DiagramTypeButton:checked:hover {
+    background-color: #EDE9FE !important;
+    border-color: #6D28D9 !important;
+}
+/* ==========================================================================
+   FIX FOR DIAGRAM TYPE SELECTION BUTTONS (image_1.png)
+   Overriding global QDialog QPushButton style
+   ========================================================================== */
+
+/* 1. Base style for the button and its container */
+QDialog QPushButton#DiagramTypeButton {
+    background-color: #FFFFFF;     /* Clean white background */
+    border: 2px solid #E5E0F8;      /* Light border */
+    border-radius: 12px;           /* Rounded corners */
+    color: #1F1F1F;                /* Normal black text */
+
+    /* CRITICAL: Must override global QDialog QPushButton spacing/size */
+    padding: 0px !important;       /* Remove global large padding */
+    min-width: 90px !important;    /* Force width (consistent with image_1 layout) */
+    height: 90px !important;       /* Force height (was 80x90 in py code) */
+    text-align: center;            /* Center text */
+
+    /* Re-establishing font properties lost from global styles */
+    font-weight: 500;
+    font-size: 13px;
+}
+
+/* 2. Style for the label inside the button (default) */
+QDialog QPushButton#DiagramTypeButton QLabel {
+    color: #1F1F1F;                /* Normal text color for the label */
+    margin: 8px;                    /* Standard margin */
+    background-color: transparent;
+}
+
+/* 3. Hover state (Unselected) */
+QDialog QPushButton#DiagramTypeButton:hover {
+    background-color: #F8F6FF;     /* Slight light purple background */
+    border-color: #C4B5FD;         /* Brighter purple border */
+}
+
+/* 4. CHECKED / SELECTED STATE (Fix for solid purple block) */
+/* We define a strong light purple background, purple border, and NO global padding override. */
+QDialog QPushButton#DiagramTypeButton:checked {
+    background-color: #F3EEFF !important;  /* Light purple fill */
+    border: 2px solid #7C3AED !important;   /* Main purple border */
+    border-radius: 12px;
+}
+
+/* 5. Style for the label inside the SELECTED button */
+QDialog QPushButton#DiagramTypeButton:checked QLabel {
+    color: #7C3AED !important;             /* Force main purple text */
+    font-weight: 700;                      /* Bold text for selection */
+}
+
+/* 6. Hover state (Selected) */
+QDialog QPushButton#DiagramTypeButton:checked:hover {
+    background-color: #EDE9FE !important;
+    border-color: #6D28D9 !important;
+}

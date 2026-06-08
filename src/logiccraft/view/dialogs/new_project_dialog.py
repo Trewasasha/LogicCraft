@@ -105,11 +105,13 @@ class NewProjectDialog(QDialog):
         self.path_input = QLineEdit()
         self.path_input.setObjectName("ProjectInput")
         self.path_input.setPlaceholderText("~/Documents/LogicCraft")
+
         browse_btn = QPushButton()
         browse_btn.setIcon(icon_manager.get_icon("folder"))
         browse_btn.setObjectName("BrowseButton")
         browse_btn.setFixedSize(36, 36)
         browse_btn.clicked.connect(self._browse_path)
+
         path_layout.addWidget(path_label)
         path_layout.addWidget(self.path_input)
         path_layout.addWidget(browse_btn)
@@ -143,10 +145,6 @@ class NewProjectDialog(QDialog):
         diagram_types = [
             ("class", "Классы", True),
             ("use_case", "Use Case", True),
-            ("sequence", "Sequence", False),
-            ("package", "Package", False),
-            ("activity", "Activity", False),
-            ("state", "State", False),
         ]
 
         row, col = 0, 0
