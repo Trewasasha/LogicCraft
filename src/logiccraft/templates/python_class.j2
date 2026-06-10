@@ -1,84 +1,33 @@
-"""Generated from UML Diagram: {{ diagram_name }}"""
-from typing import List, Optional
-{% if has_abstract_classes or has_interfaces %}
-from abc import ABC, abstractmethod
-{% endif %}
-{% if has_enums %}
-from enum import Enum
-{% endif %}
+"""Generated from UML Diagram: {{ diagram_name | trim }}"""
+from typing import List, Optional, Dict, Any
 
 {% for node in nodes %}
-{% set ntype = node.node_type.value %}
-{% if ntype == 'interface' %}
-class {{ node.name }}(ABC):
-    """Interface: {{ node.name }}"""
-{% elif ntype == 'enum' %}
-class {{ node.name }}(Enum):
-    """Enumeration: {{ node.name }}"""
-{% if node.enum_literals %}
-{% for literal in node.enum_literals %}
-    {{ literal.name }}{% if literal.value %} = {{ literal.value }}{% else %} = {{ loop.index }}{% endif %}
-
-{% endfor %}
-{% endif %}
-{% elif ntype == 'abstract_class' or node.is_abstract %}
-class {{ node.name }}(ABC{% if inheritance_map[node.name] %}, {{ inheritance_map[node.name] | join(', ') }}{% endif %}):
-    """Abstract class: {{ node.name }}"""
-{% else %}
-class {{ node.name }}{% if inheritance_map[node.name] %}({{ inheritance_map[node.name] | join(', ') }}){% endif %}:
+    class {{ node.name | trim }}:
     """Class generated from UML diagram"""
-{% endif %}
-{% if ntype != 'enum' %}
-{% if node.properties %}
+    {% if node.properties %}
 
-    # Attributes
-{% for prop in node.properties %}
-    {{ get_python_visibility(prop.visibility) }}{{ prop.name }}: {{ prop.type }}{% if prop.default_value %} = {{ prop.default_value }}{% endif %}
-
-{% endfor %}
-{% endif %}
-{% if ntype != 'interface' %}
+        # Attributes
+        {% for prop in node.properties %}
+            _{{ prop.name | trim }}: {{ prop.type | trim }}
+        {% endfor %}
+    {% endif %}
 
     def __init__(self):
-{% if node.properties %}
-{% for prop in node.properties %}
-        {% if prop.default_value %}
-        self.{{ prop.name }} = {{ prop.default_value }}
-        {% else %}
-        self.{{ prop.name }} = None
-        {% endif %}
-{% endfor %}
-{% else %}
-        pass
-{% endif %}
-{% endif %}
-{% if node.methods %}
-
-    # Methods
-{% for method in node.methods %}
-{% if method.is_abstract or ntype == 'interface' %}
-    @abstractmethod
-{% elif method.is_static %}
-    @staticmethod
-{% endif %}
-    {% if method.is_static %}
-    def {{ method.name }}({{ generate_method_params(method) }}){% if method.return_type %} -> {{ method.return_type }}{% endif %}:
+    {% if node.properties %}
+        {% for prop in node.properties %}
+            self._{{ prop.name | trim }} = None
+        {% endfor %}
     {% else %}
-    def {{ method.name }}(self{% if generate_method_params(method) %}, {{ generate_method_params(method) }}{% endif %}){% if method.return_type %} -> {{ method.return_type }}{% else %} -> None{% endif %}:
-    {% endif %}
-        {% if method.is_abstract or ntype == 'interface' %}
-        raise NotImplementedError
-        {% else %}
         pass
-        {% endif %}
-{% if not loop.last %}
+    {% endif %}
+    {% if node.methods %}
 
-{% endif %}
-{% endfor %}
-{% endif %}
-{% endif %}
-{% if not loop.last %}
+        # Methods
+        {% for method in node.methods %}
+            {% set rtype = (method.return_type | trim) if method.return_type else "None" %}
+            def {{ method.name | trim }}(self{% if method.parameters %}, {{ generate_method_params(method) }}{% endif %}) -> {{ rtype }}:
+            pass
+        {% endfor %}
+    {% endif %}
 
-
-{% endif %}
 {% endfor %}

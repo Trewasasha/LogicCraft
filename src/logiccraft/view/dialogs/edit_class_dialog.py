@@ -1,4 +1,5 @@
 """Диалог редактирования класса"""
+import re
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QListWidget, QPushButton, QInputDialog, QDialogButtonBox,
@@ -8,7 +9,6 @@ from PyQt6.QtCore import Qt
 from ..theme import DialogStyle
 from ...models.diagram import NodeType
 
-
 NODE_TYPE_LABELS = {
     NodeType.CLASS: "Класс",
     NodeType.ABSTRACT_CLASS: "Абстрактный класс",
@@ -16,17 +16,20 @@ NODE_TYPE_LABELS = {
     NodeType.ENUM: "Перечисление (Enum)",
 }
 
+def _clean_uml_input(text: str) -> str:
+    """Очищает ввод пользователя от лишних пробелов для красивого отображения в списке"""
+    text = text.strip()
+    text = re.sub(r'\s+', ' ', text)
+    return text
 
 class EditClassDialog(QDialog):
     """Диалог для редактирования класса"""
-
     def __init__(self, card, parent=None):
         super().__init__(parent)
         self.card = card
         self.setWindowTitle(f"Редактировать: {card.name}")
         self.setMinimumWidth(440)
         self.setMinimumHeight(540)
-
         self._setup_ui()
 
     def _setup_ui(self):
@@ -49,10 +52,12 @@ class EditClassDialog(QDialog):
         current_type = getattr(self.card, 'node_type', NodeType.CLASS)
         if isinstance(current_type, str):
             current_type = NodeType(current_type)
+
         for i in range(self.type_combo.count()):
             if self.type_combo.itemData(i) == current_type:
                 self.type_combo.setCurrentIndex(i)
                 break
+
         self.type_combo.currentIndexChanged.connect(self._on_type_changed)
         layout.addWidget(self.type_combo)
 
@@ -68,7 +73,7 @@ class EditClassDialog(QDialog):
         members_layout.addWidget(QLabel("Атрибуты:"))
         self.attrs_list = QListWidget()
         self.attrs_list.setMinimumHeight(110)
-        for attr in self.card.attributes:
+        for attr in getattr(self.card, 'attributes', []):
             self.attrs_list.addItem(attr)
         members_layout.addWidget(self.attrs_list)
 
@@ -85,7 +90,7 @@ class EditClassDialog(QDialog):
         members_layout.addWidget(QLabel("Методы:"))
         self.methods_list = QListWidget()
         self.methods_list.setMinimumHeight(110)
-        for method in self.card.methods:
+        for method in getattr(self.card, 'methods', []):
             self.methods_list.addItem(method)
         members_layout.addWidget(self.methods_list)
 
@@ -110,7 +115,6 @@ class EditClassDialog(QDialog):
         enum_layout.addWidget(QLabel("Значения (литералы):"))
         self.enum_list = QListWidget()
         self.enum_list.setMinimumHeight(200)
-        # Заполняем из card.attributes (используем как хранилище строк)
         enum_attrs = getattr(self.card, 'attributes', [])
         for item in enum_attrs:
             self.enum_list.addItem(item)
@@ -128,7 +132,6 @@ class EditClassDialog(QDialog):
         enum_layout.addStretch()
 
         self.stack.addWidget(enum_page)  # index 1
-
         layout.addWidget(self.stack)
 
         # Кнопки OK/Cancel
@@ -153,7 +156,7 @@ class EditClassDialog(QDialog):
     def _add_attribute(self):
         text, ok = QInputDialog.getText(self, "Добавить атрибут", "Атрибут (например: +name: str):")
         if ok and text:
-            self.attrs_list.addItem(text)
+            self.attrs_list.addItem(_clean_uml_input(text))
 
     def _remove_attribute(self):
         row = self.attrs_list.currentRow()
@@ -163,7 +166,7 @@ class EditClassDialog(QDialog):
     def _add_method(self):
         text, ok = QInputDialog.getText(self, "Добавить метод", "Метод (например: +getName(): str):")
         if ok and text:
-            self.methods_list.addItem(text)
+            self.methods_list.addItem(_clean_uml_input(text))
 
     def _remove_method(self):
         row = self.methods_list.currentRow()
@@ -173,7 +176,7 @@ class EditClassDialog(QDialog):
     def _add_enum_literal(self):
         text, ok = QInputDialog.getText(self, "Добавить значение", "Значение (например: RED или RED = 1):")
         if ok and text:
-            self.enum_list.addItem(text)
+            self.enum_list.addItem(_clean_uml_input(text))
 
     def _remove_enum_literal(self):
         row = self.enum_list.currentRow()
@@ -191,4 +194,4 @@ class EditClassDialog(QDialog):
             attributes = [self.attrs_list.item(i).text() for i in range(self.attrs_list.count())]
             methods = [self.methods_list.item(i).text() for i in range(self.methods_list.count())]
 
-        return self.name_edit.text(), attributes, methods, node_type
+        return self.name_edit.text().strip(), attributes, methods, node_type
