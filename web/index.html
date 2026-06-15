@@ -92,6 +92,8 @@
   </div>
 </section>
 
+
+
 <section id="about" class="py-24 bg-white border-y border-[#E5E0F8] relative">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
@@ -211,6 +213,202 @@
   </div>
 </section>
 
+<section id="properties-view" class="py-24 bg-white border-t border-[#E5E0F8] relative overflow-hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="grid lg:grid-cols-12 gap-8 items-end mb-16">
+      <div class="lg:col-span-8 space-y-3">
+        <span class="text-sm font-bold font-mono text-[#7C3AED] uppercase tracking-wider bg-[#F3EEFF] px-4 py-1.5 rounded-full border border-[#D4C9F8]">
+          View Layer / PyQt6 Component
+        </span>
+        <h2 class="text-3xl sm:text-4xl font-bold text-[#1F1F1F]">Анатомия PropertiesPanel</h2>
+        <p class="text-base text-[#6B7280]">
+          Визуализация правой панели свойств на базе <code>QVBoxLayout</code>. Компоненты выступают в роли чистого View: они не хранят состояние, а транслируют изменения в контроллер через сигналы с использованием задержки (Debounce).
+        </p>
+      </div>
+      <div class="lg:col-span-4 lg:text-right">
+        <div class="inline-flex p-1 bg-[#F3EEFF] border border-[#D4C9F8] rounded-xl font-mono text-xs text-[#7C3AED] font-bold">
+          <span class="px-3 py-1.5 bg-white rounded-lg shadow-sm">Width: 220px</span>
+          <span class="px-3 py-1.5">Debounce: 500ms</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-12 gap-8 items-stretch">
+
+      <div class="lg:col-span-4 bg-[#F0EFFE] p-4 rounded-2xl border border-[#D4C9F8] shadow-sm flex flex-col items-center">
+        <div class="w-full text-center mb-3 select-none">
+          <span class="text-[10px] font-bold font-mono text-[#7C3AED]/70 uppercase tracking-widest">PyQt6 Render Area</span>
+        </div>
+
+        <div class="w-[220px] bg-[#F0EFFE] font-sans text-[#1F1F1F] text-xs flex flex-col border border-[#C4B5FD] rounded shadow-lg overflow-hidden bg-white">
+
+          <div class="bg-white px-3 py-2.5 font-bold border-b border-[#E5E0F8] text-[#1F1F1F] flex items-center justify-between">
+            <span>Свойства</span>
+            <span class="text-[9px] font-mono bg-[#F3EEFF] text-[#7C3AED] px-1.5 py-0.5 rounded">QWidget</span>
+          </div>
+
+          <div class="p-3 space-y-4 flex-grow bg-[#FAFAFE]">
+
+            <div class="space-y-1">
+              <label class="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Имя</label>
+              <div class="relative">
+                <input type="text" id="sim-input-name" value="UserClass" oninput="triggerSimDebounce(this.value)" class="w-full bg-white border border-[#C4B5FD] rounded px-2 py-1.5 text-xs text-[#1F1F1F] focus:outline-none focus:border-[#7C3AED] focus:ring-1 focus:ring-[#7C3AED] transition font-mono">
+                <div id="debounce-indicator" class="absolute right-2 top-2.5 w-2 h-2 rounded-full bg-green-500 transition-colors duration-200"></div>
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Атрибуты</label>
+              <div class="border border-[#E5E0F8] bg-white rounded h-24 overflow-y-auto p-1 font-mono text-[11px] space-y-0.5" id="sim-attrs-list">
+                <div class="px-1.5 py-1 bg-[#F3EEFF] text-[#7C3AED] rounded text-[10px] truncate">+ id: str</div>
+                <div class="px-1.5 py-1 bg-[#F3EEFF] text-[#7C3AED] rounded text-[10px] truncate">+ name: str</div>
+              </div>
+              <div class="grid grid-cols-2 gap-1 pt-1">
+                <button onclick="addSimItem('attr')" class="bg-white border border-[#C4B5FD] text-[#7C3AED] font-medium py-1 px-2 rounded hover:bg-[#F3EEFF] transition text-[10px]">+ Добавить</button>
+                <button onclick="removeSimItem('attr')" class="bg-white border border-red-200 text-red-500 font-medium py-1 px-2 rounded hover:bg-red-50 transition text-[10px]">Удалить</button>
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">Методы</label>
+              <div class="border border-[#E5E0F8] bg-white rounded h-24 overflow-y-auto p-1 font-mono text-[11px] space-y-0.5" id="sim-methods-list">
+                <div class="px-1.5 py-1 bg-[#F3EEFF] text-[#7C3AED] rounded text-[10px] truncate">+ save(): void</div>
+              </div>
+              <div class="grid grid-cols-2 gap-1 pt-1">
+                <button onclick="addSimItem('method')" class="bg-white border border-[#C4B5FD] text-[#7C3AED] font-medium py-1 px-2 rounded hover:bg-[#F3EEFF] transition text-[10px]">+ Добавить</button>
+                <button onclick="removeSimItem('method')" class="bg-white border border-red-200 text-red-500 font-medium py-1 px-2 rounded hover:bg-red-50 transition text-[10px]">Удалить</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-8 bg-[#151515] rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[460px]">
+
+        <div class="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 text-white select-none">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#EF4444]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#F59E0B]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#10B981]"></span>
+            <span class="text-xs text-slate-400 font-mono pl-2">views/properties_panel.py</span>
+          </div>
+          <div class="flex items-center space-x-3">
+            <span id="terminal-pulse" class="text-[10px] font-mono text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-500/20 opacity-0 transition-opacity duration-200">SIGNAL EMITTED</span>
+            <div class="text-xs font-mono text-slate-500">PyQt6 Controller Link</div>
+          </div>
+        </div>
+
+        <div class="relative flex-grow p-6 font-mono text-xs overflow-y-auto text-slate-300 leading-relaxed bg-[#151515] selection:bg-[#7C3AED]/30">
+          <pre class="text-[11px] sm:text-xs"><span class="text-blue-400">class</span> <span class="text-yellow-400">PropertiesPanel</span>(<span class="text-green-400">QWidget</span>):
+    <span class="text-slate-500"># Сигналы для отправки изменений в контроллер</span>
+    name_changed = <span class="text-blue-400">pyqtSignal</span>(<span class="text-cyan-400">str</span>, <span class="text-cyan-400">str</span>)        <span class="text-slate-500"># card_id, new_name</span>
+    attributes_changed = <span class="text-blue-400">pyqtSignal</span>(<span class="text-cyan-400">str</span>, <span class="text-cyan-400">list</span>) <span class="text-slate-500"># card_id, attributes</span>
+    methods_changed = <span class="text-blue-400">pyqtSignal</span>(<span class="text-cyan-400">str</span>, <span class="text-cyan-400">list</span>)    <span class="text-slate-500"># card_id, methods</span>
+
+    <span class="text-blue-400">def</span> <span class="text-cyan-400">__init__</span>(<span class="text-orange-400">self</span>, parent=<span class="text-orange-400">None</span>):
+        <span class="text-cyan-400">super</span>().__init__(parent)
+
+        <span class="text-slate-500"># Поля для редактирования</span>
+        <span class="text-orange-400">self</span>.name_edit = <span class="text-blue-400">QLineEdit</span>()
+        <span class="text-orange-400">self</span>.attrs_list = <span class="text-blue-400">QListWidget</span>()
+        <span class="text-orange-400">self</span>.methods_list = <span class="text-blue-400">QListWidget</span>()
+
+        <span class="text-slate-500"># Таймер для задержки (Debounce)</span>
+        <span class="text-orange-400">self</span>._name_timer = <span class="text-blue-400">QTimer</span>()
+        <span class="text-orange-400">self</span>._name_timer.setSingleShot(<span class="text-orange-400">True</span>)
+        <span class="text-orange-400">self</span>._name_timer.timeout.connect(<span class="text-orange-400">self</span>._emit_name_changed)
+
+        <span class="text-slate-500"># Подключаем сигналы</span>
+        <span class="text-orange-400">self</span>.name_edit.textChanged.connect(<span class="text-orange-400">self</span>._on_name_changed)
+
+    <span class="text-blue-400">def</span> <span class="text-cyan-400">_on_name_changed</span>(<span class="text-orange-400">self</span>, text):
+        <span class="text-slate-500">"""При вводе текста перезапускаем таймер"""</span>
+        <span class="text-orange-400">self</span>._name_timer.start(<span class="text-cyan-400">500</span>)  <span class="text-slate-500"># Ждём 500 мс</span>
+
+    <span class="text-blue-400">def</span> <span class="text-cyan-400">_emit_name_changed</span>(<span class="text-orange-400">self</span>):
+        <span class="text-slate-500">"""Отправляем изменение только после паузы пользователя"""</span>
+        <span class="text-orange-400">self</span>.name_changed.emit(<span class="text-orange-400">self</span>.current_card_id, <span class="text-orange-400">self</span>.name_edit.text())
+
+    <span class="text-blue-400">def</span> <span class="text-cyan-400">load_card</span>(<span class="text-orange-400">self</span>, card_id, name, attributes, methods):
+        <span class="text-slate-500">"""Загружаем данные выбранной карточки"""</span>
+        <span class="text-orange-400">self</span>.current_card_id = card_id
+        <span class="text-orange-400">self</span>.name_edit.setText(name)
+        <span class="text-orange-400">self</span>.attrs_list.clear()
+        <span class="text-orange-400">self</span>.attrs_list.addItems(attributes)
+        <span class="text-orange-400">self</span>.methods_list.clear()
+        <span class="text-orange-400">self</span>.methods_list.addItems(methods)</pre>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<script>
+  let debounceTimeout = null;
+
+  function triggerSimDebounce(val) {
+    const indicator = document.getElementById('debounce-indicator');
+    const badge = document.getElementById('terminal-pulse');
+
+    // Включаем "ожидание" (красный цвет таймера)
+    indicator.className = "absolute right-2 top-2.5 w-2 h-2 rounded-full bg-red-500 animate-pulse";
+    badge.classList.add('opacity-0');
+
+    // Сбрасываем старый JS-таймер (эмуляция QTimer.start(500))
+    clearTimeout(debounceTimeout);
+
+    debounceTimeout = setTimeout(() => {
+      // Время вышло (сигнал отправлен)
+      indicator.className = "absolute right-2 top-2.5 w-2 h-2 rounded-full bg-green-500";
+
+      // Показываем плашку в нашей виртуальной IDE, что сигнал улетел в контроллер
+      badge.classList.remove('opacity-0');
+      badge.textContent = `emit name_changed -> "${val}"`;
+
+      // Прячем плашку через 1.5 секунды
+      setTimeout(() => { badge.classList.add('opacity-0'); }, 1500);
+    }, 500);
+  }
+
+  function addSimItem(type) {
+    const listId = type === 'attr' ? 'sim-attrs-list' : 'sim-methods-list';
+    const container = document.getElementById(listId);
+    const badge = document.getElementById('terminal-pulse');
+
+    const promptText = type === 'attr' ? 'Новое свойство (например, +age: int)' : 'Новый метод (например, +clear(): void)';
+    const defaultVal = type === 'attr' ? '+ value: float' : '+ update(): bool';
+
+    const userVal = prompt(promptText, defaultVal);
+    if (userVal) {
+      const newItem = document.createElement('div');
+      newItem.className = "px-1.5 py-1 bg-[#F3EEFF] text-[#7C3AED] rounded text-[10px] truncate";
+      newItem.textContent = userVal;
+      container.appendChild(newItem);
+
+      // Мгновенная отправка сигнала (без дебаунса, как для списков в коде)
+      badge.classList.remove('opacity-0');
+      badge.textContent = `emit ${type}s_changed`;
+      setTimeout(() => { badge.classList.add('opacity-0'); }, 1500);
+    }
+  }
+
+  function removeSimItem(type) {
+    const listId = type === 'attr' ? 'sim-attrs-list' : 'sim-methods-list';
+    const container = document.getElementById(listId);
+    const badge = document.getElementById('terminal-pulse');
+
+    if (container.lastElementChild) {
+      container.removeChild(container.lastElementChild);
+
+      badge.classList.remove('opacity-0');
+      badge.textContent = `emit ${type}s_changed (item removed)`;
+      setTimeout(() => { badge.classList.add('opacity-0'); }, 1500);
+    }
+  }
+</script>
 
 <section id="pydantic-core" class="py-24 bg-[#FAFAFE] border-t border-[#E5E0F8] relative">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
