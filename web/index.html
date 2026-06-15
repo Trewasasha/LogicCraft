@@ -6,256 +6,480 @@
   <title>LogicCraft — Автоматизация проектирования и генерации кода</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    .pixel-grid {
-      background-image: radial-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 0);
-      background-size: 24px 24px;
+    /* Интеграция фирменных шрифтов и фона из style.qss */
+    body {
+      font-family: "Inter", "Segoe UI", sans-serif;
+      background-color: #F0EFFE; /* Фоновый цвет приложения QMainWindow */
+      color: #1F1F1F; /* Основной цвет текста */
+    }
+    /* Легкая сетка для имитации холста QGraphicsScene */
+    .graphics-scene-bg {
+      background-image: radial-gradient(#D4C9F8 1px, transparent 0);
+      background-size: 20px 20px;
+    }
+    html {
+      scroll-behavior: smooth; /* Плавная прокрутка к блокам */
     }
   </style>
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans antialiased pixel-grid">
+<body class="antialiased graphics-scene-bg">
 
-<header class="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+<header class="sticky top-0 z-50 bg-white border-b border-[#E5E0F8] shadow-sm">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
     <div class="flex items-center space-x-3">
-      <div class="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center font-bold text-lg tracking-wider text-white">LC</div>
-      <span class="font-bold text-xl tracking-tight bg-gradient-to-r #ff007f from-indigo-400 to-cyan-400 bg-clip-text text-transparent">LogicCraft</span>
+      <div class="w-10 h-10 bg-gradient-to-b from-[#8B5CF6] to-[#7C3AED] rounded-lg flex items-center justify-center font-bold text-xl text-white shadow-md shadow-indigo-200">
+        СТ
+      </div>
+      <span class="font-bold text-2xl tracking-tight text-[#1F1F1F]">
+                    СХЕМАТУС
+                </span>
     </div>
-    <nav class="hidden md:flex space-x-8 text-sm font-medium text-slate-300">
-      <a href="#about" class="hover:text-indigo-400 transition">О проекте</a>
-      <a href="#features" class="hover:text-indigo-400 transition">Возможности</a>
-      <a href="#architecture" class="hover:text-indigo-400 transition">Архитектура</a>
-      <a href="#team" class="hover:text-indigo-400 transition">Команда</a>
+
+    <nav class="hidden md:flex space-x-2 text-base font-semibold">
+      <a href="#about" class="px-4 py-2 rounded-md text-[#1F1F1F] hover:bg-[#F3EEFF] hover:text-[#7C3AED] transition">О проекте</a>
+      <a href="#features" class="px-4 py-2 rounded-md text-[#1F1F1F] hover:bg-[#F3EEFF] hover:text-[#7C3AED] transition">Возможности</a>
+      <a href="#codegen-engine" class="px-4 py-2 rounded-md text-[#7C3AED] bg-[#F3EEFF] hover:bg-[#EDE9FE] transition">Кодогенерация</a>
+      <a href="#architecture" class="px-4 py-2 rounded-md text-[#1F1F1F] hover:bg-[#F3EEFF] hover:text-[#7C3AED] transition">Архитектура</a>
+      <a href="#team" class="px-4 py-2 rounded-md text-[#1F1F1F] hover:bg-[#F3EEFF] hover:text-[#7C3AED] transition">Команда</a>
     </nav>
-    <div class="text-xs bg-slate-800 px-3 py-1.5 rounded border border-slate-700 font-mono text-cyan-400">v1.0 (2026)</div>
+
+    <div class="text-sm bg-[#F8F6FF] px-4 py-2 rounded-lg border border-[#D4C9F8] font-mono text-[#7C3AED] font-bold">
+      Спецификация: v1.0
+    </div>
   </div>
 </header>
 
-<section class="relative pt-20 pb-16 overflow-hidden lg:pt-32 lg:pb-24">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center lg:text-left">
+<section class="relative pt-20 pb-24 overflow-hidden lg:pt-28 lg:pb-32">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
     <div class="grid lg:grid-cols-12 gap-12 items-center">
-      <div class="lg:col-span-6 space-y-6">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+
+      <div class="lg:col-span-6 space-y-8 text-center lg:text-left">
+                    <span class="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold bg-[#F3EEFF] text-[#7C3AED] border border-[#D4C9F8]">
                         Защита программного комплекса
                     </span>
-        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-white leading-none">
+        <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-[#7C3AED] leading-tight">
           От UML-диаграммы <br>
-          <span class="bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">к готовому коду</span> за один клик
+          <span class="text-[#1F1F1F]">к готовому коду</span>
         </h1>
-        <p class="text-lg text-slate-400 max-w-xl mx-auto lg:mx-0">
-          LogicCraft — это кроссплатформенный инструмент автоматизации разработки, стирающий границы между проектированием архитектуры системы и её программной реализацией.
+        <p class="text-lg sm:text-xl text-[#6B7280] max-w-xl mx-auto lg:mx-0 leading-relaxed">
+          Кроссплатформенный инструмент, автоматизирующий процесс создания программного обеспечения от построения визуальных моделей до генерации структуры проекта на Python и Java.
         </p>
-        <div class="flex flex-wrap justify-center lg:justify-start gap-4">
-          <a href="#features" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded shadow-lg transition">
-            Посмотреть возможности
+
+        <div class="flex flex-wrap justify-center lg:justify-start gap-4 pt-2">
+          <a href="#features" class="px-8 py-4 bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-base font-bold rounded-lg shadow-md shadow-indigo-200 transition text-center min-w-[160px]">
+            Возможности
           </a>
-          <a href="#architecture" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded border border-slate-700 transition">
-            Архитектурный разбор
+          <a href="#codegen-engine" class="px-8 py-4 bg-white hover:bg-[#F8F6FF] text-[#7C3AED] text-base font-bold rounded-lg border border-[#D4C9F8] transition text-center min-w-[160px]">
+            Кодогенерация
           </a>
         </div>
       </div>
+
       <div class="lg:col-span-6">
-        <div class="bg-slate-800 rounded-lg border border-slate-700 p-2 shadow-2xl bg-gradient-to-b from-slate-800 to-slate-900">
-          <div class="flex items-center space-x-2 px-3 py-2 border-b border-slate-700/50">
-            <div class="w-3 h-3 rounded-full bg-red-500/40"></div>
-            <div class="w-3 h-3 rounded-full bg-yellow-500/40"></div>
-            <div class="w-3 h-3 rounded-full bg-green-500/40"></div>
-            <span class="text-xs font-mono text-slate-500 pl-4">logiccraft_main_window.png</span>
+        <div class="bg-white rounded-xl border border-[#E5E0F8] p-3 shadow-xl shadow-indigo-100/50">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-[#E5E0F8] bg-[#F8F6FF] rounded-t-lg">
+            <div class="flex items-center space-x-2">
+              <div class="w-3.5 h-3.5 rounded-full bg-[#EF4444]/70"></div>
+              <div class="w-3.5 h-3.5 rounded-full bg-[#FFB020]/70"></div>
+              <div class="w-3.5 h-3.5 rounded-full bg-[#10B981]/70"></div>
+              <span class="text-sm font-mono text-[#6B7280] pl-2">logiccraft_v1.0.png</span>
+            </div>
+            <span class="text-sm font-bold text-[#1F1F1F] font-mono">QMainWindow</span>
           </div>
-          <img src="placeholder_main_editor.png" alt="Интерфейс LogicCraft Редактора" class="w-full h-auto rounded-b bg-slate-950 min-h-[300px] object-cover">
+          <img src="placeholder_main_editor.png" alt="Главное окно LogicCraft" class="w-full h-auto rounded-b-lg bg-[#FAFAFE] min-h-[360px] object-cover border border-[#E5E0F8]">
         </div>
       </div>
+
     </div>
   </div>
 </section>
 
-<section id="about" class="py-16 border-t border-slate-800 bg-slate-900/50">
+<section id="about" class="py-20 bg-white border-y border-[#E5E0F8]">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
     <div class="text-center max-w-3xl mx-auto space-y-4">
-      <h2 class="text-3xl font-bold text-white tracking-tight">Актуальность проекта</h2>
-      <p class="text-slate-400">
-        Современная разработка требует быстрого перехода от проектирования к написанию кода. Существующие UML-редакторы часто являются лишь инструментами рисования. LogicCraft решает эту проблему, превращая визуальный граф в строго структурированные и готовые к запуску проекты.
+      <h2 class="text-4xl font-bold text-[#1F1F1F]">Назначение и актуальность</h2>
+      <p class="text-[#6B7280] text-base sm:text-lg leading-relaxed">
+        LogicCraft устраняет разрыв между проектированием архитектуры и непосредственной реализацией, автоматически трансформируя визуальные абстракции в чистый объектно-ориентированный код.
       </p>
     </div>
 
-    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
-      <div class="bg-slate-800/40 border border-slate-800 p-6 rounded hover:border-indigo-500/50 transition">
-        <div class="text-indigo-400 text-2xl font-bold mb-2">01</div>
-        <h3 class="text-lg font-semibold text-white mb-2">Интерактивный холст</h3>
-        <p class="text-sm text-slate-400">Построение диаграмм классов и Use Case на базе PyQt6 QGraphicsScene с привязкой к сетке и drag-and-drop.</p>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-16">
+      <div class="bg-[#FFFFFF] border-2 border-[#E5E0F8] p-8 rounded-2xl hover:bg-[#F8F6FF] hover:border-[#C4B5FD] transition group">
+        <div class="text-[#9B72F5] font-mono text-3xl font-bold mb-4 group-hover:scale-105 transition-transform inline-block">01</div>
+        <h3 class="text-lg font-bold text-[#1F1F1F] mb-3">Интерактивный холст</h3>
+        <p class="text-sm text-[#6B7280] leading-relaxed">Разработка графического окна на базе PyQt6 `QGraphicsScene` с поддержкой сетки, панорамирования и drag-and-drop элементов.</p>
       </div>
-      <div class="bg-slate-800/40 border border-slate-800 p-6 rounded hover:border-indigo-500/50 transition">
-        <div class="text-indigo-400 text-2xl font-bold mb-2">02</div>
-        <h3 class="text-lg font-semibold text-white mb-2">Строгая валидация</h3>
-        <p class="text-sm text-slate-400">Автоматическая проверка типов данных и структуры диаграммы с помощью Pydantic "на лету".</p>
+      <div class="bg-[#FFFFFF] border-2 border-[#E5E0F8] p-8 rounded-2xl hover:bg-[#F8F6FF] hover:border-[#C4B5FD] transition group">
+        <div class="text-[#9B72F5] font-mono text-3xl font-bold mb-4 group-hover:scale-105 transition-transform inline-block">02</div>
+        <h3 class="text-lg font-bold text-[#1F1F1F] mb-3">Валидация данных</h3>
+        <p class="text-sm text-[#6B7280] leading-relaxed">Контроль целостности схемы данных "на лету" с помощью Pydantic. Защита от дублирования имён и незаполненных интерфейсов.</p>
       </div>
-      <div class="bg-slate-800/40 border border-slate-800 p-6 rounded hover:border-indigo-500/50 transition">
-        <div class="text-indigo-400 text-2xl font-bold mb-2">03</div>
-        <h3 class="text-lg font-semibold text-white mb-2">Умная кодогенерация</h3>
-        <p class="text-sm text-slate-400">Преобразование метаданных в чистый ООП-код (Python/Java) с сохранением связей и иерархий через Jinja2.</p>
+      <div class="bg-gradient-to-b from-[#8B5CF6] to-[#7C3AED] p-8 rounded-2xl shadow-lg shadow-indigo-100 border border-transparent text-white group">
+        <div class="text-white/70 font-mono text-3xl font-bold mb-4">03</div>
+        <h3 class="text-lg font-bold text-white mb-3">Шаблонный движок</h3>
+        <p class="text-sm text-indigo-100 leading-relaxed">Генерация полноценного исходного ООП-кода (Python/Java) на основе метаданных с помощью гибких шаблонов Jinja2.</p>
       </div>
-      <div class="bg-slate-800/40 border border-slate-800 p-6 rounded hover:border-indigo-500/50 transition">
-        <div class="text-indigo-400 text-2xl font-bold mb-2">04</div>
-        <h3 class="text-lg font-semibold text-white mb-2">Экспорт проектов</h3>
-        <p class="text-sm text-slate-400">Генерация полноценной файловой структуры приложения, включая конфигурации и шаблоны MVC.</p>
+      <div class="bg-[#FFFFFF] border-2 border-[#E5E0F8] p-8 rounded-2xl hover:bg-[#F8F6FF] hover:border-[#C4B5FD] transition group">
+        <div class="text-[#9B72F5] font-mono text-3xl font-bold mb-4 group-hover:scale-105 transition-transform inline-block">04</div>
+        <h3 class="text-lg font-bold text-[#1F1F1F] mb-3">Undo/Redo и Слои</h3>
+        <p class="text-sm text-[#6B7280] leading-relaxed">Реализация паттерна Command для отмены/повтора действий и независимый экспорт готовой MVC структуры проекта на диск.</p>
       </div>
     </div>
+
   </div>
 </section>
 
-<section id="features" class="py-16 border-t border-slate-800">
+<section id="features" class="py-20 sm:py-28">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24">
-    <div class="text-center max-w-3xl mx-auto">
-      <h2 class="text-3xl font-bold text-white tracking-tight">Ключевой функционал системы</h2>
+
+    <div class="grid lg:grid-cols-12 gap-12 items-center">
+      <div class="lg:col-span-5 space-y-5">
+        <span class="text-sm font-bold font-mono text-[#9B72F5] uppercase tracking-wider block">Слой представления / View</span>
+        <h3 class="text-3xl font-bold text-[#1F1F1F]">Проектирование UMLNode и связей</h3>
+        <p class="text-base text-[#6B7280] leading-relaxed">
+          Визуальные компоненты карт поддерживают строгое разграничение типов элементов: `class`, `interface`, `enum` и абстрактный класс. Система соединений обрабатывает анкерные точки на сторонах карточек, высчитывая геометрию стрелок для наследования, композиции, агрегации и реализации.
+        </p>
+        <div class="bg-white p-5 rounded-xl border border-[#E5E0F8] space-y-2.5 text-sm font-mono text-[#6B7280]">
+          <div class="flex items-center text-[#1F1F1F] font-bold text-base mb-1">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#7C3AED] mr-2"></span> Поддерживаемые сущности:
+          </div>
+          <div>• UMLNode (Позиционирование и метаданные полей/методов)</div>
+          <div>• UMLConnection (Связывание по строковым ID через анкеры)</div>
+        </div>
+      </div>
+      <div class="lg:col-span-7">
+        <div class="bg-white border-2 border-[#E5E0F8] rounded-xl p-2 shadow-md">
+          <img src="placeholder_uml_editor.png" alt="Редактор диаграммы классов" class="w-full h-auto rounded-lg bg-[#FAFAFE] min-h-[300px] object-cover">
+        </div>
+      </div>
     </div>
 
     <div class="grid lg:grid-cols-12 gap-12 items-center">
-      <div class="lg:col-span-5 space-y-4">
-        <div class="text-xs font-mono text-cyan-400 uppercase tracking-widest">Моделирование</div>
-        <h3 class="text-2xl font-bold text-white">Проектирование UML-карточек</h3>
-        <p class="text-slate-400 text-sm leading-relaxed">
-          Поддержка строгой типизации элементов: класс, интерфейс, enum, абстрактный класс. Система учитывает типы отношений: наследование, реализация, композиция, агрегация и ассоциация, закладывая их логику в будущую кодовую базу.
-        </p>
-        <ul class="text-sm text-slate-400 space-y-2 font-mono">
-          <li class="flex items-center text-slate-300"><span class="text-indigo-400 mr-2">✔</span> Точки привязки (анкеры) для связей</li>
-          <li class="flex items-center text-slate-300"><span class="text-indigo-400 mr-2">✔</span> Настройка свойств и сигнатур методов</li>
-        </ul>
-      </div>
-      <div class="lg:col-span-7">
-        <div class="bg-slate-800 border border-slate-700 rounded p-1.5 shadow-xl">
-          <img src="placeholder_uml_editor.png" alt="Редактор диаграммы классов" class="w-full h-auto rounded bg-slate-950 min-h-[250px] object-cover">
-        </div>
-      </div>
-    </div>
-
-    <div class="grid lg:grid-cols-12 gap-12 items-center lg:flex-row-reverse">
       <div class="lg:col-span-7 lg:order-2">
-        <div class="bg-slate-800 border border-slate-700 rounded p-1.5 shadow-xl">
-          <img src="placeholder_code_generator.png" alt="Процесс генерации кода" class="w-full h-auto rounded bg-slate-950 min-h-[250px] object-cover">
+        <div class="bg-white border-2 border-[#E5E0F8] rounded-xl p-2 shadow-md">
+          <img src="placeholder_code_generator.png" alt="Модуль генерации кода" class="w-full h-auto rounded-lg bg-[#FAFAFE] min-h-[300px] object-cover">
         </div>
       </div>
-      <div class="lg:col-span-5 lg:order-1 space-y-4">
-        <div class="text-xs font-mono text-cyan-400 uppercase tracking-widest">Автоматизация</div>
-        <h3 class="text-2xl font-bold text-white">Движок генерации и контроля целостности</h3>
-        <p class="text-slate-400 text-sm leading-relaxed">
-          Перед компиляцией в файлы проекта приложение проводит глубокий анализ графа. Специфические алгоритмы предотвращают генерацию невалидного кода.
+      <div class="lg:col-span-5 lg:order-1 space-y-5">
+        <span class="text-sm font-bold font-mono text-[#9B72F5] uppercase tracking-wider block">Бизнес-логика / Services</span>
+        <h3 class="text-3xl font-bold text-[#1F1F1F]">Контроль циклов и трансляция</h3>
+        <p class="text-base text-[#6B7280] leading-relaxed">
+          Специализированный слой сервисов (`Service Layer`) гарантирует валидность структуры перед генерацией. Применяется встроенный алгоритмический анализ для предотвращения сбоев в результирующих исходных кодах.
         </p>
-        <div class="bg-slate-950 p-4 rounded border border-slate-800 font-mono text-xs text-slate-300 space-y-1">
-          <div class="text-emerald-400">// Алгоритм защиты генератора:</div>
-          <div>Используется алгоритм <span class="text-indigo-400">«Черепаха и Заяц»</span></div>
-          <div>для выявления циклических зависимостей</div>
-          <div>и "битых" связей в наследованиях до экспорта.</div>
+        <div class="bg-[#1F1F1F] p-5 rounded-xl border border-slate-800 shadow-inner font-mono text-sm text-slate-300 leading-relaxed">
+          <div class="text-[#9B72F5] font-bold text-base mb-1">// Алгоритм предотвращения зацикливания</div>
+          <div class="text-slate-400 mt-2">Используется алгоритм <span class="text-white font-bold">«Черепаха и Заяц»</span> (Флойда) для выявления циклических зависимостей в графе наследования до момента выгрузки на диск.</div>
         </div>
       </div>
     </div>
+
   </div>
 </section>
 
-<section id="architecture" class="py-16 border-t border-slate-800 bg-slate-950/40">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="text-center max-w-3xl mx-auto space-y-2">
-      <h2 class="text-3xl font-bold text-white tracking-tight">Архитектура программного комплекса</h2>
-      <p class="text-sm text-slate-400">Построена в строгом соответствии с принципами разделения ответственности (Separation of Concerns).</p>
-    </div>
+<section id="codegen-engine" class="relative h-[300vh] bg-[#FAFAFE] border-t border-[#E5E0F8]">
 
-    <div class="grid md:grid-cols-4 gap-6 mt-12">
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded">
-        <h4 class="font-mono text-xs text-cyan-400 mb-1">Слой 1</h4>
-        <h3 class="text-md font-bold text-white mb-2">Model Layer</h3>
-        <p class="text-xs text-slate-400">Независимое хранилище состояния (UMLDiagram, UMLNode). Находится под управлением Pydantic, гарантируя чистоту данных.</p>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded">
-        <h4 class="font-mono text-xs text-cyan-400 mb-1">Слой 2</h4>
-        <h3 class="text-md font-bold text-white mb-2">View Layer</h3>
-        <p class="text-xs text-slate-400">Интерфейс на PyQt6. Подписывается на сигналы изменений, отрисовывая холст, карточки классов и связи.</p>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded">
-        <h4 class="font-mono text-xs text-cyan-400 mb-1">Слой 3</h4>
-        <h3 class="text-md font-bold text-white mb-2">Controller Layer</h3>
-        <p class="text-xs text-slate-400">Посредник (DiagramController). Преобразует действия пользователя во View в команды изменения Model.</p>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded">
-        <h4 class="font-mono text-xs text-cyan-400 mb-1">Слой 4</h4>
-        <h3 class="text-md font-bold text-white mb-2">Service Layer</h3>
-        <p class="text-xs text-slate-400">Специфическая бизнес-логика: сериализация в JSON, генерация кода через Jinja2, менеджер истории (Undo/Redo).</p>
-      </div>
-    </div>
+  <div class="sticky top-0 h-screen flex flex-col justify-between overflow-hidden py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-grow flex flex-col justify-center">
 
-    <div class="mt-12 bg-slate-900 border border-slate-800 p-6 rounded-lg text-center">
-      <h3 class="text-sm font-mono text-slate-400 uppercase tracking-wider mb-4">Технологический стек</h3>
-      <div class="flex flex-wrap justify-center gap-6 text-sm font-mono">
-        <div class="px-3 py-1.5 bg-slate-800 rounded border border-slate-700 text-slate-300">Python 3.x</div>
-        <div class="px-3 py-1.5 bg-slate-800 rounded border border-slate-700 text-indigo-400">PyQt6 (GUI Engine)</div>
-        <div class="px-3 py-1.5 bg-slate-800 rounded border border-slate-700 text-emerald-400">Pydantic (Validation)</div>
-        <div class="px-3 py-1.5 bg-slate-800 rounded border border-slate-700 text-orange-400">Jinja2 (Templates Engine)</div>
-        <div class="px-3 py-1.5 bg-slate-800 rounded border border-slate-700 text-slate-400">Pytest / PyInstaller</div>
+      <div class="text-center max-w-3xl mx-auto space-y-3 mb-12">
+        <span class="text-sm font-bold font-mono text-[#7C3AED] uppercase tracking-wider bg-[#F3EEFF] px-4 py-1.5 rounded-full border border-[#D4C9F8]">
+          Services / CodeGenerator
+        </span>
+        <h2 class="text-3xl sm:text-4xl font-bold text-[#1F1F1F]">Механизм трансляции UML в исходный код</h2>
+        <p class="text-base text-[#6B7280]">Техническое обоснование автоматизации кодогенерации на основе метаданных модели</p>
+      </div>
+
+      <div class="grid lg:grid-cols-12 gap-8 items-stretch h-[55vh]">
+
+        <div class="lg:col-span-5 flex flex-col justify-center space-y-4 relative z-10">
+
+          <div data-step="1" class="step-card p-5 bg-white rounded-xl border border-[#7C3AED] shadow-sm transition-all duration-300 opacity-100 scale-100">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-sm font-bold text-[#1F1F1F] font-mono uppercase">01. Экспорт и анализ</h4>
+              <span class="text-xs font-mono font-bold px-2 py-0.5 bg-[#F3EEFF] text-[#7C3AED] rounded border border-[#D4C9F8]">JSON Graph</span>
+            </div>
+            <p class="text-sm text-[#6B7280] leading-relaxed">Сериализация графа диаграммы из <code class="text-xs bg-[#FAFAFE] px-1 rounded border">UMLDiagram</code> в структурированные метаданные. Метод <code class="text-xs bg-[#FAFAFE] px-1 rounded border">_build_inheritance_map</code> строит карту наследования классов.</p>
+          </div>
+
+          <div data-step="2" class="step-card p-5 bg-white rounded-xl border border-[#E5E0F8] opacity-40 transition-all duration-300 scale-95">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-sm font-bold text-[#1F1F1F] font-mono uppercase">02. Маппинг полиморфных типов</h4>
+              <span class="text-xs font-mono font-bold px-2 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100">Type Mapping</span>
+            </div>
+            <p class="text-sm text-[#6B7280] leading-relaxed">Компонент <code class="text-xs bg-[#FAFAFE] px-1 rounded border">LANGUAGE_CONFIGS</code> подменяет абстрактные сущности (string, list) на строгие примитивы конкретных целевых платформ.</p>
+          </div>
+
+          <div data-step="3" class="step-card p-5 bg-white rounded-xl border border-[#E5E0F8] opacity-40 transition-all duration-300 scale-95">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-sm font-bold text-[#1F1F1F] font-mono uppercase">03. Рендеринг Jinja2</h4>
+              <span class="text-xs font-mono font-bold px-2 py-0.5 bg-green-50 text-green-600 rounded border border-green-100">Jinja2 Engine</span>
+            </div>
+            <p class="text-sm text-[#6B7280] leading-relaxed">Слияние очищенных метаданных со строгими файлами шаблонов (<code class="text-xs bg-[#FAFAFE] px-1 rounded border">python_class.j2</code> / <code class="text-xs bg-[#FAFAFE] px-1 rounded border">java_class.j2</code>) и выгрузка готовых файлов.</p>
+          </div>
+
+        </div>
+
+        <div class="lg:col-span-7 relative bg-white rounded-xl border border-[#E5E0F8] shadow-lg overflow-hidden flex flex-col h-full">
+
+          <div class="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 text-white z-20">
+            <div class="flex items-center space-x-2">
+              <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-green-500/80"></span>
+              <span id="editor-title" class="text-xs text-slate-400 font-mono pl-2 transition-all duration-200">UML Metadata Input</span>
+            </div>
+            <div class="text-xs font-mono">
+              <span id="editor-badge" class="px-2.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 transition-all duration-200">diagram.json</span>
+            </div>
+          </div>
+
+          <div class="relative flex-grow bg-[#151515] p-5 font-mono text-xs overflow-y-auto text-slate-300 leading-relaxed">
+
+            <div id="visual-content-1" class="visual-pane absolute inset-0 p-5 transition-all duration-500 opacity-100 scale-100 z-10 bg-[#151515]">
+              <div class="text-slate-500 mb-2">// Сериализованный граф модели (UMLDiagram)</div>
+              <pre class="text-blue-400"><span class="text-yellow-400">{</span>
+  <span class="text-purple-400">"diagram_name"</span>: <span class="text-green-400">"LogicCraft_Core"</span>,
+  <span class="text-purple-400">"nodes"</span>: <span class="text-yellow-400">[</span>
+    <span class="text-indigo-400">{</span>
+      <span class="text-purple-400">"id"</span>: <span class="text-green-400">"n1"</span>,
+      <span class="text-purple-400">"name"</span>: <span class="text-green-400">"CodeGenerator"</span>,
+      <span class="text-purple-400">"node_type"</span>: <span class="text-green-400">"class"</span>,
+      <span class="text-purple-400">"properties"</span>: <span class="text-pink-400">[</span>
+        <span class="text-yellow-400">{"name": "language", "type": "string", "visibility": "private"}</span>
+      <span class="text-pink-400">]</span>
+    <span class="text-indigo-400">}</span>
+  <span class="text-yellow-400">]</span>
+<span class="text-yellow-400">}</span></pre>
+            </div>
+
+            <div id="visual-content-2" class="visual-pane absolute inset-0 p-5 transition-all duration-500 opacity-0 scale-95 pointer-events-none bg-white flex flex-col justify-center">
+              <div class="overflow-hidden border border-[#E5E0F8] rounded-lg text-sm font-mono text-[#1F1F1F]">
+                <table class="min-w-full divide-y divide-[#E5E0F8]">
+                  <thead class="bg-[#F8F6FF]">
+                  <tr>
+                    <th class="px-4 py-2.5 text-left font-bold text-[#7C3AED]">UML Type</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-[#1F1F1F]">Python</th>
+                    <th class="px-4 py-2.5 text-left font-semibold text-[#1F1F1F]">Java</th>
+                  </tr>
+                  </thead>
+                  <tbody class="divide-y divide-[#E5E0F8] bg-white">
+                  <tr><td class="px-4 py-2 font-bold">string</td><td class="px-4 py-2 text-blue-600">str</td><td class="px-4 py-2 text-orange-600">String</td></tr>
+                  <tr class="bg-[#FAFAFE]"><td class="px-4 py-2 font-bold">integer</td><td class="px-4 py-2 text-blue-600">int</td><td class="px-4 py-2 text-orange-600">int</td></tr>
+                  <tr><td class="px-4 py-2 font-bold">list</td><td class="px-4 py-2 text-blue-600">List</td><td class="px-4 py-2 text-orange-600">List&lt;Obj&gt;</td></tr>
+                  <tr class="bg-[#FAFAFE]"><td class="px-4 py-2 font-bold">dict</td><td class="px-4 py-2 text-blue-600">Dict</td><td class="px-4 py-2 text-orange-600">Map&lt;S,O&gt;</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="mt-4 p-3 bg-[#F8F6FF] rounded border border-[#D4C9F8] text-xs text-[#7C3AED] leading-normal">
+                <strong>Инкапсуляция:</strong> <code class="bg-white px-1 rounded">private</code> превращается в <code class="bg-white px-1 rounded">__</code> в Python и в модификатор <code class="bg-white px-1 rounded">private</code> в Java.
+              </div>
+            </div>
+
+            <div id="visual-content-3" class="visual-pane absolute inset-0 p-5 transition-all duration-500 opacity-0 scale-95 pointer-events-none bg-[#151515]">
+              <span class="text-purple-400">{% for</span> node <span class="text-purple-400">in</span> nodes <span class="text-purple-400">%}</span><br>
+              &nbsp;&nbsp;<span class="text-blue-400">class</span> <span class="text-yellow-400">{{ node.name | trim }}</span>:<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-purple-400">{% if</span> node.properties <span class="text-purple-400">%}</span><br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-purple-400">{% for</span> prop <span class="text-purple-400">in</span> node.properties <span class="text-purple-400">%}</span><br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_{{ prop.name }}: {{ prop.type }}<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-purple-400">{% endfor %}</span><br>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-purple-400">{% endif %}</span><br>
+              <span class="text-purple-400">{% endfor %}</span>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
+
+  <div class="absolute inset-x-0 top-0 h-full pointer-events-none flex flex-col justify-between">
+    <div id="trigger-1" class="h-[33vh]"></div>
+    <div id="trigger-2" class="h-[33vh]"></div>
+    <div id="trigger-3" class="h-[34vh]"></div>
+  </div>
 </section>
 
-<section id="team" class="py-16 border-t border-slate-800">
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const steps = document.querySelectorAll('.step-card');
+    const title = document.getElementById('editor-title');
+    const badge = document.getElementById('editor-badge');
+
+    // Конфигурация для изменения верхнего бара панели редактора
+    const statesData = {
+      1: { title: 'UML Metadata Input', badge: 'diagram.json' },
+      2: { title: 'Type Poly-Morphing Engine', badge: 'config.py' },
+      3: { title: 'Jinja2 Template Rendering', badge: 'python_class.j2' }
+    };
+
+    const updateActiveStep = (stepNumber) => {
+      // 1. Активируем нужную текстовую карточку слева
+      steps.forEach(step => {
+        if (step.getAttribute('data-step') == stepNumber) {
+          step.classList.remove('opacity-40', 'scale-95', 'border-[#E5E0F8]');
+          step.classList.add('opacity-100', 'scale-100', 'border-[#7C3AED]', 'shadow-sm');
+        } else {
+          step.classList.remove('opacity-100', 'scale-100', 'border-[#7C3AED]', 'shadow-sm');
+          step.classList.add('opacity-40', 'scale-95', 'border-[#E5E0F8]');
+        }
+      });
+
+      // 2. Переключаем вкладки визуального контента справа
+      document.querySelectorAll('.visual-pane').forEach(pane => {
+        if (pane.id === `visual-content-stepNumber`) { // Динамически вычисляем ID ниже
+          pane.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+          pane.classList.add('opacity-100', 'scale-100');
+        }
+      });
+
+      for(let i = 1; i <= 3; i++) {
+        const pane = document.getElementById(`visual-content-${i}`);
+        if(i === parseInt(stepNumber)) {
+          pane.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+          pane.classList.add('opacity-100', 'scale-100');
+        } else {
+          pane.classList.remove('opacity-100', 'scale-100');
+          pane.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+        }
+      }
+
+      // 3. Обновляем метаданные в верхней плашке редактора
+      if (statesData[stepNumber]) {
+        title.textContent = statesData[stepNumber].title;
+        badge.textContent = statesData[stepNumber].badge;
+      }
+    };
+
+    // Отслеживаем скролл пользователя с помощью IntersectionObserver
+    const observerOptions = {
+      root: null,
+      rootMargin: '-30% 0px -40% 0px', // Реагирует, когда триггер находится в центральной области экрана
+      threshold: 0
+    };
+
+    for (let i = 1; i <= 3; i++) {
+      const trigger = document.getElementById(`trigger-${i}`);
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            updateActiveStep(i);
+          }
+        });
+      }, observerOptions);
+      if (trigger) observer.observe(trigger);
+    }
+  });
+</script>
+
+<section id="architecture" class="py-20 bg-white border-t border-[#E5E0F8]">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="text-center max-w-3xl mx-auto space-y-2 mb-12">
-      <h2 class="text-3xl font-bold text-white tracking-tight">Разработчики проекта</h2>
-      <p class="text-sm text-slate-400">Разделение ролей и зон ответственности внутри проектной группы</p>
+    <div class="text-center max-w-3xl mx-auto space-y-3">
+      <h2 class="text-4xl font-bold text-[#1F1F1F]">Архитектурная декомпозиция комплекса</h2>
+      <p class="text-base text-[#6B7280]">Обеспечение слабой связанности (Loose Coupling) через механизм сигналов и слотов PyQt6.</p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-16">
+      <div class="bg-[#FAFAFE] border border-[#E5E0F8] p-6 rounded-xl shadow-sm">
+        <div class="text-sm font-mono text-[#9B72F5] uppercase font-bold mb-1">Слой 1</div>
+        <h4 class="font-bold text-[#1F1F1F] text-lg mb-2">Model (Модель)</h4>
+        <p class="text-sm text-[#6B7280] leading-relaxed">Изолированное хранилище состояния предметной области (`UMLDiagram`, `UMLNode`). Полностью независимо от графического интерфейса.</p>
+      </div>
+      <div class="bg-[#FAFAFE] border border-[#E5E0F8] p-6 rounded-xl shadow-sm">
+        <div class="text-sm font-mono text-[#9B72F5] uppercase font-bold mb-1">Слой 2</div>
+        <h4 class="font-bold text-[#1F1F1F] text-lg mb-2">View (Представление)</h4>
+        <p class="text-sm text-[#6B7280] leading-relaxed">Визуализация данных на базе компонентов `QGraphicsScene` и `UMLCard`. Подписывается на сигналы изменений и отображает UI.</p>
+      </div>
+      <div class="bg-[#FAFAFE] border border-[#E5E0F8] p-6 rounded-xl shadow-sm">
+        <div class="text-sm font-mono text-[#9B72F5] uppercase font-bold mb-1">Слой 3</div>
+        <h4 class="font-bold text-[#1F1F1F] text-lg mb-2">Controller (Контроллер)</h4>
+        <p class="text-sm text-[#6B7280] leading-relaxed">Связующее звено (`DiagramController`). Обрабатывает сигналы пользовательского ввода из View и обновляет состояние Model.</p>
+      </div>
+      <div class="bg-[#FAFAFE] border border-[#E5E0F8] p-6 rounded-xl shadow-sm">
+        <div class="text-sm font-mono text-[#9B72F5] uppercase font-bold mb-1">Слой 4</div>
+        <h4 class="font-bold text-[#1F1F1F] text-lg mb-2">Services (Сервисы)</h4>
+        <p class="text-sm text-[#6B7280] leading-relaxed">Выделенная сложная логика: генератор кода `code_generator.py`, сервис истории действий и менеджер сериализации.</p>
+      </div>
+    </div>
+
+    <div class="mt-12 bg-[#F8F6FF] border border-[#D4C9F8] p-8 rounded-xl">
+      <h4 class="text-center text-sm font-mono text-[#7C3AED] uppercase tracking-wider font-bold mb-5">Реализованный технологический стек</h4>
+      <div class="flex flex-wrap justify-center gap-4 text-sm font-mono font-semibold">
+        <span class="px-4 py-2 bg-white rounded-lg border border-[#D4C9F8] text-[#1F1F1F]">Python 3.x</span>
+        <span class="px-4 py-2 bg-white rounded-lg border border-[#D4C9F8] text-[#7C3AED]">PyQt6 (GUI Engine)</span>
+        <span class="px-4 py-2 bg-white rounded-lg border border-[#D4C9F8] text-[#7C3AED]">Pydantic (Validation)</span>
+        <span class="px-4 py-2 bg-white rounded-lg border border-[#D4C9F8] text-[#7C3AED]">Jinja2 (Templates Engine)</span>
+        <span class="px-4 py-2 bg-white rounded-lg border border-[#D4C9F8] text-[#1F1F1F]">Pytest / PyInstaller</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="team" class="py-20 border-t border-[#E5E0F8]">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-3xl mx-auto space-y-3 mb-16">
+      <h2 class="text-4xl font-bold text-[#1F1F1F]">Проектная группа</h2>
+      <p class="text-base text-[#6B7280]">Распределение обязанностей по разработке архитектурных слоев</p>
     </div>
 
     <div class="grid md:grid-cols-3 gap-8">
-      <div class="bg-slate-800/50 border border-slate-800 rounded-lg p-6 flex flex-col justify-between hover:border-slate-700 transition">
+      <div class="bg-white border-2 border-[#E5E0F8] rounded-2xl p-8 flex flex-col justify-between shadow-sm hover:border-[#C4B5FD] transition">
         <div class="space-y-4">
-          <div class="w-12 h-12 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded flex items-center justify-center font-bold font-mono text-xl">АВ</div>
+          <div class="w-14 h-14 bg-[#F3EEFF] text-[#7C3AED] border border-[#D4C9F8] rounded-xl flex items-center justify-center font-bold font-mono text-xl">АВ</div>
           <div>
-            <h3 class="text-lg font-bold text-white">Важенин А. Р.</h3>
-            <p class="text-xs font-mono text-indigo-400">Техник-программист</p>
+            <h3 class="text-xl font-bold text-[#1F1F1F]">Важенин А. Р.</h3>
+            <p class="text-sm font-mono text-[#7C3AED] font-bold">Техник-программист</p>
           </div>
-          <p class="text-xs text-slate-400 leading-relaxed">
-            Главный архитектор системы. Проектирование сквозного взаимодействия слоев MVC, разработка DiagramController, интеграция слоев и связывание логики приложения.
+          <p class="text-sm text-[#6B7280] leading-relaxed">
+            Главный архитектор системы. Проектирование сквозного взаимодействия компонентов MVC, реализация класса `DiagramController`, связывание сигналов и слотов, а также управление точкой входа приложения.
           </p>
         </div>
-        <div class="mt-6 pt-4 border-t border-slate-800/60 text-xs font-mono text-slate-500">
-          Core Architecture / Controller
+        <div class="mt-8 pt-4 border-t border-[#E5E0F8] text-sm font-mono text-[#9B72F5] font-bold tracking-wide">
+          Core Architecture / Controller Layer
         </div>
       </div>
 
-      <div class="bg-slate-800/50 border border-slate-800 rounded-lg p-6 flex flex-col justify-between hover:border-slate-700 transition">
+      <div class="bg-white border-2 border-[#E5E0F8] rounded-2xl p-8 flex flex-col justify-between shadow-sm hover:border-[#C4B5FD] transition">
         <div class="space-y-4">
-          <div class="w-12 h-12 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded flex items-center justify-center font-bold font-mono text-xl">СБ</div>
+          <div class="w-14 h-14 bg-[#F3EEFF] text-[#7C3AED] border border-[#D4C9F8] rounded-xl flex items-center justify-center font-bold font-mono text-xl">СБ</div>
           <div>
-            <h3 class="text-lg font-bold text-white">Болясников С. Д.</h3>
-            <p class="text-xs font-mono text-emerald-400">Инженер-программист</p>
+            <h3 class="text-xl font-bold text-[#1F1F1F]">Болясников С. Д.</h3>
+            <p class="text-sm font-mono text-[#7C3AED] font-bold">Инженер-программист</p>
           </div>
-          <p class="text-xs text-slate-400 leading-relaxed">
-            Ответственный за слой данных и генерацию. Проектирование Pydantic-моделей (UMLNode, UMLDiagram), сериализация в JSON, разработка Jinja2 шаблонов для Python и Java. Разработка валидатора циклов.
+          <p class="text-sm text-[#6B7280] leading-relaxed">
+            Разработка слоя моделей (`Model Layer`) на базе Pydantic. Создание механизмов сериализации структуры в JSON файлы, написание транслятора кода на Jinja2 и алгоритмов проверки графа на циклы.
           </p>
         </div>
-        <div class="mt-6 pt-4 border-t border-slate-800/60 text-xs font-mono text-slate-500">
-          Model Layer / CodeGen Engine
+        <div class="mt-8 pt-4 border-t border-[#E5E0F8] text-sm font-mono text-[#9B72F5] font-bold tracking-wide">
+          Model Layer / CodeGen Service
         </div>
       </div>
 
-      <div class="bg-slate-800/50 border border-slate-800 rounded-lg p-6 flex flex-col justify-between hover:border-slate-700 transition">
+      <div class="bg-white border-2 border-[#E5E0F8] rounded-2xl p-8 flex flex-col justify-between shadow-sm hover:border-[#C4B5FD] transition">
         <div class="space-y-4">
-          <div class="w-12 h-12 bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 rounded flex items-center justify-center font-bold font-mono text-xl">ДБ</div>
+          <div class="w-14 h-14 bg-[#F3EEFF] text-[#7C3AED] border border-[#D4C9F8] rounded-xl flex items-center justify-center font-bold font-mono text-xl">ДБ</div>
           <div>
-            <h3 class="text-lg font-bold text-white">Беспрозванных Д. С.</h3>
-            <p class="text-xs font-mono text-cyan-400">Специалист по UX/UI</p>
+            <h3 class="text-xl font-bold text-[#1F1F1F]">Беспрозванных Д. С.</h3>
+            <p class="text-sm font-mono text-[#7C3AED] font-bold">Специалист по UX/UI</p>
           </div>
-          <p class="text-xs text-slate-400 leading-relaxed">
-            Разработка визуального интерфейса приложения на PyQt6. Реализация интерактивного холста QGraphicsScene, кастомных карточек UMLCard, динамического пересчета геометрии линий связи и панели свойств.
+          <p class="text-sm text-[#6B7280] leading-relaxed">
+            Проектирование и реализация слоя представления (`View Layer`). Создание интерактивного холста `DiagramScene`, кастомных карточек `UMLCard`, геометрии связей `ConnectionLine` и боковой панели свойств.
           </p>
         </div>
-        <div class="mt-6 pt-4 border-t border-slate-800/60 text-xs font-mono text-slate-500">
-          View Layer / QGraphicsScene UI
+        <div class="mt-8 pt-4 border-t border-[#E5E0F8] text-sm font-mono text-[#9B72F5] font-bold tracking-wide">
+          View Layer / Graphics UI Engine
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<footer class="border-t border-slate-800 bg-slate-950 py-8 text-center text-xs font-mono text-slate-500">
+<footer class="border-t border-[#E5E0F8] bg-white py-10 text-center text-sm font-mono text-[#6B7280]">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-2">
-    <div>LogicCraft Проектный комплекс защиты © 2026</div>
-    <div>Омский Государственный Педагогический Университет</div>
+    <div class="font-bold text-[#1F1F1F] text-base">Программный комплекс LogicCraft © 2026</div>
+    <div>Омский Государственный Педагогический Университет (ОмГПУ)</div>
   </div>
 </footer>
 
