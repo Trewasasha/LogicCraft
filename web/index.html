@@ -182,10 +182,10 @@
 
     <div class="text-center max-w-3xl mx-auto space-y-3 mb-16">
       <span class="text-sm font-bold font-mono text-[#7C3AED] uppercase tracking-wider bg-[#F3EEFF] px-4 py-1.5 rounded-full border border-[#D4C9F8]">
-        Data Schemas / Pydantic V2
+        Core Engine / Performance & Validation
       </span>
-      <h2 class="text-3xl sm:text-4xl font-bold text-[#1F1F1F]">Ядро типизации и валидации данных</h2>
-      <p class="text-base text-[#6B7280]">Строгие декларативные модели для безопасного хранения сущностей, атрибутов и ребер графа диаграммы</p>
+      <h2 class="text-3xl sm:text-4xl font-bold text-[#1F1F1F]">Ядро типизации, валидации и управления состоянием</h2>
+      <p class="text-base text-[#6B7280]">Строгие схемы данных Pydantic V2 в связке с высокопроизводительным потокобезопасным менеджером истории изменений</p>
     </div>
 
     <div class="grid lg:grid-cols-12 gap-8 items-stretch">
@@ -195,10 +195,10 @@
         <div class="space-y-4">
           <button onclick="switchCoreModel(1)" id="core-btn-1" class="core-tab-btn w-full text-left p-5 rounded-xl border-2 border-[#7C3AED] bg-white shadow-sm transition-all duration-200">
             <div class="flex items-center space-x-3 mb-2">
-              <div class="w-2 h-2 rounded-full bg-[#7C3AED]"></div>
+              <div class="w-2 h-2 rounded-full bg-[#7C3AED] core-dot"></div>
               <h4 class="font-bold text-[#1F1F1F] text-base font-mono">class UMLNode(BaseModel)</h4>
             </div>
-            <p class="text-sm text-[#6B7280] leading-relaxed">Главная сущность графа. Содержит пространственные координаты `(x, y)`, коллекции свойств, сигнатур методов, литералов перечислений и метаданные абстракции.</p>
+            <p class="text-sm text-[#6B7280] leading-relaxed">Сущность графа (класс/интерфейс). Содержит координаты `(x, y)`, коллекции атрибутов, методов, литералов перечислений и метаданные абстракции.</p>
           </button>
 
           <button onclick="switchCoreModel(2)" id="core-btn-2" class="core-tab-btn w-full text-left p-5 rounded-xl border border-[#E5E0F8] bg-white hover:bg-[#FAFAFE] transition-all duration-200">
@@ -208,35 +208,43 @@
             </div>
             <p class="text-sm text-[#6B7280] leading-relaxed">Ребро графа связей. Задает `source_id` и `target_id`, тип объектной связи (от ассоциации до реализации), якорные точки привязки и кратность.</p>
           </button>
+
+          <button onclick="switchCoreModel(3)" id="core-btn-3" class="core-tab-btn w-full text-left p-5 rounded-xl border border-[#E5E0F8] bg-white hover:bg-[#FAFAFE] transition-all duration-200">
+            <div class="flex items-center space-x-3 mb-2">
+              <div class="w-2 h-2 rounded-full bg-gray-300 core-dot"></div>
+              <h4 class="font-bold text-[#1F1F1F] text-base font-mono">HistoryService.push_state()</h4>
+            </div>
+            <p class="text-sm text-[#6B7280] leading-relaxed">Потокобезопасная атомарная запись слепков. Отсекает микродвижения мыши (&lt; 0.5px), чистит ветку Redo при ветвлении и контролирует переполнение ОЗУ.</p>
+          </button>
         </div>
 
         <div class="p-5 bg-white rounded-xl border border-[#E5E0F8] space-y-3 shadow-inner">
           <div class="flex items-center space-x-2 text-[#7C3AED]">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-            <span class="text-xs font-bold font-mono uppercase tracking-wider">Pydantic Runtime Benefits</span>
+            <span class="text-xs font-bold font-mono uppercase tracking-wider">Engine Architectural Features</span>
           </div>
           <ul class="space-y-1.5 text-xs text-[#6B7280] list-disc list-inside">
-            <li>Автоматическая генерация RFC-4122 <code class="bg-[#FAFAFE] px-1 py-0.5 border rounded">UUID4</code> при создании</li>
-            <li>Валидация типов данных «на лету» без накладных расходов</li>
-            <li>Безопасный экспорт схемы во вложенные JSON-структуры</li>
+            <li>Мьютексы блокировки (`with self._lock`) исключают гонку потоков GUI и воркеров</li>
+            <li>Глубокое клонирование `model_copy(deep=True)` вынесено за пределы лока</li>
+            <li>Автоматический прунинг (срезание) неактуальных веток истории Redo</li>
           </ul>
         </div>
 
       </div>
 
-      <div class="lg:col-span-7 bg-[#151515] rounded-xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[520px]">
+      <div class="lg:col-span-7 bg-[#151515] rounded-xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[540px]">
 
         <div class="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 text-white select-none">
           <div class="flex items-center space-x-2">
             <span class="w-2.5 h-2.5 rounded-full bg-[#EF4444]"></span>
             <span class="w-2.5 h-2.5 rounded-full bg-[#F59E0B]"></span>
             <span class="w-2.5 h-2.5 rounded-full bg-[#10B981]"></span>
-            <span class="text-xs text-slate-400 font-mono pl-2">models/diagram.py</span>
+            <span id="core-ide-title" class="text-xs text-slate-400 font-mono pl-2">models/diagram.py</span>
           </div>
-          <div class="text-xs font-mono text-slate-500">Python 3.12 + Pydantic v2</div>
+          <div id="core-ide-badge" class="text-xs font-mono text-slate-500">Pydantic v2 Schema</div>
         </div>
 
-        <div class="relative flex-grow p-6 font-mono text-xs overflow-y-auto leading-relaxed bg-[#151515]">
+        <div class="relative flex-grow p-6 font-mono text-xs overflow-y-auto text-slate-300 leading-relaxed bg-[#151515]">
 
           <div id="core-code-1" class="core-code-pane absolute inset-0 p-6 transition-all duration-300 opacity-100 scale-100 z-10 bg-[#151515]">
             <pre class="text-slate-300 text-[11px] sm:text-xs selection:bg-[#7C3AED]/30"><span class="text-blue-400">class</span> <span class="text-yellow-400">UMLNode</span>(<span class="text-green-400">BaseModel</span>):
@@ -252,7 +260,7 @@
     enum_literals: <span class="text-green-400">List</span>[<span class="text-yellow-400">UMLEnumLiteral</span>] = <span class="text-blue-400">Field</span>(default_factory=<span class="text-cyan-400">list</span>)</pre>
           </div>
 
-          <div id="core-code-2" class="core-code-pane absolute inset-0 p-6 transition-all duration-300 opacity-0 scale-95 pointer-events-none bg-[#151515] overflow-y-auto">
+          <div id="core-code-2" class="core-code-pane absolute inset-0 p-6 transition-all duration-300 opacity-0 scale-95 pointer-events-none bg-[#151515]">
             <pre class="text-slate-300 text-[11px] sm:text-xs selection:bg-[#7C3AED]/30"><span class="text-blue-400">class</span> <span class="text-yellow-400">ConnectionType</span>(<span class="text-cyan-400">str</span>, <span class="text-green-400">Enum</span>):
     association = <span class="text-green-400">"association"</span>
     inheritance = <span class="text-green-400">"inheritance"</span>
@@ -277,6 +285,42 @@
     name: <span class="text-green-400">Optional</span>[<span class="text-cyan-400">str</span>] = <span class="text-orange-400">None</span></pre>
           </div>
 
+          <div id="core-code-3" class="core-code-pane absolute inset-0 p-6 transition-all duration-300 opacity-0 scale-95 pointer-events-none bg-[#151515] overflow-y-auto">
+            <pre class="text-slate-300 text-[11px] sm:text-xs selection:bg-[#7C3AED]/30"><span class="text-blue-400">def</span> <span class="text-cyan-400">push_state</span>(<span class="text-orange-400">self</span>, state: <span class="text-green-400">Union</span>[<span class="text-yellow-400">UMLDiagram</span>, <span class="text-cyan-400">dict</span>]) -> <span class="text-orange-400">None</span>:
+    <span class="text-slate-500">"""Добавляет новое состояние в историю (с фильтрацией микрокликов)"""</span>
+    <span class="text-blue-400">if</span> <span class="text-orange-400">self</span>._is_restoring:
+        <span class="text-blue-400">return</span>
+
+    <span class="text-blue-400">if</span> <span class="text-cyan-400">isinstance</span>(state, <span class="text-cyan-400">dict</span>):
+        <span class="text-blue-400">try</span>:
+            state = <span class="text-yellow-400">UMLDiagram</span>.model_validate(state)
+        <span class="text-blue-400">except</span> <span class="text-green-400">Exception</span> <span class="text-blue-400">as</span> e:
+            logger.error(f<span class="text-green-400">"History: Validation error: {e}"</span>)
+            <span class="text-blue-400">return</span>
+
+    <span class="text-slate-500"># 1. Проверка на дубликат или микро-сдвиг (Deadzone)</span>
+    is_dup, reason = <span class="text-orange-400">self</span>._check_duplicate(state)
+    <span class="text-blue-400">if</span> is_dup:
+        <span class="text-blue-400">return</span>
+
+    <span class="text-slate-500"># 2. Создание глубокой копии вне лока (Оптимизация FPS)</span>
+    new_snapshot = state.model_copy(deep=<span class="text-orange-400">True</span>)
+
+    <span class="text-slate-500"># 3. Атомарная потокобезопасная запись</span>
+    <span class="text-blue-400">with</span> <span class="text-orange-400">self</span>._lock:
+        <span class="text-blue-400">if</span> <span class="text-orange-400">self</span>._current_index &lt; <span class="text-cyan-400">len</span>(<span class="text-orange-400">self</span>._stack) - <span class="text-cyan-400">1</span>:
+            <span class="text-orange-400">self</span>._stack = <span class="text-orange-400">self</span>._stack[:<span class="text-orange-400">self</span>._current_index + <span class="text-cyan-400">1</span>]
+
+        <span class="text-orange-400">self</span>._stack.append(new_snapshot)
+        <span class="text-orange-400">self</span>._current_index += <span class="text-cyan-400">1</span>
+
+        <span class="text-blue-400">if</span> <span class="text-cyan-400">len</span>(<span class="text-orange-400">self</span>._stack) &gt; <span class="text-orange-400">self</span>._max_history:
+            <span class="text-orange-400">self</span>._stack.pop(<span class="text-cyan-400">0</span>)
+            <span class="text-orange-400">self</span>._current_index -= <span class="text-cyan-400">1</span>
+
+    <span class="text-orange-400">self</span>._emit_status()</pre>
+          </div>
+
         </div>
       </div>
 
@@ -286,15 +330,21 @@
 
 <script>
   function switchCoreModel(tabNumber) {
-    const totalTabs = 2;
+    const totalTabs = 3;
     const buttons = document.querySelectorAll('.core-tab-btn');
+
+    const ideMeta = {
+      1: { title: 'models/diagram.py', badge: 'Pydantic Schema' },
+      2: { title: 'models/diagram.py', badge: 'Enum & Relations' },
+      3: { title: 'services/history_service.py', badge: 'State Engine' }
+    };
 
     // Сброс всех кнопок
     buttons.forEach(btn => {
       btn.classList.remove('border-[#7C3AED]', 'shadow-sm', 'border-2');
       btn.classList.add('border-[#E5E0F8]');
 
-      const dot = btn.querySelector('.core-dot, div[class*="bg-[#7C3AED]"]');
+      const dot = btn.querySelector('.core-dot');
       if (dot) {
         dot.className = "w-2 h-2 rounded-full bg-gray-300 core-dot";
       }
@@ -307,10 +357,10 @@
 
     const activeDot = activeBtn.querySelector('.core-dot');
     if (activeDot) {
-      activeDot.className = "w-2 h-2 rounded-full bg-[#7C3AED]";
+      activeDot.className = "w-2 h-2 rounded-full bg-[#7C3AED] core-dot";
     }
 
-    // Переключение отображаемого блока кода
+    // Переключение отображаемого блока кода с анимацией
     for (let i = 1; i <= totalTabs; i++) {
       const pane = document.getElementById(`core-code-${i}`);
       if (i === tabNumber) {
@@ -321,6 +371,10 @@
         pane.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
       }
     }
+
+    // Изменение текстовых метаданных виртуальной IDE
+    document.getElementById('core-ide-title').textContent = ideMeta[tabNumber].title;
+    document.getElementById('core-ide-badge').textContent = ideMeta[tabNumber].badge;
   }
 </script>
 
